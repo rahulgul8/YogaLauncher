@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -66,7 +68,7 @@ fun HomeScreen(
                 )
             }
     ) {
-        // Favorite apps list
+        // Favorite apps list or loading
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -74,52 +76,67 @@ fun HomeScreen(
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.Center
         ) {
-            if (uiState.favoriteApps.isEmpty()) {
-                // Empty state
-                Text(
-                    text = "Swipe up or tap the button below\nto add favorite apps",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(uiState.favoriteApps.take(8)) { app ->
-                        val index = uiState.favoriteApps.indexOf(app)
-                        AppListItem(
-                            app = app,
-                            fontSize = getFontSize(uiState.fontSize),
-                            onClick = { onAppClick(app) },
-                            onLongClick = { onAppLongClick(app, index + 1) }
-                        )
+            when {
+                uiState.isLoading -> {
+                    // Loading state
+                    Text(
+                        text = "Loading apps...",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                uiState.favoriteApps.isEmpty() -> {
+                    // Empty state
+                    Text(
+                        text = "Swipe up or tap the white button below\nto add favorite apps",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                else -> {
+                    // Show favorites
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(uiState.favoriteApps.take(8)) { app ->
+                            val index = uiState.favoriteApps.indexOf(app)
+                            AppListItem(
+                                app = app,
+                                fontSize = getFontSize(uiState.fontSize),
+                                onClick = { onAppClick(app) },
+                                onLongClick = { onAppLongClick(app, index + 1) }
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // Home button at bottom - highly visible
+        // Home button at bottom - highly visible with border
         FloatingActionButton(
             onClick = onOpenAppDrawer,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 48.dp)
-                .size(64.dp),
+                .padding(bottom = 24.dp)
+                .size(72.dp)
+                .border(width = 3.dp, color = Color.Gray, shape = CircleShape),
             shape = CircleShape,
             containerColor = Color.White,
             elevation = FloatingActionButtonDefaults.elevation(
-                defaultElevation = 8.dp,
-                pressedElevation = 12.dp
+                defaultElevation = 12.dp,
+                pressedElevation = 16.dp
             )
         ) {
             Icon(
                 painter = painterResource(android.R.drawable.ic_menu_search),
                 contentDescription = "Open app drawer",
                 tint = Color.Black,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(36.dp)
             )
         }
     }

@@ -8,7 +8,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -71,49 +75,59 @@ fun YogaLauncherApp(
     var showAppDrawer by remember { mutableStateOf(false) }
     var selectingFavoritePosition by remember { mutableStateOf<Int?>(null) }
 
-    Surface(
+    Scaffold(
         modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        HomeScreen(
-            uiState = uiState,
-            onAppClick = { app ->
-                viewModel.launchApp(app)
-            },
-            onAppLongClick = { app, position ->
-                // Long press on favorite app - show app drawer to replace it
-                selectingFavoritePosition = position
-                showAppDrawer = true
-            },
-            onOpenAppDrawer = {
-                selectingFavoritePosition = null
-                showAppDrawer = true
-            }
-        )
-
-        // App drawer bottom sheet
-        if (showAppDrawer) {
-            AppDrawerBottomSheet(
-                apps = uiState.allApps,
-                fontSize = getFontSize(uiState.fontSize),
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        // Ignore scaffold padding, handle insets manually for full-screen experience
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            HomeScreen(
+                uiState = uiState,
                 onAppClick = { app ->
-                    if (selectingFavoritePosition != null) {
-                        // Setting a favorite
-                        viewModel.setFavoriteApp(selectingFavoritePosition!!, app)
-                        showAppDrawer = false
+                    viewModel.launchApp(app)
+                },
+                onAppLongClick = { app, position ->
+                    // Long press on favorite app - show app drawer to replace it
+                    selectingFavoritePosition = position
+                    showAppDrawer = true
+                },
+                onOpenAppDrawer = {
+                    // Only open if apps are loaded
+                    if (!uiState.isLoading && uiState.allApps.isNotEmpty()) {
                         selectingFavoritePosition = null
-                    } else {
-                        // Launching app
-                        viewModel.launchApp(app)
-                        showAppDrawer = false
+                        showAppDrawer = true
                     }
                 },
-                onDismiss = {
-                    showAppDrawer = false
-                    selectingFavoritePosition = null
-                },
-                selectingFavoritePosition = selectingFavoritePosition
+                modifier = Modifier.navigationBarsPadding()
             )
+
+            // App drawer bottom sheet
+            if (showAppDrawer && uiState.allApps.isNotEmpty()) {
+                AppDrawerBottomSheet(
+                    apps = uiState.allApps,
+                    fontSize = getFontSize(uiState.fontSize),
+                    onAppClick = { app ->
+                        if (selectingFavoritePosition != null) {
+                            // Setting a favorite
+                            viewModel.setFavoriteApp(selectingFavoritePosition!!, app)
+                            showAppDrawer = false
+                            selectingFavoritePosition = null
+                        } else {
+                            // Launching app
+                            viewModel.launchApp(app)
+                            showAppDrawer = false
+                        }
+                    },
+                    onDismiss = {
+                        showAppDrawer = false
+                        selectingFavoritePosition = null
+                    },
+                    selectingFavoritePosition = selectingFavoritePosition
+                )
+            }
         }
     }
 }
