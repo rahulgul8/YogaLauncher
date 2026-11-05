@@ -19,7 +19,10 @@ import `in`.tuwi.yogaphone.data.AppModel
 import `in`.tuwi.yogaphone.usage.*
 
 @Composable
-fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: () -> Unit, onDashboard: () -> Unit, onValue: () -> Unit) {
+fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: () -> Unit, onDashboard: () -> Unit, onValue: () -> Unit,
+    categories: List<`in`.tuwi.yogaphone.data.db.CategoryEntity> = emptyList()) {
+    var editCategory by remember { mutableStateOf<`in`.tuwi.yogaphone.data.db.CategoryEntity?>(null) }
+    var pickCategory by remember { mutableStateOf(false) }
     var editTotal by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<AppModel?>(null) }
     var query by remember { mutableStateOf("") }
@@ -74,6 +77,15 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
                 trailingContent = { TextButton(onClick = { viewModel.saveRule(rule.targetPackage, null) }) { Text("Remove") } },
                 modifier = Modifier.clickable(enabled = app != null) { selected = app })
         }
+        item { SectionTitle("Category limits") }
+        items(state.rules.filter { it.scope == "CATEGORY" }, key = { it.id }) { rule ->
+            val category = categories.firstOrNull { it.id == rule.targetPackage }
+            ListItem(headlineContent = { Text(category?.name ?: rule.targetPackage.orEmpty()) },
+                supportingContent = { Text("${rule.dailyAllowanceMinutes} min a day") },
+                trailingContent = { TextButton(onClick = { viewModel.saveCategoryRule(rule.targetPackage.orEmpty(), null) }) { Text("Remove") } },
+                modifier = Modifier.clickable(enabled = category != null) { editCategory = category })
+        }
+        item { TextButton(onClick = { pickCategory = true }, modifier = Modifier.padding(horizontal = 16.dp)) { Text("Add a category limit") } }
         item { SectionTitle("Apps · classification and limits") }
         item { OutlinedTextField(query, { query = it }, label = { Text("Find an app") }, modifier = Modifier.fillMaxWidth().padding(16.dp), singleLine = true) }
         items(state.apps.distinctBy { it.appPackage }.filter { it.displayLabel.contains(query, true) }, key = { it.appPackage }) { app ->
@@ -81,6 +93,22 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
                 modifier = Modifier.heightIn(min = 64.dp).clickable { selected = app })
         }
         item { TextButton(onClick = { clearHistory = true }, modifier = Modifier.padding(16.dp)) { Text("Delete saved usage history") } }
+    }
+    if (pickCategory) AlertDialog(onDismissRequest = { pickCategory = false }, title = { Text("Limit a category") },
+        text = {
+            LazyColumn(Modifier.heightIn(max = 360.dp)) {
+                items(categories, key = { it.id }) { category ->
+                    Text(category.name, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        .clickable { pickCategory = false; editCategory = category }.padding(vertical = 12.dp))
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { pickCategory = false }) { Text("Close") } })
+    editCategory?.let { category ->
+        val current = state.rules.firstOrNull { it.scope == "CATEGORY" && it.targetPackage == category.id }
+        AllowanceEditor("${category.name} a day", current?.dailyAllowanceMinutes, { editCategory = null }) {
+            viewModel.saveCategoryRule(category.id, it)
+        }
     }
     if (editTotal) AllowanceEditor("Daily allowance", total?.dailyAllowanceMinutes, { editTotal = false }) { viewModel.saveRule(null, it) }
     selected?.let { UsageAppSheet(it, state, viewModel) { selected = null } }

@@ -61,6 +61,8 @@ data class FocusScheduleEntity(
     val startMinuteOfDay: Int,
     val endMinuteOfDay: Int,
     val enabled: Boolean = true,
+    /** False for schedules that only switch a profile. */
+    val startsFocus: Boolean = true,
 )
 
 @Entity(tableName = "intervention_events")

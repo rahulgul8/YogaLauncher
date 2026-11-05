@@ -139,7 +139,7 @@ class FocusRepository(
     suspend fun endFocus() = locked {
         val active = dao.activeFocus() ?: return@locked
         if (active.scheduleId != null) {
-            ScheduleEvaluator.activeAt(dao.schedules().map { it.toWindow() }, Instant.now(), ZoneId.systemDefault())
+            ScheduleEvaluator.activeAt(dao.schedules().filter { it.startsFocus }.map { it.toWindow() }, Instant.now(), ZoneId.systemDefault())
                 ?.takeIf { it.window.id == active.scheduleId }
                 ?.let { prefs.setSuppressedSpan("${it.window.id}|${it.start.toEpochMilli()}") }
         }
@@ -185,7 +185,7 @@ class FocusRepository(
         syncTimebox(dao.latestTimebox())
         val now = now()
         val zone = ZoneId.systemDefault()
-        val windows = dao.schedules().map { it.toWindow() }
+        val windows = dao.schedules().filter { it.startsFocus }.map { it.toWindow() }
         val span = ScheduleEvaluator.activeAt(windows, Instant.ofEpochMilli(now), zone)
         var active = dao.activeFocus()
         if (active != null) {

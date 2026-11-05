@@ -37,6 +37,7 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
         app.usagePrefs.update(transform); refresh()
     }
     fun saveRule(pkg: String?, minutes: Int?) = viewModelScope.launch { repository.saveRule(pkg, minutes); refresh() }
+    fun saveCategoryRule(categoryId: String, minutes: Int?) = viewModelScope.launch { repository.saveCategoryRule(categoryId, minutes); refresh() }
     fun threshold(value: Int) = viewModelScope.launch { repository.setThreshold(value); refresh() }
     fun classify(pkg: String, essential: Boolean, distracting: Boolean) = viewModelScope.launch {
         repository.classify(pkg, essential, distracting); refresh()

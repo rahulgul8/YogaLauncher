@@ -46,6 +46,8 @@ fun SettingsScreen(
     onUsageRules: () -> Unit,
     onValueOfTime: () -> Unit,
     onFocus: () -> Unit,
+    onProfiles: () -> Unit,
+    onCategories: () -> Unit,
 ) {
     val context = LocalContext.current
     var isDefault by remember { mutableStateOf(isDefaultHome(context)) }
@@ -94,6 +96,8 @@ fun SettingsScreen(
         item { SettingsRow("Home and appearance", "Theme, type, clock, date and layout", onAppearance) }
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
         item { SectionTitle("Apps") }
+        item { SettingsRow("Profiles", "Different homes for work, reading and more", onProfiles) }
+        item { SettingsRow("Categories", "Automatic categories, your own, drawer grouping", onCategories) }
         item { SettingsRow("Hidden apps", "Review and unhide apps", onHiddenApps) }
         item { SettingsRow("Reset custom names", "Restore every app's installed name", onResetNames) }
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }

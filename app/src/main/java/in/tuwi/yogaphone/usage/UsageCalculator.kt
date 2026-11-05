@@ -47,7 +47,7 @@ class UsageCalculator(private val ownPackage: String) {
     }
 }
 
-enum class RuleScope { TOTAL, APP }
+enum class RuleScope { TOTAL, APP, CATEGORY }
 enum class RuleState { UNDER, NEAR, OVER }
 data class UsageRule(val id: String, val scope: RuleScope, val targetPackage: String?, val dailyAllowanceMinutes: Int,
     val warnAtPercent: Int = 80, val enabled: Boolean = true)
@@ -56,9 +56,19 @@ data class RuleResult(val rule: UsageRule, val used: Long, val allowance: Int, v
 data class RuleEvaluation(val rules: List<RuleResult>, val overall: RuleResult?)
 
 class RuleEvaluator {
-    fun evaluate(rules: List<UsageRule>, eligibleMinutes: Map<String, Long>, appMinutes: Map<String, Long> = eligibleMinutes): RuleEvaluation {
+    /** For CATEGORY rules, [UsageRule.targetPackage] holds the category id and [categoryOf] maps packages to categories. */
+    fun evaluate(
+        rules: List<UsageRule>,
+        eligibleMinutes: Map<String, Long>,
+        appMinutes: Map<String, Long> = eligibleMinutes,
+        categoryOf: Map<String, String> = emptyMap(),
+    ): RuleEvaluation {
         val results = rules.filter { it.enabled && it.dailyAllowanceMinutes > 0 }.map { rule ->
-            val used = if (rule.scope == RuleScope.TOTAL) eligibleMinutes.values.sum() else appMinutes[rule.targetPackage] ?: 0
+            val used = when (rule.scope) {
+                RuleScope.TOTAL -> eligibleMinutes.values.sum()
+                RuleScope.APP -> appMinutes[rule.targetPackage] ?: 0
+                RuleScope.CATEGORY -> appMinutes.filterKeys { categoryOf[it] == rule.targetPackage }.values.sum()
+            }
             val state = when {
                 used > rule.dailyAllowanceMinutes -> RuleState.OVER
                 rule.warnAtPercent in 1..100 && used * 100 >= rule.dailyAllowanceMinutes.toLong() * rule.warnAtPercent -> RuleState.NEAR

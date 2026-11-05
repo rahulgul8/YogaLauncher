@@ -58,14 +58,20 @@ fun AppDrawerBottomSheet(
     onDismiss: () -> Unit,
     replacingApp: AppModel? = null,
     isPaused: (AppModel) -> Boolean = { false },
+    /** Section title for each app when the drawer is grouped by category; null keeps one alphabetical list. */
+    groupOf: ((AppModel) -> String)? = null,
+    /** Apps the active profile tucks away; reachable with "All apps". */
+    otherApps: List<AppModel> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     var showPaused by remember { mutableStateOf(false) }
+    var showOthers by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    val matches = remember(apps, query) {
-        rankAppSearch(apps.map { SearchableApp(it.displayLabel, it) }, query)
+    val searchable = if (query.isNotBlank() || showOthers) apps + otherApps else apps
+    val matches = remember(searchable, query) {
+        rankAppSearch(searchable.map { SearchableApp(it.displayLabel, it) }, query)
     }
 
     LaunchedEffect(Unit) { delay(150); focusRequester.requestFocus(); keyboard?.show() }
@@ -114,15 +120,29 @@ fun AppDrawerBottomSheet(
                 val grouped = query.isBlank() && replacingApp == null
                 val visible = if (grouped) matches.filterNot(isPaused) else matches
                 val paused = if (grouped) matches.filter(isPaused) else emptyList()
-                items(visible, key = { "${it.appPackage}:${it.activityClassName}" }) { app ->
-                    DrawerAppRow(
-                        app = app,
-                        fontSize = fontSize,
-                        highlighted = query.isNotBlank() && matches.size == 1,
-                        deemphasized = isPaused(app),
-                        onClick = { onAppClick(app, query) },
-                        onLongClick = { if (replacingApp == null) onAppLongClick(app) },
-                    )
+                val sections = if (grouped && groupOf != null) visible.groupBy(groupOf).toSortedMap().toList()
+                else listOf("" to visible)
+                sections.forEach { (title, sectionApps) ->
+                    if (title.isNotEmpty()) item(key = "section:$title") {
+                        Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 16.dp, bottom = 4.dp))
+                    }
+                    items(sectionApps, key = { "${it.appPackage}:${it.activityClassName}" }) { app ->
+                        DrawerAppRow(
+                            app = app,
+                            fontSize = fontSize,
+                            highlighted = query.isNotBlank() && matches.size == 1,
+                            deemphasized = isPaused(app),
+                            onClick = { onAppClick(app, query) },
+                            onLongClick = { if (replacingApp == null) onAppLongClick(app) },
+                        )
+                    }
+                }
+                if (query.isBlank() && otherApps.isNotEmpty() && !showOthers) item(key = "all-apps") {
+                    TextButton(onClick = { showOthers = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text("All apps (${otherApps.size} more)", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth())
+                    }
                 }
                 if (paused.isNotEmpty()) {
                     item(key = "paused-header") {

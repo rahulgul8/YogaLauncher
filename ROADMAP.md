@@ -484,3 +484,10 @@ OEM event feeds, notification permission, DST/timezone and midnight rollover) re
 - [x] Optional greyscale launcher and Do Not Disturb during focus, restored afterwards only if Yoga changed them.
 - [x] Mindful pause before distracting apps (2–10 s, +5 s during focus), purpose chips, "don't ask again" window, per-app opt-out; outcomes recorded.
 - [x] Streak count (days with a completed focus session or timebox) shown in completion messages.
+
+## Piece 4a — Categories and profiles (6 November 2026)
+
+- [x] Built-in and custom categories with local auto-categorisation; recategorise from the drawer or the Categories screen; optional drawer grouping.
+- [x] Category-level daily limits in Usage rules and per-category totals on the usage dashboard.
+- [x] Profiles (Priority 2): own ordered home apps, optional "tuck other apps away" with an All apps escape, start focus, theme override.
+- [x] Profile switcher on home (active profile always labelled) and a profile manager; schedule-linked automatic switching where a manual switch wins until the window ends.

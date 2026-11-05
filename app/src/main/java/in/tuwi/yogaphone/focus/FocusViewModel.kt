@@ -75,6 +75,9 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
     fun refresh() = viewModelScope.launch {
         ticker.value = System.currentTimeMillis()
         runCatching { repository.reconcile() }
+        runCatching {
+            app.organizeRepository.reconcileSchedules()?.profile?.let { if (it.focusOnActivate) repository.startFocus(null) }
+        }
         streak.value = runCatching { repository.streak() }.getOrDefault(0)
     }
 

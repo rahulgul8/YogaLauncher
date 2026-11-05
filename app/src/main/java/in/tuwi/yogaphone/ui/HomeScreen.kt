@@ -59,6 +59,8 @@ fun HomeScreen(
     onExpandNotifications: () -> Unit,
     statusContent: @Composable () -> Unit = {},
     quickActions: @Composable () -> Unit = {},
+    profileLabel: String? = null,
+    onProfileClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -100,6 +102,12 @@ fun HomeScreen(
             horizontalAlignment = horizontalAlignment,
         ) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                if (profileLabel != null) {
+                    TextButton(onClick = onProfileClick, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text("$profileLabel ▾", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.weight(1f))
+                }
                 TextButton(onClick = onOpenSettings, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text("settings", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }

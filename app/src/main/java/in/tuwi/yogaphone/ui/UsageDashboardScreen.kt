@@ -13,7 +13,7 @@ import `in`.tuwi.yogaphone.usage.*
 
 @Composable
 fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: () -> Unit, onSettings: () -> Unit,
-    openDetails: Boolean = false) {
+    openDetails: Boolean = false, categoryNames: Map<String, String> = emptyMap()) {
     var weekly by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<AppModel?>(null) }
     var details by remember(openDetails) { mutableStateOf(openDetails) }
@@ -64,6 +64,15 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
                             Text(TIME_VALUE_EXPLANATION, style = MaterialTheme.typography.bodySmall)
                             TextButton(onClick = { details = true }) { Text("Time value details for today") }
                         }
+                    }
+                }
+                val byCategory = rows.groupBy { s.categoryOf[it.packageName] }
+                    .map { (id, values) -> (categoryNames[id] ?: "Other") to values.sumOf { it.foregroundMinutes } }
+                    .filter { it.second > 0 }.sortedByDescending { it.second }
+                if (byCategory.isNotEmpty()) item {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Text("By category", style = MaterialTheme.typography.titleSmall)
+                        byCategory.forEach { (name, minutes) -> Text("$name · $minutes min", modifier = Modifier.padding(vertical = 4.dp)) }
                     }
                 }
                 if (byApp.isEmpty()) item { Text("No foreground app time recorded in this period.", modifier = Modifier.padding(16.dp)) }

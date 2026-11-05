@@ -61,10 +61,12 @@
 - Temporarily lock non-active profiles.
 
 **Tasks & To-Dos:**
-- [ ] Implement SQLite schema for profile-based app storage.
+- [x] Implement SQLite schema for profile-based app storage. (Room.)
 - [ ] Build ML-based categorization model (TF Lite) to tag new apps.
+  - Deferred: local heuristics (package names, Android app category, keywords) categorise apps for now; revisit ML once there is labelled data.
 - [ ] Develop contextual trigger service (Wi-Fi SSID, GPS geofencing).
-- [ ] Create visual indicator (color bar or label) showing active profile.
+  - Deferred: profiles switch by time schedule today; location and Wi-Fi need extra permissions and a privacy review.
+- [x] Create visual indicator (color bar or label) showing active profile.
 
 ---
 

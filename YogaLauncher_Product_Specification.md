@@ -473,8 +473,8 @@ Each work item should become a ticket with interaction details, states, permissi
 - [x] Build hourly value setup and cost-equivalent calculation.
 - [ ] Design optional overlay/notification cost indicator and safety exclusions.
 - [ ] Test metaphor and copy with prospective users.
-- [ ] Add automatic categories and manual recategorization.
-- [ ] Add grouping and profile modes in Priority 2.
+- [x] Add automatic categories and manual recategorization.
+- [x] Add grouping and profile modes in Priority 2.
 - [ ] Build credible weekly insights and late-night reporting.
 
 ### Launch

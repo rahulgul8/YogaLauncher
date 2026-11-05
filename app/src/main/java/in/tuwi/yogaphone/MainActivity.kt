@@ -49,6 +49,11 @@ import `in`.tuwi.yogaphone.ui.TimeboxCompletionSheet
 import `in`.tuwi.yogaphone.ui.TimeboxControlSheet
 import `in`.tuwi.yogaphone.ui.TimeboxStartSheet
 import `in`.tuwi.yogaphone.usage.RuleState
+import `in`.tuwi.yogaphone.ui.CategoriesScreen
+import `in`.tuwi.yogaphone.ui.CategoryPickerDialog
+import `in`.tuwi.yogaphone.ui.ProfileEditScreen
+import `in`.tuwi.yogaphone.ui.ProfileSwitcherSheet
+import `in`.tuwi.yogaphone.ui.ProfilesScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -83,6 +88,8 @@ private const val SETTINGS = "settings"
 private const val HIDDEN_APPS = "settings/hidden_apps"
 private const val APPEARANCE = "settings/appearance"
 private const val FOCUS_SETTINGS = "settings/focus"
+private const val PROFILES = "settings/profiles"
+private const val CATEGORIES = "settings/categories"
 
 private data class PendingPause(val app: AppModel, val query: String, val seconds: Int, val duringFocus: Boolean)
 
@@ -125,7 +132,9 @@ private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewM
     val uiState by viewModel.uiState.collectAsState()
     val focusState by focusViewModel.state.collectAsState()
     // Greyscale during focus is an override; the chosen theme is never rewritten.
-    val themeMode = if (focusState.focusActive && focusState.preferences.focusGreyscale) ThemeMode.GREYSCALE else uiState.preferences.themeMode
+    val profileTheme = uiState.activeProfile?.themeOverride?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
+    val themeMode = if (focusState.focusActive && focusState.preferences.focusGreyscale) ThemeMode.GREYSCALE
+        else profileTheme ?: uiState.preferences.themeMode
     val activity = androidx.compose.ui.platform.LocalContext.current as ComponentActivity
     val darkIcons = themeUsesDarkIcons(themeMode)
     SideEffect {
@@ -183,6 +192,13 @@ private fun LauncherNavigation(
     var showTimeboxControl by remember { mutableStateOf(false) }
     var showFocusStart by remember { mutableStateOf(false) }
     var showFocusControl by remember { mutableStateOf(false) }
+    var showProfiles by remember { mutableStateOf(false) }
+    var categoryFor by remember { mutableStateOf<AppModel?>(null) }
+
+    fun switchProfile(id: Long?) = viewModel.switchProfile(id) { previous, next ->
+        if (previous?.focusOnActivate == true && focusState.focus?.plannedEndAt == null) focusViewModel.endFocus()
+        if (next?.focusOnActivate == true) focusViewModel.startFocus(null)
+    }
 
     // Every launch from Yoga goes through the mindful-pause gate.
     fun requestLaunch(app: AppModel, query: String = "") {
@@ -244,6 +260,8 @@ private fun LauncherNavigation(
                         focusActive = focusState.focusActive,
                     )
                 },
+                profileLabel = if (uiState.profiles.isNotEmpty()) uiState.activeProfileName else null,
+                onProfileClick = { showProfiles = true },
                 modifier = Modifier,
             )
         }
@@ -257,15 +275,18 @@ private fun LauncherNavigation(
                 onUsageRules = { navController.navigate("settings/usage") },
                 onValueOfTime = { navController.navigate("settings/value") },
                 onFocus = { navController.navigate(FOCUS_SETTINGS) },
+                onProfiles = { navController.navigate(PROFILES) },
+                onCategories = { navController.navigate(CATEGORIES) },
             )
         }
         composable("usage?details={details}", arguments = listOf(androidx.navigation.navArgument("details") { defaultValue = "false" })) { entry ->
             UsageDashboardScreen(usageState, usageViewModel, { navController.popBackStack() },
-                { navController.navigate("settings/usage") }, entry.arguments?.getString("details") == "true")
+                { navController.navigate("settings/usage") }, entry.arguments?.getString("details") == "true",
+                uiState.categories.associate { it.id to it.name })
         }
         composable("settings/usage") {
             UsageSettingsScreen(usageState, usageViewModel, { navController.popBackStack() },
-                { navController.navigate("usage") }, { navController.navigate("settings/value") })
+                { navController.navigate("usage") }, { navController.navigate("settings/value") }, uiState.categories)
         }
         composable("settings/value") {
             ValueOfTimeSettingsScreen(usageState, usageViewModel, { navController.popBackStack() })
@@ -282,6 +303,17 @@ private fun LauncherNavigation(
                 onAlignment = viewModel::setHomeTextAlignment,
             )
         }
+        composable(PROFILES) {
+            ProfilesScreen(uiState, viewModel, { navController.popBackStack() }) { navController.navigate("$PROFILES/$it") }
+        }
+        composable("$PROFILES/{id}") { entry ->
+            val id = entry.arguments?.getString("id")?.toLongOrNull()
+            val profile = uiState.profiles.firstOrNull { it.id == id }
+            if (profile != null) ProfileEditScreen(profile, uiState, focusState.schedules, viewModel) { navController.popBackStack() }
+        }
+        composable(CATEGORIES) {
+            CategoriesScreen(uiState, viewModel) { navController.popBackStack() }
+        }
         composable(FOCUS_SETTINGS) {
             FocusSettingsScreen(focusState, uiState.drawerApps, focusViewModel) { navController.popBackStack() }
         }
@@ -291,6 +323,7 @@ private fun LauncherNavigation(
     }
 
     if (showDrawer) {
+        val categoryNames = uiState.categories.associate { it.id to it.name }
         AppDrawerBottomSheet(
             apps = uiState.drawerApps,
             recentSearches = uiState.preferences.recentSearches,
@@ -306,6 +339,10 @@ private fun LauncherNavigation(
             onAppLongClick = { drawerMenuApp = it; showDrawer = false },
             onDismiss = { showDrawer = false; replacingApp = null },
             isPaused = { focusState.pausedByFocus(it.appPackage) },
+            groupOf = categoryNames.takeIf { uiState.organize.groupDrawerByCategory }?.let { names ->
+                { app: AppModel -> names[uiState.categoryOf[app.appPackage]] ?: "Other" }
+            },
+            otherApps = uiState.otherApps,
         )
     }
 
@@ -327,9 +364,10 @@ private fun LauncherNavigation(
         AppActionSheet(
             app,
             listOf(
-                AppMenuAction(if (app.isFavorite) "Remove from home" else "Add to home") {
-                    viewModel.setFavorite(app, !app.isFavorite)
+                AppMenuAction(if (viewModel.isOnHome(app)) "Remove from home" else "Add to home") {
+                    viewModel.setFavorite(app, !viewModel.isOnHome(app))
                 },
+                AppMenuAction("Category…") { categoryFor = app },
                 AppMenuAction("Rename") { renameApp = app },
                 AppMenuAction("Timebox this app") { timeboxStartFor = app; showTimeboxStart = true },
                 AppMenuAction("Hide") { viewModel.setHidden(app, true) },
@@ -339,6 +377,14 @@ private fun LauncherNavigation(
         ) { drawerMenuApp = null }
     }
     renameApp?.let { app -> RenameAppDialog(app, { renameApp = null }) { viewModel.renameApp(app, it) } }
+
+    if (showProfiles) {
+        ProfileSwitcherSheet(uiState, ::switchProfile, onManage = { navController.navigate(PROFILES) }) { showProfiles = false }
+    }
+    categoryFor?.let { app ->
+        CategoryPickerDialog(app, uiState.categories, uiState.categoryOf[app.appPackage],
+            onPick = { viewModel.setAppCategory(app, it) }, onAdd = { viewModel.addCategory(it, app) }, onDismiss = { categoryFor = null })
+    }
 
     if (showTimeboxStart) {
         val bound = timeboxStartFor

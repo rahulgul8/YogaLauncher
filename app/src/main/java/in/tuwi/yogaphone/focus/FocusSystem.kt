@@ -171,7 +171,13 @@ class FocusReceiver : BroadcastReceiver() {
                     FocusSystem.ACTION_EXTEND_5 -> repository.extendTimebox(5)
                     FocusSystem.ACTION_DONE -> repository.acknowledgeTimebox()
                     // Alarm firings, boot, time and timezone changes all re-check state and reschedule.
-                    else -> repository.reconcile()
+                    else -> {
+                        repository.reconcile()
+                        val app = context.applicationContext as YogaApplication
+                        app.organizeRepository.reconcileSchedules()?.profile?.let { profile ->
+                            if (profile.focusOnActivate) repository.startFocus(null)
+                        }
+                    }
                 }
             } catch (_: Exception) {
             } finally {

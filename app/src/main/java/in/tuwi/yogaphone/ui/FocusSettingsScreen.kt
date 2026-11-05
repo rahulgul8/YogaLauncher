@@ -110,7 +110,7 @@ fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: Fo
         items(state.schedules, key = { it.id }) { schedule ->
             ListItem(
                 headlineContent = { Text(schedule.name) },
-                supportingContent = { Text("${time(schedule.startMinuteOfDay)}–${time(schedule.endMinuteOfDay)} · ${daysLabel(schedule.days)}") },
+                supportingContent = { Text("${time(schedule.startMinuteOfDay)}–${time(schedule.endMinuteOfDay)} · ${daysLabel(schedule.days)}" + if (schedule.startsFocus) "" else " · profile only") },
                 trailingContent = {
                     Row {
                         Switch(checked = schedule.enabled, onCheckedChange = { viewModel.saveSchedule(schedule.copy(enabled = it)) })
@@ -197,6 +197,7 @@ private fun ScheduleDialog(
     var days by remember { mutableStateOf(initial.days.split(',').mapNotNull { it.toIntOrNull() }.toSet()) }
     var start by remember { mutableIntStateOf(initial.startMinuteOfDay) }
     var end by remember { mutableIntStateOf(initial.endMinuteOfDay) }
+    var startsFocus by remember { mutableStateOf(initial.startsFocus) }
     var picking by remember { mutableStateOf<String?>(null) }
     val valid = name.isNotBlank() && days.isNotEmpty() && start != end
 
@@ -216,13 +217,15 @@ private fun ScheduleDialog(
                     TextButton(onClick = { picking = "start" }) { Text("From ${time(start)}") }
                     TextButton(onClick = { picking = "end" }) { Text("To ${time(end)}") }
                 }
+                CheckRow("Turn on focus", startsFocus) { startsFocus = it }
+                if (!startsFocus) Text("Use it to switch a profile without focus.", style = MaterialTheme.typography.bodySmall)
                 if (end < start) Text("Runs past midnight into the next day.", style = MaterialTheme.typography.bodySmall)
                 if (start == end) Text("Start and end must differ.", color = MaterialTheme.colorScheme.error)
             }
         },
         confirmButton = {
             TextButton(enabled = valid, onClick = {
-                onSave(initial.copy(name = name.trim(), days = days.sorted().joinToString(","), startMinuteOfDay = start, endMinuteOfDay = end))
+                onSave(initial.copy(name = name.trim(), days = days.sorted().joinToString(","), startMinuteOfDay = start, endMinuteOfDay = end, startsFocus = startsFocus))
             }) { Text("Save") }
         },
         dismissButton = {

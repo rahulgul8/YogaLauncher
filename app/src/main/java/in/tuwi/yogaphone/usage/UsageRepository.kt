@@ -20,6 +20,7 @@ data class UsageSnapshot(
     val knownDays: Set<String> = emptySet(),
     val essentialPackages: Set<String> = emptySet(),
     val evaluation: RuleEvaluation = RuleEvaluation(emptyList(), null),
+    val categoryOf: Map<String, String> = emptyMap(),
     val error: String? = null,
 )
 
@@ -62,12 +63,17 @@ class UsageRepository(private val context: Context, private val database: YogaDa
             val essential = (week.map { it.packageName }.toSet() + classifier.mandatoryEssential()).filter {
                 classifier.classify(it, database.appEntryDao().get(it)).essential
             }.toSet()
+            val organize = (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).organizeRepository
+            val categoryOf = week.map { it.packageName }.toSet().associateWith { pkg ->
+                organize.categoryOf(pkg, "", database.appEntryDao().get(pkg))
+            }
             val evaluation = RuleEvaluator().evaluate(dao.rules().map { it.toRule() },
                 rows.orEmpty().filter { it.eligible }.associate { it.packageName to it.foregroundMinutes },
-                rows.orEmpty().filterNot { it.packageName in essential }.associate { it.packageName to it.foregroundMinutes })
+                rows.orEmpty().filterNot { it.packageName in essential }.associate { it.packageName to it.foregroundMinutes },
+                categoryOf)
             if (rows != null) UsageNotifications(context).check(today.toString(), evaluation, p, prefs)
             else UsageNotifications(context).cancelOngoing()
-            UsageSnapshot(today, true, rows != null, rows.orEmpty(), week, known, essential, evaluation,
+            UsageSnapshot(today, true, rows != null, rows.orEmpty(), week, known, essential, evaluation, categoryOf,
                 if (rows == null) "Android usage data is not available yet. Try again after using an app." else null)
         }
     }
@@ -81,6 +87,12 @@ class UsageRepository(private val context: Context, private val database: YogaDa
         if (minutes == null) dao.removeRule(id)
         else dao.saveRule(UsageRuleEntity(id, if (packageName == null) "TOTAL" else "APP", packageName,
             minutes.coerceIn(15, 480) / 15 * 15, prefs.preferences.first().warnAtPercent))
+    }
+    suspend fun saveCategoryRule(categoryId: String, minutes: Int?) {
+        val id = "category:$categoryId"
+        if (minutes == null) dao.removeRule(id)
+        else dao.saveRule(UsageRuleEntity(id, "CATEGORY", categoryId, minutes.coerceIn(15, 480) / 15 * 15,
+            prefs.preferences.first().warnAtPercent))
     }
     suspend fun setThreshold(value: Int) {
         prefs.update { it.copy(warnAtPercent = value) }

@@ -6,11 +6,13 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(entities = [AppEntryEntity::class, UsageAggregateEntity::class, UsageRuleEntity::class, UsageDayEntity::class,
-    TimeboxSessionEntity::class, FocusSessionEntity::class, FocusScheduleEntity::class, InterventionEventEntity::class], version = 3, exportSchema = false)
+    TimeboxSessionEntity::class, FocusSessionEntity::class, FocusScheduleEntity::class, InterventionEventEntity::class,
+    CategoryEntity::class, ProfileEntity::class], version = 4, exportSchema = false)
 abstract class YogaDatabase : RoomDatabase() {
     abstract fun appEntryDao(): AppEntryDao
     abstract fun usageDao(): UsageDao
     abstract fun focusDao(): FocusDao
+    abstract fun organizeDao(): OrganizeDao
 
     companion object {
         fun create(context: Context): YogaDatabase = Room.databaseBuilder(
