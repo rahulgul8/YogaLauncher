@@ -60,6 +60,7 @@ fun HomeScreen(
     statusContent: @Composable () -> Unit = {},
     quickActions: @Composable () -> Unit = {},
     profileLabel: String? = null,
+    widgets: @Composable () -> Unit = {},
     onProfileClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -130,6 +131,7 @@ fun HomeScreen(
                 )
             }
             HomeStatusArea(content = statusContent)
+            widgets()
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 when {
                     uiState.isLoading -> CalmHint("Loading apps…")

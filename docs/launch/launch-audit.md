@@ -20,6 +20,10 @@ Working list for spec section 13 "Launch" items. Tick as they are verified on re
 - [ ] Data safety form matches `play-listing.md`; privacy policy published at a public URL.
 - [ ] Value-of-time copy always says "illustrative" and never implies money lost.
 
+## Data safety before the first public build
+
+- [ ] Replace Room `fallbackToDestructiveMigration()` with real migrations (and export the schema) — today every schema change wipes local data, which is fine only before release.
+
 ## Reliability (device matrix)
 
 Devices: Pixel (Android 14/15/16), Samsung One UI, Motorola, a low-RAM Android 8–9 device.

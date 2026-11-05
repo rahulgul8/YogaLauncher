@@ -54,6 +54,12 @@ import `in`.tuwi.yogaphone.ui.CategoryPickerDialog
 import `in`.tuwi.yogaphone.ui.ProfileEditScreen
 import `in`.tuwi.yogaphone.ui.ProfileSwitcherSheet
 import `in`.tuwi.yogaphone.ui.ProfilesScreen
+import `in`.tuwi.yogaphone.ui.HomeWidgets
+import `in`.tuwi.yogaphone.ui.WidgetPickerScreen
+import `in`.tuwi.yogaphone.ui.WidgetsSettingsScreen
+import `in`.tuwi.yogaphone.widgets.WidgetRepository
+import android.appwidget.AppWidgetManager
+import android.app.Activity
 import `in`.tuwi.yogaphone.ui.HelpScreen
 import `in`.tuwi.yogaphone.ui.InsightsScreen
 import `in`.tuwi.yogaphone.ui.OnboardingActions
@@ -116,6 +122,8 @@ private const val INSIGHTS = "insights"
 private const val PRIVACY = "settings/privacy"
 private const val HELP = "settings/help"
 private const val ONBOARDING = "onboarding"
+private const val WIDGETS = "settings/widgets"
+private const val WIDGET_PICKER = "settings/widgets/add"
 
 private data class PendingPause(val app: AppModel, val query: String, val seconds: Int, val duringFocus: Boolean)
 
@@ -151,6 +159,29 @@ class MainActivity : ComponentActivity() {
         if (intent.action == FocusSystem.ACTION_OPEN_TIMEBOX) homeRequest++
         if (intent.action == QuietRepository.ACTION_OPEN_DIGEST) digestRequest++
         if (intent.action == InsightsRepository.ACTION_OPEN_INSIGHTS) insightsRequest++
+    }
+
+    /** Widget configuration activities report back here (AppWidgetHost uses startActivityForResult). */
+    var onWidgetConfigured: ((Int, Boolean) -> Unit)? = null
+    var configuringWidgetId: Int = -1
+
+    @Deprecated("AppWidgetHost.startAppWidgetConfigureActivityForResult delivers its result here")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == WidgetRepository.REQUEST_CONFIGURE && configuringWidgetId != -1) {
+            onWidgetConfigured?.invoke(configuringWidgetId, resultCode == Activity.RESULT_OK)
+            configuringWidgetId = -1
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        (application as YogaApplication).widgetRepository.startListening()
+    }
+
+    override fun onStop() {
+        (application as YogaApplication).widgetRepository.stopListening()
+        super.onStop()
     }
 
     override fun onDestroy() {
@@ -216,6 +247,39 @@ private fun LauncherNavigation(
     var reflectionFor by remember { mutableStateOf<Long?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
+    val widgetRepo = yoga.widgetRepository
+    val widgets by widgetRepo.widgets.collectAsState(initial = emptyList())
+    val activity = androidx.compose.ui.platform.LocalContext.current as MainActivity
+    fun finishWidget(id: Int, ok: Boolean) {
+        if (ok) scope.launch { widgetRepo.add(id); navController.popBackStack(WIDGETS, false) } else widgetRepo.release(id)
+    }
+    fun configureOrAdd(id: Int) {
+        val info = widgetRepo.info(id)
+        if (info?.configure != null) {
+            activity.configuringWidgetId = id
+            activity.onWidgetConfigured = ::finishWidget
+            runCatching { widgetRepo.host.startAppWidgetConfigureActivityForResult(activity, id, 0, WidgetRepository.REQUEST_CONFIGURE, null) }
+                .onFailure { finishWidget(id, false) }
+        } else finishWidget(id, info != null)
+    }
+    var bindingWidgetId by remember { mutableStateOf(-1) }
+    val bindLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val id = bindingWidgetId
+        bindingWidgetId = -1
+        if (id != -1) { if (result.resultCode == Activity.RESULT_OK) configureOrAdd(id) else widgetRepo.release(id) }
+    }
+    fun pickWidget(info: android.appwidget.AppWidgetProviderInfo) {
+        val id = widgetRepo.allocate()
+        if (widgetRepo.bindIfAllowed(id, info.provider)) configureOrAdd(id)
+        else {
+            bindingWidgetId = id
+            bindLauncher.launch(Intent(AppWidgetManager.ACTION_APPWIDGET_BIND)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider))
+        }
+    }
     val usageState by usageViewModel.state.collectAsState()
     val owner = LocalLifecycleOwner.current
     var resumed by remember { mutableStateOf(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -245,6 +309,7 @@ private fun LauncherNavigation(
     }
     LaunchedEffect(resumed) {
         if (resumed) reflectionFor = runCatching { insights.pendingReflection() }.getOrNull()
+        if (resumed) runCatching { widgetRepo.cleanup() }
     }
     LaunchedEffect(digestRequest) {
         if (digestRequest > 0) navController.navigate(DIGEST) { launchSingleTop = true }
@@ -345,6 +410,13 @@ private fun LauncherNavigation(
                     )
                 },
                 profileLabel = if (uiState.profiles.isNotEmpty()) uiState.activeProfileName else null,
+                widgets = {
+                    HomeWidgets(widgets, widgetRepo, when {
+                        focusState.focusActive -> "during focus"
+                        uiState.activeProfile?.hideOtherApps == true -> "in this profile"
+                        else -> null
+                    })
+                },
                 onProfileClick = { showProfiles = true },
                 modifier = Modifier,
             )
@@ -366,6 +438,7 @@ private fun LauncherNavigation(
                 onInsights = { navController.navigate(INSIGHTS) },
                 onPrivacy = { navController.navigate(PRIVACY) },
                 onHelp = { navController.navigate(HELP) },
+                onWidgets = { navController.navigate(WIDGETS) },
             )
         }
         composable("usage?details={details}", arguments = listOf(androidx.navigation.navArgument("details") { defaultValue = "false" })) { entry ->
@@ -399,6 +472,12 @@ private fun LauncherNavigation(
             val id = entry.arguments?.getString("id")?.toLongOrNull()
             val profile = uiState.profiles.firstOrNull { it.id == id }
             if (profile != null) ProfileEditScreen(profile, uiState, focusState.schedules, viewModel) { navController.popBackStack() }
+        }
+        composable(WIDGETS) {
+            WidgetsSettingsScreen(widgets, widgetRepo, onAdd = { navController.navigate(WIDGET_PICKER) }) { navController.popBackStack() }
+        }
+        composable(WIDGET_PICKER) {
+            WidgetPickerScreen(widgetRepo, onPick = ::pickWidget) { navController.popBackStack() }
         }
         composable(INSIGHTS) {
             insightsPrefs?.let { prefs ->

@@ -8,13 +8,14 @@ import androidx.room.RoomDatabase
 @Database(entities = [AppEntryEntity::class, UsageAggregateEntity::class, UsageRuleEntity::class, UsageDayEntity::class,
     TimeboxSessionEntity::class, FocusSessionEntity::class, FocusScheduleEntity::class, InterventionEventEntity::class,
     CategoryEntity::class, ProfileEntity::class,
-    HeldNotificationEntity::class, NotificationRuleEntity::class, UsageHourEntity::class], version = 7, exportSchema = false)
+    HeldNotificationEntity::class, NotificationRuleEntity::class, UsageHourEntity::class, `in`.tuwi.yogaphone.widgets.WidgetEntity::class], version = 8, exportSchema = false)
 abstract class YogaDatabase : RoomDatabase() {
     abstract fun appEntryDao(): AppEntryDao
     abstract fun usageDao(): UsageDao
     abstract fun focusDao(): FocusDao
     abstract fun organizeDao(): OrganizeDao
     abstract fun quietDao(): QuietDao
+    abstract fun widgetDao(): `in`.tuwi.yogaphone.widgets.WidgetDao
 
     companion object {
         fun create(context: Context): YogaDatabase = Room.databaseBuilder(

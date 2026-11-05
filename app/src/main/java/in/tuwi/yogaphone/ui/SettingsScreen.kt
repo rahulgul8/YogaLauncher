@@ -53,6 +53,7 @@ fun SettingsScreen(
     onInsights: () -> Unit,
     onPrivacy: () -> Unit,
     onHelp: () -> Unit,
+    onWidgets: () -> Unit,
 ) {
     val context = LocalContext.current
     var isDefault by remember { mutableStateOf(isDefaultHome(context)) }
@@ -102,6 +103,7 @@ fun SettingsScreen(
         item { SettingsRow("Quiet notifications", "Hold chosen apps' notifications for a digest", onQuiet) }
         item { SectionTitle("Appearance") }
         item { SettingsRow("Home and appearance", "Theme, type, clock, date and layout", onAppearance) }
+        item { SettingsRow("Widgets", "Add, resize, reorder and remove home widgets", onWidgets) }
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
         item { SectionTitle("Apps") }
         item { SettingsRow("Profiles", "Different homes for work, reading and more", onProfiles) }

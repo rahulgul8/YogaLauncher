@@ -22,6 +22,7 @@ class YogaApplication : Application() {
     val focusRepository by lazy { FocusRepository(this, database, focusPrefs) }
     val insightsRepository by lazy { `in`.tuwi.yogaphone.insights.InsightsRepository(this, database) }
     val backupManager by lazy { `in`.tuwi.yogaphone.privacy.BackupManager(this, database) }
+    val widgetRepository by lazy { `in`.tuwi.yogaphone.widgets.WidgetRepository(this, database) }
     val quietRepository by lazy { `in`.tuwi.yogaphone.quiet.QuietRepository(this, database) }
     val organizeRepository by lazy { `in`.tuwi.yogaphone.profiles.OrganizeRepository(this, database) }
 }

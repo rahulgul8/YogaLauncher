@@ -455,7 +455,8 @@ Each work item should become a ticket with interaction details, states, permissi
 - [x] Build minimal home, favorite apps, app drawer, and app search.
 - [x] Establish app inventory refresh and package-change handling.
 - [x] Build settings architecture and local persistence.
-- [ ] Define widget host behavior.
+- [x] Define widget host behavior.
+  - One calm column under the clock; add/resize/reorder/remove in Settings → Widgets; hidden during focus and tuck-away profiles.
 
 ### Usage and interventions
 

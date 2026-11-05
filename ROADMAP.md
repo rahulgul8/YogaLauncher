@@ -507,3 +507,10 @@ OEM event feeds, notification permission, DST/timezone and midnight rollover) re
 - [x] Privacy and data: what is stored, permissions with fix buttons, retention 30/90/365 days with daily pruning, usage measuring and insights switches, delete with a 5-second undo.
 - [x] Backup: export/import settings (optionally history) as a versioned JSON file; Android cloud backup stays off.
 - [x] Help: setup replay, FAQ, battery optimisation shortcut.
+
+## Piece 6 — Widgets (6 November 2026)
+
+- [x] AppWidgetHost with Room-stored widgets in one column under the clock; listening tied to activity start/stop so widgets survive recreation.
+- [x] Add flow: searchable provider picker with previews, bind permission prompt, provider configure activities; failures release the widget id.
+- [x] Settings → Widgets: Small / Medium / Large heights (never below the provider minimum), reorder, remove with undo; uninstalled providers cleaned up on resume.
+- [x] Widgets step aside during focus and in profiles that tuck other apps away.
