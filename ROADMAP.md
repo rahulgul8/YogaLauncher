@@ -498,3 +498,12 @@ OEM event feeds, notification permission, DST/timezone and midnight rollover) re
 - [x] Device-wide greyscale guidance (Accessibility, Digital Wellbeing) and an advanced adb-granted path that switches Android's colour correction and restores the user's previous setting.
 - [x] Quiet notifications via an opt-in notification listener: per-app Allow / Hold in focus / Always hold; calls, alarms, ongoing, media and Yoga's own never held; only title and text kept, for at most a day.
 - [x] Digest delivered when focus ends and at chosen times, with a held-notifications screen grouped by app.
+
+## Piece 5 — Insights, onboarding, privacy and backup (6 November 2026)
+
+- [x] Hourly usage storage; InsightEngine with strict eligibility (percent changes need ≥ 5 recorded days in both weeks; late night = 23:00–05:00; "longest break from distracting apps").
+- [x] Insights screen: cards in a Gentle or Just-the-numbers tone, 7-day bars with allowance line, 4-week hourly heatmap (TalkBack summaries), focus and allowance goals, adaptive allowance suggestion (never automatic), weekly Sunday summary, reflection after focus.
+- [x] Nine-step skippable first-run setup that writes straight to settings; returning users skip it; replay from Help; one-time home tip.
+- [x] Privacy and data: what is stored, permissions with fix buttons, retention 30/90/365 days with daily pruning, usage measuring and insights switches, delete with a 5-second undo.
+- [x] Backup: export/import settings (optionally history) as a versioned JSON file; Android cloud backup stays off.
+- [x] Help: setup replay, FAQ, battery optimisation shortcut.

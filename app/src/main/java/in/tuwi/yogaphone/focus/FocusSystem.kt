@@ -178,6 +178,7 @@ class FocusReceiver : BroadcastReceiver() {
                             if (profile.focusOnActivate) repository.startFocus(null)
                         }
                         app.quietRepository.scheduleDigest()
+                        app.insightsRepository.scheduleWeekly()
                         app.quietRepository.reconcileGreyscale()
                     }
                 }

@@ -50,6 +50,9 @@ fun SettingsScreen(
     onCategories: () -> Unit,
     onVisual: () -> Unit,
     onQuiet: () -> Unit,
+    onInsights: () -> Unit,
+    onPrivacy: () -> Unit,
+    onHelp: () -> Unit,
 ) {
     val context = LocalContext.current
     var isDefault by remember { mutableStateOf(isDefaultHome(context)) }
@@ -90,6 +93,7 @@ fun SettingsScreen(
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
         item { SectionTitle("Usage awareness") }
         item { SettingsRow("Usage dashboard", "Today and last 7 days", onUsage) }
+        item { SettingsRow("Insights", "Trends, late nights, goals and encouragement", onInsights) }
         item { SettingsRow("Usage rules", "Allowances, essential apps and reminders", onUsageRules) }
         item { SettingsRow("Value of time", "Optional illustrative hourly value", onValueOfTime) }
         item { SectionTitle("Focus") }
@@ -104,6 +108,10 @@ fun SettingsScreen(
         item { SettingsRow("Categories", "Automatic categories, your own, drawer grouping", onCategories) }
         item { SettingsRow("Hidden apps", "Review and unhide apps", onHiddenApps) }
         item { SettingsRow("Reset custom names", "Restore every app's installed name", onResetNames) }
+        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+        item { SectionTitle("Privacy and help") }
+        item { SettingsRow("Privacy and data", "What is stored, permissions, backup, delete", onPrivacy) }
+        item { SettingsRow("Help", "Replay setup, questions, battery tips", onHelp) }
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
         item { SectionTitle("About") }
         item { ListItem(headlineContent = { Text("Yoga Launcher") }, supportingContent = { Text("Version ${versionName(context)}") }) }
@@ -133,7 +141,7 @@ private fun SettingsRow(title: String, summary: String, onClick: () -> Unit) {
     )
 }
 
-private fun defaultHomeIntent(context: Context): Intent {
+internal fun defaultHomeIntent(context: Context): Intent {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         val roles = context.getSystemService(RoleManager::class.java)
         if (roles.isRoleAvailable(RoleManager.ROLE_HOME)) return roles.createRequestRoleIntent(RoleManager.ROLE_HOME)
@@ -141,7 +149,7 @@ private fun defaultHomeIntent(context: Context): Intent {
     return Intent(Settings.ACTION_HOME_SETTINGS)
 }
 
-private fun isDefaultHome(context: Context): Boolean {
+internal fun isDefaultHome(context: Context): Boolean {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         val roles = context.getSystemService(RoleManager::class.java)
         if (roles.isRoleAvailable(RoleManager.ROLE_HOME)) return roles.isRoleHeld(RoleManager.ROLE_HOME)

@@ -449,11 +449,12 @@ Each work item should become a ticket with interaction details, states, permissi
 
 ### Foundation
 
-- [ ] Evaluate OLauncher and select base architecture.
-- [ ] Implement HOME role/default launcher activation and exit guidance.
-- [ ] Build minimal home, favorite apps, app drawer, and app search.
-- [ ] Establish app inventory refresh and package-change handling.
-- [ ] Build settings architecture and local persistence.
+- [x] Evaluate OLauncher and select base architecture.
+  - OLauncher kept as a reference only; Yoga is a fresh Kotlin + Compose app (Room, DataStore, WorkManager).
+- [x] Implement HOME role/default launcher activation and exit guidance.
+- [x] Build minimal home, favorite apps, app drawer, and app search.
+- [x] Establish app inventory refresh and package-change handling.
+- [x] Build settings architecture and local persistence.
 - [ ] Define widget host behavior.
 
 ### Usage and interventions
@@ -472,14 +473,15 @@ Each work item should become a ticket with interaction details, states, permissi
 
 - [x] Build hourly value setup and cost-equivalent calculation.
 - [ ] Design optional overlay/notification cost indicator and safety exclusions.
+  - Notification and home indicators are built (snoozable); the draw-over-apps overlay waits for usability testing.
 - [ ] Test metaphor and copy with prospective users.
 - [x] Add automatic categories and manual recategorization.
 - [x] Add grouping and profile modes in Priority 2.
-- [ ] Build credible weekly insights and late-night reporting.
+- [x] Build credible weekly insights and late-night reporting.
 
 ### Launch
 
-- [ ] Complete onboarding walkthrough and tutorial replay.
+- [x] Complete onboarding walkthrough and tutorial replay.
 - [ ] Audit accessibility, permissions, privacy, and Play policy.
 - [ ] Test device matrix and long-running reliability.
 - [ ] Create store listing, screenshots, support, and privacy content.

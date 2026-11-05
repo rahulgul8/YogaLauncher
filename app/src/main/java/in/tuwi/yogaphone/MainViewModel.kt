@@ -119,6 +119,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (profile == null) repository.moveFavorite(app.appPackage, delta)
         else organizeRepo.editHomeApps(profile.id) { HomeList.move(it, app.appPackage, delta) }
     }
+    /** Makes the home list exactly [apps], in order (used by the setup walkthrough). */
+    fun setHomeApps(apps: List<AppModel>) = launch {
+        val wanted = apps.map { it.appPackage }
+        uiState.value.favoriteApps.filter { it.appPackage !in wanted }.forEach { repository.setFavorite(it.appPackage, false) }
+        val current = uiState.value.favoriteApps.map { it.appPackage }.toSet()
+        wanted.filter { it !in current }.forEach { repository.setFavorite(it, true) }
+    }
     fun isOnHome(app: AppModel): Boolean = uiState.value.favoriteApps.any { it.appPackage == app.appPackage }
 
     fun switchProfile(id: Long?, onSwitched: (previous: ProfileEntity?, next: ProfileEntity?) -> Unit = { _, _ -> }) = launch {

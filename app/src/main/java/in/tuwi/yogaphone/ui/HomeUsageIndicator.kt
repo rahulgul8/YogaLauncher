@@ -12,7 +12,14 @@ import `in`.tuwi.yogaphone.usage.*
 fun HomeUsageIndicator(state: UsageUiState, onOpenUsage: () -> Unit, onDetails: () -> Unit) {
     val total = state.rules.firstOrNull { it.scope == "TOTAL" && it.enabled } ?: return
     if (!state.preferences.showHome) return
-    if (!state.snapshot.access) { UsageAccessCard(); return }
+    if (!state.snapshot.access) {
+        // Home stays calm: one quiet line, not the full explanation card.
+        val context = androidx.compose.ui.platform.LocalContext.current
+        TextButton(onClick = { UsageAccess.openSettings(context) }, modifier = Modifier.heightIn(min = 48.dp)) {
+            Text("Allow Usage Access to see today's usage", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
     if (state.loading || !state.snapshot.available) {
         TextButton(onClick = onOpenUsage) { Text(if (state.loading) "Reading today's usage…" else "Usage unavailable · view details") }
         return

@@ -33,14 +33,20 @@ class UsageRepository(private val context: Context, private val database: YogaDa
     val rules = dao.observeRules()
 
     private suspend fun collect(date: LocalDate, p: UsagePreferences): List<UsageAggregateEntity>? {
-        val usage = reader.read(date) ?: return null
+        val (usage, hourly) = reader.readDay(date) ?: return null
         val rows = usage.map { (pkg, millis) ->
             val classification = classifier.classify(pkg, database.appEntryDao().get(pkg))
             UsageAggregateEntity(date.toString(), pkg, (millis + 30_000) / 60_000,
                 !classification.essential && (p.counts == AllowanceCounts.ALL_EXCEPT_ESSENTIAL || classification.distracting))
         }
+        val eligible = rows.filter { it.eligible }.map { it.packageName }.toSet()
+        val hourRows = hourly.map { (hour, perApp) ->
+            UsageHourEntity(date.toString(), hour, (perApp.filterKeys { it in eligible }.values.sum() + 30_000) / 60_000)
+        }
         database.withTransaction {
             dao.clearDate(date.toString())
+            dao.clearHours(date.toString())
+            dao.saveHours(hourRows)
             dao.saveAggregates(rows)
             dao.saveDay(UsageDayEntity(date.toString(), System.currentTimeMillis()))
         }
@@ -54,8 +60,13 @@ class UsageRepository(private val context: Context, private val database: YogaDa
                 UsageNotifications(context).cancelAll()
                 return@withLock UsageSnapshot(date = today)
             }
+            val app = context.applicationContext as `in`.tuwi.yogaphone.YogaApplication
+            if (!app.insightsRepository.preferences.first().usageTracking) {
+                UsageNotifications(context).cancelAll()
+                return@withLock UsageSnapshot(date = today, access = true, error = "Usage measuring is off in Privacy and data.")
+            }
             val p = prefs.preferences.first()
-            if (archiveYesterday) collect(today.minusDays(1), p)
+            if (archiveYesterday) { collect(today.minusDays(1), p); runCatching { app.insightsRepository.prune() } }
             val rows = collect(today, p)
             val weekStart = today.minusDays(6).toString()
             val week = dao.aggregates(weekStart, today.toString())
@@ -110,6 +121,6 @@ class UsageRepository(private val context: Context, private val database: YogaDa
         database.appEntryDao().upsert(old.copy(isEssential = essential, isDistracting = distracting && !essential, userClassified = true))
     }
     suspend fun clearHistory() = mutex.withLock {
-        database.withTransaction { dao.clearHistory(); dao.clearDays() }
+        database.withTransaction { dao.clearHistory(); dao.clearDays(); dao.clearAllHours() }
     }
 }

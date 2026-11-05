@@ -29,7 +29,11 @@ object UsageAccess {
 
 class AndroidUsageReader(private val context: Context) {
     /** Null means access/data unavailable; it must never be represented as zero usage. */
-    fun read(date: LocalDate, now: Long = System.currentTimeMillis()): Map<String, Long>? {
+    fun read(date: LocalDate, now: Long = System.currentTimeMillis()): Map<String, Long>? =
+        readDay(date, now)?.first
+
+    /** Per-package totals for the day, plus per-hour per-package totals (hour 0..23, local time). */
+    fun readDay(date: LocalDate, now: Long = System.currentTimeMillis()): Pair<Map<String, Long>, Map<Int, Map<String, Long>>>? {
         if (!UsageAccess.granted(context)) return null
         val zone = ZoneId.systemDefault()
         val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -52,7 +56,15 @@ class AndroidUsageReader(private val context: Context) {
                 if (type != null) events += ForegroundEvent(event.packageName.orEmpty(), event.timeStamp, type, event.className)
             }
             // An empty event feed can mean a locked user or expired retention. Preserve prior aggregates.
-            if (events.isEmpty()) null else UsageCalculator(context.packageName).calculate(events, start, end, now)
+            if (events.isEmpty()) return null
+            val calculator = UsageCalculator(context.packageName)
+            val hours = (0..23).associateWith { hour ->
+                // Each hour is computed from the same events so sessions crossing hour boundaries split correctly.
+                val hourStart = date.atStartOfDay(zone).plusHours(hour.toLong()).toInstant().toEpochMilli()
+                val hourEnd = date.atStartOfDay(zone).plusHours(hour + 1L).toInstant().toEpochMilli()
+                if (hourStart >= end) emptyMap() else calculator.calculate(events, hourStart, minOf(hourEnd, end), now)
+            }
+            calculator.calculate(events, start, end, now) to hours
         }.getOrNull()
     }
 }

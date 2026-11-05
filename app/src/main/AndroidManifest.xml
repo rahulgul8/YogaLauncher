@@ -29,6 +29,7 @@
         android:theme="@style/Theme.YogaPhone">
         <receiver android:name=".usage.UsageSnoozeReceiver" android:exported="false" />
         <receiver android:name=".quiet.QuietReceiver" android:exported="false" />
+        <receiver android:name=".insights.InsightsReceiver" android:exported="false" />
         <service
             android:name=".quiet.YogaNotificationListener"
             android:exported="true"

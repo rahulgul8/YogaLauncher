@@ -97,4 +97,13 @@ interface FocusDao {
     @Query("SELECT * FROM focus_schedules") suspend fun schedules(): List<FocusScheduleEntity>
 
     @Insert suspend fun insertIntervention(event: InterventionEventEntity)
+    @Query("SELECT * FROM focus_sessions WHERE startAt >= :since") suspend fun focusSince(since: Long): List<FocusSessionEntity>
+    @Query("SELECT * FROM timebox_sessions WHERE startedAt >= :since") suspend fun timeboxesSince(since: Long): List<TimeboxSessionEntity>
+    @Query("SELECT * FROM focus_sessions WHERE status = 'COMPLETED' ORDER BY id DESC LIMIT 1") suspend fun latestCompletedFocus(): FocusSessionEntity?
+    @Query("SELECT COUNT(*) FROM focus_sessions") suspend fun focusCount(): Int
+    @Query("SELECT COUNT(*) FROM timebox_sessions") suspend fun timeboxCount(): Int
+    @Query("SELECT COUNT(*) FROM intervention_events") suspend fun interventionCount(): Int
+    @Query("DELETE FROM focus_sessions WHERE startAt < :before AND status != 'ACTIVE'") suspend fun pruneFocus(before: Long)
+    @Query("DELETE FROM timebox_sessions WHERE startedAt < :before AND status NOT IN ('RUNNING', 'PAUSED')") suspend fun pruneTimeboxes(before: Long)
+    @Query("DELETE FROM intervention_events WHERE shownAt < :before") suspend fun pruneInterventions(before: Long)
 }

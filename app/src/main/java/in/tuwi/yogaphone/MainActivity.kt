@@ -54,6 +54,14 @@ import `in`.tuwi.yogaphone.ui.CategoryPickerDialog
 import `in`.tuwi.yogaphone.ui.ProfileEditScreen
 import `in`.tuwi.yogaphone.ui.ProfileSwitcherSheet
 import `in`.tuwi.yogaphone.ui.ProfilesScreen
+import `in`.tuwi.yogaphone.ui.HelpScreen
+import `in`.tuwi.yogaphone.ui.InsightsScreen
+import `in`.tuwi.yogaphone.ui.OnboardingActions
+import `in`.tuwi.yogaphone.ui.OnboardingScreen
+import `in`.tuwi.yogaphone.ui.PrivacyScreen
+import `in`.tuwi.yogaphone.ui.ReflectionSheet
+import `in`.tuwi.yogaphone.insights.InsightsPreferences
+import `in`.tuwi.yogaphone.insights.InsightsRepository
 import `in`.tuwi.yogaphone.ui.DigestScreen
 import `in`.tuwi.yogaphone.ui.HomeGreyIndicator
 import `in`.tuwi.yogaphone.ui.QuietNotificationsScreen
@@ -104,6 +112,10 @@ private const val CATEGORIES = "settings/categories"
 private const val VISUAL = "settings/visual"
 private const val QUIET = "settings/quiet"
 private const val DIGEST = "digest"
+private const val INSIGHTS = "insights"
+private const val PRIVACY = "settings/privacy"
+private const val HELP = "settings/help"
+private const val ONBOARDING = "onboarding"
 
 private data class PendingPause(val app: AppModel, val query: String, val seconds: Int, val duringFocus: Boolean)
 
@@ -115,6 +127,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var appChangeReceiver: AppChangeReceiver
     private var homeRequest by mutableIntStateOf(0)
     private var digestRequest by mutableIntStateOf(0)
+    private var insightsRequest by mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -126,7 +139,8 @@ class MainActivity : ComponentActivity() {
         }
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
         if (intent.action == QuietRepository.ACTION_OPEN_DIGEST) digestRequest++
-        setContent { YogaLauncherApp(viewModel, usageViewModel, focusViewModel, homeRequest, usageRequest, digestRequest) }
+        if (intent.action == InsightsRepository.ACTION_OPEN_INSIGHTS) insightsRequest++
+        setContent { YogaLauncherApp(viewModel, usageViewModel, focusViewModel, homeRequest, usageRequest, digestRequest, insightsRequest) }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -136,6 +150,7 @@ class MainActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) homeRequest++
         if (intent.action == FocusSystem.ACTION_OPEN_TIMEBOX) homeRequest++
         if (intent.action == QuietRepository.ACTION_OPEN_DIGEST) digestRequest++
+        if (intent.action == InsightsRepository.ACTION_OPEN_INSIGHTS) insightsRequest++
     }
 
     override fun onDestroy() {
@@ -145,7 +160,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, focusViewModel: FocusViewModel, homeRequest: Int, usageRequest: Int, digestRequest: Int) {
+private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, focusViewModel: FocusViewModel, homeRequest: Int, usageRequest: Int, digestRequest: Int, insightsRequest: Int) {
     val uiState by viewModel.uiState.collectAsState()
     val focusState by focusViewModel.state.collectAsState()
     // Greyscale during focus is an override; the chosen theme is never rewritten.
@@ -174,7 +189,7 @@ private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewM
     }
     YogaPhoneTheme(themeMode) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, usageRequest, digestRequest, greyReason, quietPrefs, quiet)
+            LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, usageRequest, digestRequest, greyReason, quietPrefs, quiet, insightsRequest)
         }
     }
 }
@@ -192,8 +207,13 @@ private fun LauncherNavigation(
     greyReason: GreyReason?,
     quietPrefs: QuietPreferences,
     quiet: QuietRepository,
+    insightsRequest: Int,
 ) {
     val scope = rememberCoroutineScope()
+    val yoga = androidx.compose.ui.platform.LocalContext.current.applicationContext as YogaApplication
+    val insights = yoga.insightsRepository
+    val insightsPrefs by insights.preferences.collectAsState(initial = null)
+    var reflectionFor by remember { mutableStateOf<Long?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
     val usageState by usageViewModel.state.collectAsState()
@@ -209,6 +229,22 @@ private fun LauncherNavigation(
     }
     LaunchedEffect(resumed) {
         if (resumed) while (true) { usageViewModel.refresh(); delay(30_000) }
+    }
+    LaunchedEffect(insightsRequest) {
+        if (insightsRequest > 0) navController.navigate(INSIGHTS) { launchSingleTop = true }
+    }
+    LaunchedEffect(Unit) {
+        runCatching { insights.scheduleWeekly(); quiet.scheduleDigest() }
+    }
+    // First run: show setup, unless this is a returning user who already set things up.
+    val onboardingVersion = insightsPrefs?.onboardingVersion
+    LaunchedEffect(onboardingVersion, uiState.isLoading) {
+        if (onboardingVersion == null || onboardingVersion >= 1 || uiState.isLoading) return@LaunchedEffect
+        val returning = uiState.favoriteApps.isNotEmpty() || usageViewModel.state.value.rules.isNotEmpty()
+        if (returning) insights.setOnboardingVersion(1) else navController.navigate(ONBOARDING) { launchSingleTop = true }
+    }
+    LaunchedEffect(resumed) {
+        if (resumed) reflectionFor = runCatching { insights.pendingReflection() }.getOrNull()
     }
     LaunchedEffect(digestRequest) {
         if (digestRequest > 0) navController.navigate(DIGEST) { launchSingleTop = true }
@@ -283,6 +319,17 @@ private fun LauncherNavigation(
                 statusContent = {
                     Column {
                         HomeGreyIndicator(greyReason) { scope.launch { quiet.snoozeGrey(30) } }
+                        val prefsNow = insightsPrefs
+                        if (prefsNow != null && prefsNow.onboardingVersion >= 1 && "swipe_up" !in prefsNow.tipsSeen) {
+                            androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                androidx.compose.material3.Text("Tip: swipe up anywhere to see all your apps.",
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f))
+                                androidx.compose.material3.TextButton(onClick = { scope.launch { insights.markTip("swipe_up") } }) {
+                                    androidx.compose.material3.Text("Got it")
+                                }
+                            }
+                        }
                         HomeFocusStatus(focusState, onTimebox = { showTimeboxControl = true }, onFocus = { showFocusControl = true })
                         HomeUsageIndicator(usageState, { navController.navigate("usage") }, { navController.navigate("usage?details=true") })
                     }
@@ -316,6 +363,9 @@ private fun LauncherNavigation(
                 onCategories = { navController.navigate(CATEGORIES) },
                 onVisual = { navController.navigate(VISUAL) },
                 onQuiet = { navController.navigate(QUIET) },
+                onInsights = { navController.navigate(INSIGHTS) },
+                onPrivacy = { navController.navigate(PRIVACY) },
+                onHelp = { navController.navigate(HELP) },
             )
         }
         composable("usage?details={details}", arguments = listOf(androidx.navigation.navArgument("details") { defaultValue = "false" })) { entry ->
@@ -349,6 +399,40 @@ private fun LauncherNavigation(
             val id = entry.arguments?.getString("id")?.toLongOrNull()
             val profile = uiState.profiles.firstOrNull { it.id == id }
             if (profile != null) ProfileEditScreen(profile, uiState, focusState.schedules, viewModel) { navController.popBackStack() }
+        }
+        composable(INSIGHTS) {
+            insightsPrefs?.let { prefs ->
+                InsightsScreen(insights, prefs, onAcceptSuggestion = { usageViewModel.saveRule(null, it) }) { navController.popBackStack() }
+            }
+        }
+        composable(PRIVACY) {
+            insightsPrefs?.let { prefs ->
+                PrivacyScreen(prefs, insights, yoga.backupManager, onReset = {
+                    scope.launch { navController.returnHome(); navController.navigate(ONBOARDING) }
+                }) { navController.popBackStack() }
+            }
+        }
+        composable(HELP) {
+            HelpScreen(onReplaySetup = { navController.navigate(ONBOARDING) }) { navController.popBackStack() }
+        }
+        composable(ONBOARDING) {
+            OnboardingScreen(
+                ui = uiState,
+                usage = usageState,
+                isDistracting = focusState::isDistracting,
+                isEssential = { focusState.classifications[it]?.essential == true },
+                actions = OnboardingActions(
+                    setHomeApps = viewModel::setHomeApps,
+                    setAllowance = { usageViewModel.saveRule(null, it) },
+                    setDistracting = { pkg, value -> usageViewModel.classify(pkg, essential = false, distracting = value) },
+                    setTimeValue = { on, hourly -> usageViewModel.preferences { it.copy(timeValueEnabled = on, hourlyValue = hourly.ifBlank { it.hourlyValue }) } },
+                    setReminders = { on -> usageViewModel.preferences { it.copy(reminders = on) } },
+                    setMindfulPause = focusViewModel::setDelayEnabled,
+                    setGreyOverLimit = { on -> scope.launch { quiet.setGreyOverLimit(on) } },
+                    setTheme = viewModel::setTheme,
+                    finish = { scope.launch { insights.setOnboardingVersion(1) }; navController.returnHome() },
+                ),
+            )
         }
         composable(VISUAL) {
             VisualInterventionsScreen(quietPrefs, focusState.preferences.focusGreyscale, focusState.schedules, quiet,
@@ -484,6 +568,13 @@ private fun LauncherNavigation(
     }
     if (showFocusControl && focusState.focusActive) {
         FocusControlSheet(focusState, focusViewModel::endFocus) { showFocusControl = false }
+    }
+
+    reflectionFor?.let { focusId ->
+        if (route == HOME) ReflectionSheet { feeling ->
+            scope.launch { insights.recordReflection(focusId, feeling) }
+            reflectionFor = null
+        }
     }
 
     pendingPause?.let { pause ->

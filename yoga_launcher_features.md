@@ -16,10 +16,13 @@
 - Display Timebox Timer progress subtly on home screen.
 
 **Tasks & To-Dos:**
-- [ ] Develop text-only launcher UI with adaptive spacing.
+- [x] Develop text-only launcher UI with adaptive spacing.
 - [ ] Add predictive AI for app suggestions based on frequency and context.
+  - Deferred: setup suggests home apps from usage frequency; contextual prediction needs more data and a privacy review.
 - [ ] Enable gesture controls (swipe up for search, swipe down for timer, long-press for focus toggle).
+  - Partly done: swipe up opens search; swipe down opens notifications (the expected Android behaviour); Timebox and Focus are one tap on home; long-press opens settings.
 - [ ] Integrate smooth animations to maintain a calm user experience.
+  - Partly done: sheets, breathing ring on the pause screen (respects reduced motion). A motion pass is still due.
 
 ---
 
@@ -41,8 +44,10 @@
 **Tasks & To-Dos:**
 - [x] Implement deep link integration with Android DND.
 - [ ] Build background service to monitor screen unlocks and enforce limits.
+  - Partly done: periodic checks and reminders (WorkManager, ~15 min). Unlock counting and hard enforcement are not built; soft friction is the chosen default.
 - [x] Add real-time delay and lock overlay. (Launcher-level pause; apps opened from notifications or other apps skip it.)
 - [ ] Integrate AI-based trigger predictions (detect recurring distraction windows).
+  - Deferred: the 4-week hourly heatmap shows these windows; automatic prediction later.
 
 ---
 
@@ -85,10 +90,12 @@
 - Customize coaching tone (gentle / data-driven / motivational).
 
 **Tasks & To-Dos:**
-- [ ] Create local analytics pipeline to record app usage and unlocks.
+- [x] Create local analytics pipeline to record app usage and unlocks.
+  - Daily and hourly app usage, sessions and interventions are recorded locally; unlocks are not yet counted.
 - [ ] Integrate lightweight on-device NLP summarizer.
-- [ ] Build templating system for generating daily insight cards.
-- [ ] Add micro-interactions for reflection prompts.
+  - Deferred: insight text comes from local templates with strict eligibility rules instead of a model.
+- [x] Build templating system for generating daily insight cards.
+- [x] Add micro-interactions for reflection prompts.
 
 ---
 
@@ -108,10 +115,13 @@
 - View streak history and motivational quotes.
 
 **Tasks & To-Dos:**
-- [ ] Implement time-tracking database.
+- [x] Implement time-tracking database.
 - [ ] Integrate gamified scoring system for completed focus sessions.
+  - Partly done: a streak of days with completed focus or timeboxes. Points and ranks not built.
 - [ ] Design celebration overlay animations.
+  - Not started; completion uses a calm message.
 - [ ] Sync focus points with dashboard.
+  - Not started; insights show focus minutes and streak.
 
 ---
 
@@ -130,10 +140,13 @@
 - Export anonymized data (premium feature).
 
 **Tasks & To-Dos:**
-- [ ] Design responsive dashboard cards.
-- [ ] Build AI-based adaptive goal engine.
-- [ ] Implement charting via lightweight library (MPAndroidChart or Compose).
+- [x] Design responsive dashboard cards.
+- [x] Build AI-based adaptive goal engine.
+  - Rule-based for now: after a strong week Yoga suggests a 15-minute lower allowance; never changes it on its own.
+- [x] Implement charting via lightweight library (MPAndroidChart or Compose).
+  - Compose Canvas: 7-day bars and a 4-week hourly heatmap.
 - [ ] Connect backend analytics module to AI summarizer.
+  - Deferred: there is no backend; everything stays on the device.
 
 ---
 
@@ -152,10 +165,11 @@
 - Enable first Focus Challenge (introductory streak goal).
 
 **Tasks & To-Dos:**
-- [ ] Build Compose-based onboarding screens.
-- [ ] Connect onboarding preferences to launcher database.
-- [ ] Add optional skip mode for returning users.
+- [x] Build Compose-based onboarding screens.
+- [x] Connect onboarding preferences to launcher database.
+- [x] Add optional skip mode for returning users.
 - [ ] Integrate AI onboarding insights for personalization.
+  - Partly done: setup prefills home apps from usage and auto-classifies distracting apps.
 
 ---
 
@@ -175,8 +189,11 @@
 
 **Tasks & To-Dos:**
 - [ ] Implement encrypted local data store.
-- [ ] Build simple UI for AI toggles.
+  - Deferred: data lives in app-private storage and is excluded from cloud backup; at-rest encryption still to do.
+- [x] Build simple UI for AI toggles.
+  - Privacy and data: turn usage measuring and insights off.
 - [ ] Add restore-from-cloud option using Google Drive API.
+  - Deferred: export and import a backup file instead (the user can keep it in Drive).
 
 ---
 
@@ -194,8 +211,11 @@
 
 **Tasks & To-Dos:**
 - [ ] Add billing integration (Google Play Billing Library v6).
+  - Deferred: monetisation model is undecided (spec section 12).
 - [ ] Implement feature flag system.
+  - Deferred with monetisation.
 - [ ] Create promotional banners within settings.
+  - Deferred with monetisation.
 
 ---
 
