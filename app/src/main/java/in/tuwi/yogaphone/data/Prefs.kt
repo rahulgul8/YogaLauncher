@@ -8,92 +8,94 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import `in`.tuwi.yogaphone.logic.updateRecentSearches
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = Constants.PREFS_NAME)
 
+enum class ThemeMode { FOLLOW_SYSTEM, LIGHT, DARK, GREYSCALE }
+enum class FontSizeOption { SMALL, MEDIUM, LARGE, EXTRA_LARGE }
+enum class HomeTextAlignment { LEFT, CENTER, RIGHT }
+
+data class UserPreferences(
+    val themeMode: ThemeMode = ThemeMode.FOLLOW_SYSTEM,
+    val fontSize: FontSizeOption = FontSizeOption.MEDIUM,
+    val showClock: Boolean = true,
+    val showDate: Boolean = true,
+    val homeAppCount: Int = Constants.DEFAULT_HOME_APP_COUNT,
+    val homeTextAlignment: HomeTextAlignment = HomeTextAlignment.LEFT,
+    val recentSearches: List<String> = emptyList(),
+    val favoritesMigrated: Boolean = false,
+)
+
 class Prefs(private val context: Context) {
-
-    private val firstLaunchKey = booleanPreferencesKey(Constants.KEY_FIRST_LAUNCH)
-    private val themeKey = intPreferencesKey(Constants.KEY_THEME)
-    private val fontSizeKey = intPreferencesKey(Constants.KEY_FONT_SIZE)
-
-    // First launch
-    val isFirstLaunch: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[firstLaunchKey] ?: true
+    private object Keys {
+        val theme = stringPreferencesKey("theme_mode_v2")
+        val legacyTheme = intPreferencesKey("theme")
+        val fontSize = stringPreferencesKey("font_size_v2")
+        val legacyFontSize = intPreferencesKey("font_size")
+        val showClock = booleanPreferencesKey("show_clock")
+        val showDate = booleanPreferencesKey("show_date")
+        val homeAppCount = intPreferencesKey("home_app_count")
+        val alignment = stringPreferencesKey("home_text_alignment")
+        val recentSearches = stringPreferencesKey("recent_searches")
+        val favoritesMigrated = booleanPreferencesKey("favorites_migrated_to_room")
     }
 
-    suspend fun setFirstLaunchComplete() {
-        context.dataStore.edit { prefs ->
-            prefs[firstLaunchKey] = false
+    val userPreferences: Flow<UserPreferences> = context.dataStore.data.map { values ->
+        UserPreferences(
+            themeMode = values[Keys.theme].enumOrNull<ThemeMode>() ?: when (values[Keys.legacyTheme]) {
+                0 -> ThemeMode.LIGHT
+                1 -> ThemeMode.DARK
+                2 -> ThemeMode.GREYSCALE
+                else -> ThemeMode.FOLLOW_SYSTEM
+            },
+            fontSize = values[Keys.fontSize].enumOrNull<FontSizeOption>() ?: when (values[Keys.legacyFontSize]) {
+                0 -> FontSizeOption.SMALL
+                2 -> FontSizeOption.LARGE
+                else -> FontSizeOption.MEDIUM
+            },
+            showClock = values[Keys.showClock] ?: true,
+            showDate = values[Keys.showDate] ?: true,
+            homeAppCount = (values[Keys.homeAppCount] ?: Constants.DEFAULT_HOME_APP_COUNT)
+                .coerceIn(Constants.MIN_HOME_APP_COUNT, Constants.MAX_HOME_APP_COUNT),
+            homeTextAlignment = values[Keys.alignment].enumOrNull<HomeTextAlignment>() ?: HomeTextAlignment.LEFT,
+            recentSearches = values[Keys.recentSearches]?.split(RECENT_SEPARATOR)?.filter(String::isNotBlank).orEmpty(),
+            favoritesMigrated = values[Keys.favoritesMigrated] ?: false,
+        )
+    }
+
+    suspend fun setThemeMode(value: ThemeMode) = setString(Keys.theme, value.name)
+    suspend fun setFontSize(value: FontSizeOption) = setString(Keys.fontSize, value.name)
+    suspend fun setShowClock(value: Boolean) = setBoolean(Keys.showClock, value)
+    suspend fun setShowDate(value: Boolean) = setBoolean(Keys.showDate, value)
+    suspend fun setHomeAppCount(value: Int) = setInt(Keys.homeAppCount, value.coerceIn(4, 12))
+    suspend fun setHomeTextAlignment(value: HomeTextAlignment) = setString(Keys.alignment, value.name)
+
+    suspend fun recordRecentSearch(term: String) {
+        context.dataStore.edit { values ->
+            val current = values[Keys.recentSearches]?.split(RECENT_SEPARATOR)?.filter(String::isNotBlank).orEmpty()
+            values[Keys.recentSearches] = updateRecentSearches(current, term).joinToString(RECENT_SEPARATOR)
         }
     }
 
-    // Theme
-    val theme: Flow<Int> = context.dataStore.data.map { prefs ->
-        prefs[themeKey] ?: Constants.THEME_DARK
-    }
-
-    suspend fun setTheme(theme: Int) {
-        context.dataStore.edit { prefs ->
-            prefs[themeKey] = theme
+    suspend fun legacyFavorites(): List<LegacyFavorite> {
+        val values = context.dataStore.data.first()
+        return (1..8).mapNotNull { position ->
+            val packageName = values[stringPreferencesKey("${Constants.KEY_APP_PACKAGE_PREFIX}$position")]
+                ?: return@mapNotNull null
+            LegacyFavorite(packageName, position - 1)
         }
     }
 
-    // Font size
-    val fontSize: Flow<Int> = context.dataStore.data.map { prefs ->
-        prefs[fontSizeKey] ?: Constants.FONT_SIZE_MEDIUM
-    }
+    suspend fun markFavoritesMigrated() = setBoolean(Keys.favoritesMigrated, true)
+    private suspend fun setString(key: Preferences.Key<String>, value: String) = context.dataStore.edit { it[key] = value }
+    private suspend fun setBoolean(key: Preferences.Key<Boolean>, value: Boolean) = context.dataStore.edit { it[key] = value }
+    private suspend fun setInt(key: Preferences.Key<Int>, value: Int) = context.dataStore.edit { it[key] = value }
 
-    suspend fun setFontSize(size: Int) {
-        context.dataStore.edit { prefs ->
-            prefs[fontSizeKey] = size
-        }
-    }
-
-    // Favorite apps
-    suspend fun getFavoriteApp(position: Int): FavoriteApp? {
-        val prefs = context.dataStore.data.first()
-        val name = prefs[stringPreferencesKey("${Constants.KEY_APP_NAME_PREFIX}$position")] ?: return null
-        val packageName = prefs[stringPreferencesKey("${Constants.KEY_APP_PACKAGE_PREFIX}$position")] ?: return null
-        val className = prefs[stringPreferencesKey("${Constants.KEY_APP_CLASS_PREFIX}$position")]
-        val userString = prefs[stringPreferencesKey("${Constants.KEY_APP_USER_PREFIX}$position")] ?: ""
-
-        return FavoriteApp(name, packageName, className, userString)
-    }
-
-    suspend fun setFavoriteApp(position: Int, app: AppModel) {
-        context.dataStore.edit { prefs ->
-            prefs[stringPreferencesKey("${Constants.KEY_APP_NAME_PREFIX}$position")] = app.appLabel
-            prefs[stringPreferencesKey("${Constants.KEY_APP_PACKAGE_PREFIX}$position")] = app.appPackage
-            prefs[stringPreferencesKey("${Constants.KEY_APP_CLASS_PREFIX}$position")] = app.activityClassName ?: ""
-            prefs[stringPreferencesKey("${Constants.KEY_APP_USER_PREFIX}$position")] = app.user.toString()
-        }
-    }
-
-    suspend fun removeFavoriteApp(position: Int) {
-        context.dataStore.edit { prefs ->
-            prefs.remove(stringPreferencesKey("${Constants.KEY_APP_NAME_PREFIX}$position"))
-            prefs.remove(stringPreferencesKey("${Constants.KEY_APP_PACKAGE_PREFIX}$position"))
-            prefs.remove(stringPreferencesKey("${Constants.KEY_APP_CLASS_PREFIX}$position"))
-            prefs.remove(stringPreferencesKey("${Constants.KEY_APP_USER_PREFIX}$position"))
-        }
-    }
-
-    suspend fun getAllFavoriteApps(): List<FavoriteApp> {
-        val favorites = mutableListOf<FavoriteApp>()
-        for (i in 1..Constants.MAX_FAVORITE_APPS) {
-            getFavoriteApp(i)?.let { favorites.add(it) }
-        }
-        return favorites
-    }
-
-    data class FavoriteApp(
-        val name: String,
-        val packageName: String,
-        val className: String?,
-        val userString: String
-    )
+    data class LegacyFavorite(val packageName: String, val order: Int)
+    private inline fun <reified T : Enum<T>> String?.enumOrNull(): T? = this?.let { runCatching { enumValueOf<T>(it) }.getOrNull() }
+    private companion object { const val RECENT_SEPARATOR = "\u001F" }
 }

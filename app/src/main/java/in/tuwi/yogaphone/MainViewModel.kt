@@ -1,138 +1,72 @@
 package `in`.tuwi.yogaphone
 
 import android.app.Application
-import android.content.Context
-import android.os.UserHandle
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import `in`.tuwi.yogaphone.data.AppModel
-import `in`.tuwi.yogaphone.data.Constants
-import `in`.tuwi.yogaphone.data.Prefs
-import `in`.tuwi.yogaphone.utils.getAppsList
-import `in`.tuwi.yogaphone.utils.getUserHandleFromString
+import `in`.tuwi.yogaphone.data.FontSizeOption
+import `in`.tuwi.yogaphone.data.HomeTextAlignment
+import `in`.tuwi.yogaphone.data.ThemeMode
+import `in`.tuwi.yogaphone.data.UserPreferences
 import `in`.tuwi.yogaphone.utils.launchApp
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class MainUiState(
     val allApps: List<AppModel> = emptyList(),
+    val drawerApps: List<AppModel> = emptyList(),
     val favoriteApps: List<AppModel> = emptyList(),
+    val hiddenApps: List<AppModel> = emptyList(),
+    val preferences: UserPreferences = UserPreferences(),
     val isLoading: Boolean = true,
-    val theme: Int = Constants.THEME_DARK,
-    val fontSize: Int = Constants.FONT_SIZE_MEDIUM,
-    val isFirstLaunch: Boolean = true
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
-    private val context: Context = application.applicationContext
-    private val prefs = Prefs(context)
+    private val app = application as YogaApplication
+    private val repository = app.appRepository
+    private val prefs = app.prefs
+    private val loading = MutableStateFlow(true)
 
-    private val _uiState = MutableStateFlow(MainUiState())
-    val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+    val uiState: StateFlow<MainUiState> = combine(repository.apps, prefs.userPreferences, loading) { apps, preferences, busy ->
+        MainUiState(
+            allApps = apps,
+            drawerApps = apps.filterNot(AppModel::isHidden).sorted(),
+            favoriteApps = apps.filter(AppModel::isFavorite).sortedBy(AppModel::favoriteOrder).take(preferences.homeAppCount),
+            hiddenApps = apps.filter(AppModel::isHidden).sorted(),
+            preferences = preferences,
+            isLoading = busy,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MainUiState())
 
     init {
-        loadData()
-    }
-
-    private fun loadData() {
         viewModelScope.launch {
-            // Load preferences
-            val theme = prefs.theme.first()
-            val fontSize = prefs.fontSize.first()
-            val isFirstLaunch = prefs.isFirstLaunch.first()
-
-            _uiState.value = _uiState.value.copy(
-                theme = theme,
-                fontSize = fontSize,
-                isFirstLaunch = isFirstLaunch
-            )
-
-            // Load apps immediately on startup
-            loadApps()
+            runCatching { repository.initialize() }
+            loading.value = false
         }
     }
 
-    private suspend fun loadApps() {
-        try {
-            val allApps = getAppsList(context)
-            val favoriteAppsData = prefs.getAllFavoriteApps()
-
-            // Match favorites with installed apps
-            val favoriteApps = favoriteAppsData.mapNotNull { fav ->
-                allApps.find { it.appPackage == fav.packageName }?.copy(isFavorite = true)
-            }
-
-            _uiState.value = _uiState.value.copy(
-                allApps = allApps,
-                favoriteApps = favoriteApps,
-                isLoading = false
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-            _uiState.value = _uiState.value.copy(isLoading = false)
-        }
+    fun refreshApps() = launch { repository.refreshApps() }
+    fun launchApp(appModel: AppModel, searchTerm: String = "") {
+        if (searchTerm.isNotBlank()) launch { prefs.recordRecentSearch(searchTerm) }
+        launchApp(getApplication(), appModel)
     }
 
-    fun refreshApps() {
-        viewModelScope.launch {
-            // Don't show loading spinner when refreshing in background
-            loadApps()
-        }
-    }
+    fun setFavorite(app: AppModel, favorite: Boolean, replacePackage: String? = null) =
+        launch { repository.setFavorite(app.appPackage, favorite, replacePackage) }
+    fun moveFavorite(app: AppModel, delta: Int) = launch { repository.moveFavorite(app.appPackage, delta) }
+    fun renameApp(app: AppModel, label: String?) = launch { repository.rename(app.appPackage, label) }
+    fun setHidden(app: AppModel, hidden: Boolean) = launch { repository.setHidden(app.appPackage, hidden) }
+    fun resetCustomLabels() = launch { repository.resetCustomLabels() }
+    fun setTheme(value: ThemeMode) = launch { prefs.setThemeMode(value) }
+    fun setFontSize(value: FontSizeOption) = launch { prefs.setFontSize(value) }
+    fun setShowClock(value: Boolean) = launch { prefs.setShowClock(value) }
+    fun setShowDate(value: Boolean) = launch { prefs.setShowDate(value) }
+    fun setHomeAppCount(value: Int) = launch { prefs.setHomeAppCount(value) }
+    fun setHomeTextAlignment(value: HomeTextAlignment) = launch { prefs.setHomeTextAlignment(value) }
 
-    private suspend fun updateFavoritesOnly() {
-        // Update favorites without reloading all apps (faster)
-        val favoriteAppsData = prefs.getAllFavoriteApps()
-        val currentAllApps = _uiState.value.allApps
-
-        val favoriteApps = favoriteAppsData.mapNotNull { fav ->
-            currentAllApps.find { it.appPackage == fav.packageName }?.copy(isFavorite = true)
-        }
-
-        _uiState.value = _uiState.value.copy(favoriteApps = favoriteApps)
-    }
-
-    fun launchApp(appModel: AppModel) {
-        launchApp(context, appModel)
-    }
-
-    fun setFavoriteApp(position: Int, appModel: AppModel) {
-        viewModelScope.launch {
-            prefs.setFavoriteApp(position, appModel)
-            // Only update favorites, don't reload all apps
-            updateFavoritesOnly()
-        }
-    }
-
-    fun removeFavoriteApp(position: Int) {
-        viewModelScope.launch {
-            prefs.removeFavoriteApp(position)
-            // Only update favorites, don't reload all apps
-            updateFavoritesOnly()
-        }
-    }
-
-    fun setTheme(theme: Int) {
-        viewModelScope.launch {
-            prefs.setTheme(theme)
-            _uiState.value = _uiState.value.copy(theme = theme)
-        }
-    }
-
-    fun setFontSize(fontSize: Int) {
-        viewModelScope.launch {
-            prefs.setFontSize(fontSize)
-            _uiState.value = _uiState.value.copy(fontSize = fontSize)
-        }
-    }
-
-    fun setFirstLaunchComplete() {
-        viewModelScope.launch {
-            prefs.setFirstLaunchComplete()
-            _uiState.value = _uiState.value.copy(isFirstLaunch = false)
-        }
-    }
+    private fun launch(block: suspend () -> Unit) { viewModelScope.launch { block() } }
 }

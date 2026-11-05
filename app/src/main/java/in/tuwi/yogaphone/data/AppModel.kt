@@ -9,10 +9,13 @@ data class AppModel(
     val activityClassName: String?,
     val user: UserHandle,
     val key: CollationKey? = null,
-    val isFavorite: Boolean = false
+    val customLabel: String? = null,
+    val isFavorite: Boolean = false,
+    val favoriteOrder: Int = Int.MAX_VALUE,
+    val isHidden: Boolean = false,
+    val isEssential: Boolean = false,
+    val isDistracting: Boolean = false,
 ) : Comparable<AppModel> {
-    override fun compareTo(other: AppModel): Int = when {
-        key != null && other.key != null -> key.compareTo(other.key)
-        else -> appLabel.compareTo(other.appLabel, ignoreCase = true)
-    }
+    val displayLabel: String get() = customLabel?.takeIf { it.isNotBlank() } ?: appLabel
+    override fun compareTo(other: AppModel): Int = displayLabel.compareTo(other.displayLabel, ignoreCase = true)
 }

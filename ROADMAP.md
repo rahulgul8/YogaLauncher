@@ -21,21 +21,21 @@ Focus on getting things working quickly, then iterate and improve.
 ## Phase 0: Minimal Setup
 **Goal:** Just enough setup to start building
 **Timeline:** Day 1-2
-**Status:** 🔄 In Progress
+**Status:** ✅ Complete
 
 ### Tasks
 
 #### 0.1 Basic Project Structure
-- [ ] Create package structure: `ui/`, `data/`, `utils/`
-- [ ] Add Room database dependency
-- [ ] Add ViewModel/Lifecycle dependencies
-- [ ] Add Coroutines dependencies
-- [ ] Add DataStore for simple preferences
+- [x] Create package structure: `ui/`, `data/`, `utils/`
+- [x] Add Room database dependency
+- [x] Add ViewModel/Lifecycle dependencies
+- [x] Add Coroutines dependencies
+- [x] Add DataStore for simple preferences
 
 #### 0.2 Minimal Design System
-- [ ] Define 3 color schemes in Theme.kt (Light/Dark/Greyscale)
-- [ ] Set up basic typography (use Material 3 defaults, adjust sizes)
-- [ ] That's it - build as you go
+- [x] Define 3 color schemes in Theme.kt (Light/Dark/Greyscale)
+- [x] Set up basic typography (use Material 3 defaults, adjust sizes)
+- [x] That's it - build as you go
 
 **Note:** No CI/CD, no linting setup, no complex DI frameworks. Keep it simple. Use basic ViewModelProvider factory if needed.
 
@@ -44,32 +44,32 @@ Focus on getting things working quickly, then iterate and improve.
 ## Phase 1: Basic Launcher
 **Goal:** Functional launcher that can replace default launcher
 **Timeline:** Week 1-3
-**Status:** ⏳ Pending
+**Status:** ✅ Complete
 
 ### Tasks
-- [ ] Add launcher intent filters in AndroidManifest (HOME, MAIN categories)
-- [ ] Request launcher as default (no complex permission handling yet)
-- [ ] Query installed apps using PackageManager
-- [ ] Create simple AppModel data class (name, packageName, icon)
-- [ ] Create Room database with Apps table (just favorite flag for now)
-- [ ] Build basic ViewModel with app list
-- [ ] Create text-only home screen UI:
-  - [ ] LazyColumn with favorite app names
-  - [ ] Large, readable typography
-  - [ ] Click to launch app
-- [ ] Implement app launch (create Intent, startActivity)
-- [ ] Long-press to favorite/unfavorite (simple toggle)
-- [ ] Implement search/app drawer interaction:
-  - [ ] Add home button at bottom of screen
-  - [ ] Detect swipe-up gesture from bottom
-  - [ ] Show bottom sheet with all apps (animated slide from bottom)
-  - [ ] Add search TextField at top of bottom sheet
-  - [ ] Filter apps as user types
-  - [ ] Tap outside or swipe down to close
-- [ ] Simple settings screen:
-  - [ ] Font size (3 options)
-  - [ ] Theme toggle (Light/Dark)
-  - [ ] Store in DataStore
+- [x] Add launcher intent filters in AndroidManifest (HOME, MAIN categories)
+- [x] Request launcher as default (no complex permission handling yet)
+- [x] Query installed apps using PackageManager
+- [x] Create AppModel data class (name, package, activity and profile metadata)
+- [x] Create Room database with Apps table (just favorite flag for now)
+- [x] Build basic ViewModel with app list
+- [x] Create text-only home screen UI:
+  - [x] LazyColumn with favorite app names and adaptive spacing
+  - [x] Large, readable typography
+  - [x] Click to launch app
+- [x] Implement app launch (create Intent, startActivity)
+- [x] Long-press to favorite/unfavorite (simple toggle)
+- [x] Implement search/app drawer interaction:
+  - [x] Add home button at bottom of screen
+  - [x] Detect swipe-up gesture from bottom
+  - [x] Show bottom sheet with all apps (animated slide from bottom)
+  - [x] Add search TextField at top of bottom sheet
+  - [x] Filter apps as user types
+  - [x] Tap outside or swipe down to close
+- [x] Simple settings screen:
+  - [x] Font size (3 options)
+  - [x] Theme toggle (Light/Dark)
+  - [x] Store in DataStore
 
 **Acceptance Criteria:**
 - Works as default launcher

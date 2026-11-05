@@ -3,8 +3,6 @@ package `in`.tuwi.yogaphone.utils
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.LauncherApps
-import android.os.UserHandle
-import android.os.UserManager
 import android.widget.Toast
 import `in`.tuwi.yogaphone.data.AppModel
 import kotlinx.coroutines.Dispatchers
@@ -12,33 +10,29 @@ import kotlinx.coroutines.withContext
 import java.text.Collator
 
 /**
- * Get list of all installed apps
+ * Get launcher activities for the main user. The Room schema is package-scoped,
+ * so profile-specific favorites can be added later with an explicit schema migration.
  */
 suspend fun getAppsList(context: Context): List<AppModel> {
     return withContext(Dispatchers.IO) {
         val appList = mutableListOf<AppModel>()
 
         try {
-            val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
             val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
             val collator = Collator.getInstance()
+            val profile = android.os.Process.myUserHandle()
 
-            for (profile in userManager.userProfiles) {
-                for (app in launcherApps.getActivityList(null, profile)) {
-                    // Skip our own app
-                    if (app.applicationInfo.packageName == context.packageName) {
-                        continue
-                    }
+            for (app in launcherApps.getActivityList(null, profile)) {
+                if (app.applicationInfo.packageName == context.packageName) continue
 
-                    val appModel = AppModel(
-                        appLabel = app.label.toString(),
-                        appPackage = app.applicationInfo.packageName,
-                        activityClassName = app.componentName.className,
-                        user = profile,
-                        key = collator.getCollationKey(app.label.toString())
-                    )
-                    appList.add(appModel)
-                }
+                val appModel = AppModel(
+                    appLabel = app.label.toString(),
+                    appPackage = app.applicationInfo.packageName,
+                    activityClassName = app.componentName.className,
+                    user = profile,
+                    key = collator.getCollationKey(app.label.toString()),
+                )
+                appList.add(appModel)
             }
 
             appList.sort()
@@ -81,19 +75,6 @@ fun launchApp(context: Context, appModel: AppModel) {
     } catch (e: Exception) {
         context.showToast("Unable to open app")
     }
-}
-
-/**
- * Get UserHandle from string representation
- */
-fun getUserHandleFromString(context: Context, userHandleString: String): UserHandle {
-    val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
-    for (userHandle in userManager.userProfiles) {
-        if (userHandle.toString() == userHandleString) {
-            return userHandle
-        }
-    }
-    return android.os.Process.myUserHandle()
 }
 
 /**

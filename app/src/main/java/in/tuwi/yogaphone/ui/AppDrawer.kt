@@ -1,21 +1,26 @@
 package `in`.tuwi.yogaphone.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -31,132 +36,113 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import `in`.tuwi.yogaphone.data.AppModel
+import `in`.tuwi.yogaphone.logic.SearchableApp
+import `in`.tuwi.yogaphone.logic.rankAppSearch
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppDrawerBottomSheet(
     apps: List<AppModel>,
+    recentSearches: List<String>,
     fontSize: Int,
-    onAppClick: (AppModel) -> Unit,
+    onAppClick: (AppModel, String) -> Unit,
+    onAppLongClick: (AppModel) -> Unit,
     onDismiss: () -> Unit,
-    selectingFavoritePosition: Int? = null,
-    modifier: Modifier = Modifier
+    replacingApp: AppModel? = null,
+    modifier: Modifier = Modifier,
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var query by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
-    val keyboardController = LocalSoftwareKeyboardController.current
-
-    // Auto-focus on search field and show keyboard
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-        keyboardController?.show()
+    val keyboard = LocalSoftwareKeyboardController.current
+    val matches = remember(apps, query) {
+        rankAppSearch(apps.map { SearchableApp(it.displayLabel, it) }, query)
     }
 
-    val filteredApps = remember(apps, searchQuery) {
-        if (searchQuery.isBlank()) {
-            apps
-        } else {
-            apps.filter { it.appLabel.contains(searchQuery, ignoreCase = true) }
-        }
-    }
+    LaunchedEffect(Unit) { delay(150); focusRequester.requestFocus(); keyboard?.show() }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        modifier = modifier
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        modifier = modifier,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp)
-        ) {
-            // Search bar
+        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
             TextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-                    .focusRequester(focusRequester),
-                placeholder = {
-                    Text(
-                        text = if (selectingFavoritePosition != null) {
-                            "Select app for position $selectingFavoritePosition"
-                        } else {
-                            "Search apps..."
-                        },
-                        textAlign = TextAlign.Start
-                    )
-                },
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                placeholder = { Text(if (replacingApp == null) "Search apps" else "Replace ${replacingApp.displayLabel}") },
                 trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Clear search",
-                            modifier = Modifier.clickable { searchQuery = "" }
-                        )
+                    if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear search")
                     }
                 },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                keyboardActions = KeyboardActions(onGo = {
+                    matches.firstOrNull()?.let { onAppClick(it, query) }
+                }, onDone = { matches.firstOrNull()?.let { onAppClick(it, query) } }),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Transparent,
                     focusedContainerColor = Color.Transparent,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.primary
-                )
+                    unfocusedContainerColor = Color.Transparent,
+                ),
             )
-
-            // App list
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(filteredApps) { app ->
-                    AppDrawerItem(
-                        app = app,
-                        fontSize = fontSize,
-                        onClick = {
-                            onAppClick(app)
-                        }
-                    )
-                }
-
-                if (filteredApps.isEmpty()) {
-                    item {
-                        Text(
-                            text = "No apps found",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 32.dp)
+            if (query.isBlank() && recentSearches.isNotEmpty()) {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp),
+                ) {
+                    recentSearches.forEach { term ->
+                        AssistChip(
+                            onClick = { query = term },
+                            label = { Text(term) },
+                            modifier = Modifier.padding(end = 8.dp),
                         )
                     }
+                }
+            }
+            LazyColumn(Modifier.fillMaxSize().padding(top = 8.dp)) {
+                items(matches, key = { "${it.appPackage}:${it.activityClassName}" }) { app ->
+                    DrawerAppRow(
+                        app = app,
+                        fontSize = fontSize,
+                        highlighted = query.isNotBlank() && matches.size == 1,
+                        onClick = { onAppClick(app, query) },
+                        onLongClick = { if (replacingApp == null) onAppLongClick(app) },
+                    )
+                }
+                if (matches.isEmpty()) item {
+                    Text(
+                        "No apps found",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AppDrawerItem(
+private fun DrawerAppRow(
     app: AppModel,
     fontSize: Int,
+    highlighted: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onLongClick: () -> Unit,
 ) {
-    Text(
-        text = app.appLabel,
-        style = MaterialTheme.typography.bodyLarge.copy(fontSize = fontSize.sp),
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp)
-    )
+    Surface(
+        color = if (highlighted) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+    ) {
+        Text(app.displayLabel, fontSize = fontSize.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp))
+    }
 }
