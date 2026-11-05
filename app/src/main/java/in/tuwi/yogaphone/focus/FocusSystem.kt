@@ -177,6 +177,8 @@ class FocusReceiver : BroadcastReceiver() {
                         app.organizeRepository.reconcileSchedules()?.profile?.let { profile ->
                             if (profile.focusOnActivate) repository.startFocus(null)
                         }
+                        app.quietRepository.scheduleDigest()
+                        app.quietRepository.reconcileGreyscale()
                     }
                 }
             } catch (_: Exception) {

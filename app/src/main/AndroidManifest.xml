@@ -13,6 +13,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <!-- Optional: granted only by the user over adb, for device-wide greyscale. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
 
     <application
         android:name=".YogaApplication"
@@ -25,6 +28,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.YogaPhone">
         <receiver android:name=".usage.UsageSnoozeReceiver" android:exported="false" />
+        <receiver android:name=".quiet.QuietReceiver" android:exported="false" />
+        <service
+            android:name=".quiet.YogaNotificationListener"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
         <receiver android:name=".focus.FocusReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

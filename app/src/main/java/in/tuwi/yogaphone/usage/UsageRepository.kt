@@ -71,6 +71,13 @@ class UsageRepository(private val context: Context, private val database: YogaDa
                 rows.orEmpty().filter { it.eligible }.associate { it.packageName to it.foregroundMinutes },
                 rows.orEmpty().filterNot { it.packageName in essential }.associate { it.packageName to it.foregroundMinutes },
                 categoryOf)
+            if (rows != null) {
+                val quiet = (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).quietRepository
+                runCatching {
+                    quiet.recordOverLimit(evaluation.overall?.state == RuleState.OVER)
+                    quiet.reconcileGreyscale()
+                }
+            }
             if (rows != null) UsageNotifications(context).check(today.toString(), evaluation, p, prefs)
             else UsageNotifications(context).cancelOngoing()
             UsageSnapshot(today, true, rows != null, rows.orEmpty(), week, known, essential, evaluation, categoryOf,

@@ -243,7 +243,8 @@ private fun ScheduleOption(label: String, selected: Boolean, onClick: () -> Unit
 @Composable
 private fun ToggleRow(title: String, summary: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     ListItem(headlineContent = { Text(title) }, supportingContent = { Text(summary) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onChange) })
+        trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
+        modifier = Modifier.clickable { onChange(!checked) })
 }
 
 @Composable

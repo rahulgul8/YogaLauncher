@@ -48,6 +48,8 @@ fun SettingsScreen(
     onFocus: () -> Unit,
     onProfiles: () -> Unit,
     onCategories: () -> Unit,
+    onVisual: () -> Unit,
+    onQuiet: () -> Unit,
 ) {
     val context = LocalContext.current
     var isDefault by remember { mutableStateOf(isDefaultHome(context)) }
@@ -92,6 +94,8 @@ fun SettingsScreen(
         item { SettingsRow("Value of time", "Optional illustrative hourly value", onValueOfTime) }
         item { SectionTitle("Focus") }
         item { SettingsRow("Focus and timebox", "Mindful pause, focus schedules, Do Not Disturb", onFocus) }
+        item { SettingsRow("Visual interventions", "Greyscale when over the limit, in focus or at bedtime", onVisual) }
+        item { SettingsRow("Quiet notifications", "Hold chosen apps' notifications for a digest", onQuiet) }
         item { SectionTitle("Appearance") }
         item { SettingsRow("Home and appearance", "Theme, type, clock, date and layout", onAppearance) }
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }

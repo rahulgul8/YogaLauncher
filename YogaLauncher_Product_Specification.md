@@ -464,9 +464,9 @@ Each work item should become a ticket with interaction details, states, permissi
 - [x] Build usage dashboard and near/over-limit feedback.
 - [x] Implement timebox lifecycle and completion prompts.
 - [x] Prototype deliberate launch delay and limitations.
-- [ ] Prototype grayscale workflow and supported fallback.
+- [x] Prototype grayscale workflow and supported fallback.
 - [x] Prototype focus sessions and essential-app exceptions.
-- [ ] Investigate notification quieting, consent, and digest options.
+- [x] Investigate notification quieting, consent, and digest options.
 
 ### Differentiation and refinement
 

@@ -20,6 +20,7 @@ class YogaApplication : Application() {
     val appRepository by lazy { AppRepository(this, database, prefs) }
     val focusPrefs by lazy { FocusPrefs(this) }
     val focusRepository by lazy { FocusRepository(this, database, focusPrefs) }
+    val quietRepository by lazy { `in`.tuwi.yogaphone.quiet.QuietRepository(this, database) }
     val organizeRepository by lazy { `in`.tuwi.yogaphone.profiles.OrganizeRepository(this, database) }
 }
 

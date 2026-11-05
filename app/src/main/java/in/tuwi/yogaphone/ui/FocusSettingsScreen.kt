@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import androidx.compose.foundation.clickable
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
@@ -162,7 +163,8 @@ fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: Fo
 @Composable
 private fun SwitchRow(title: String, summary: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     ListItem(headlineContent = { Text(title) }, supportingContent = { Text(summary) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onChange) })
+        trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
+        modifier = Modifier.clickable { onChange(!checked) })
 }
 
 @Composable

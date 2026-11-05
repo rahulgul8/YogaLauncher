@@ -491,3 +491,10 @@ OEM event feeds, notification permission, DST/timezone and midnight rollover) re
 - [x] Category-level daily limits in Usage rules and per-category totals on the usage dashboard.
 - [x] Profiles (Priority 2): own ordered home apps, optional "tuck other apps away" with an All apps escape, start focus, theme override.
 - [x] Profile switcher on home (active profile always labelled) and a profile manager; schedule-linked automatic switching where a manual switch wins until the window ends.
+
+## Piece 4b — Greyscale workflow and quiet notifications (6 November 2026)
+
+- [x] Launcher greyscale on triggers (over today's limit, during focus, during a chosen bedtime schedule) with a home indicator and 30-minute snooze.
+- [x] Device-wide greyscale guidance (Accessibility, Digital Wellbeing) and an advanced adb-granted path that switches Android's colour correction and restores the user's previous setting.
+- [x] Quiet notifications via an opt-in notification listener: per-app Allow / Hold in focus / Always hold; calls, alarms, ongoing, media and Yoga's own never held; only title and text kept, for at most a day.
+- [x] Digest delivered when focus ends and at chosen times, with a held-notifications screen grouped by app.

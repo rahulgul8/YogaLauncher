@@ -155,6 +155,8 @@ class FocusRepository(
         val end = if (early) now() else session.plannedEndAt ?: now()
         dao.saveFocus(session.copy(endedAt = end, status = if (early) FocusStatus.ENDED_EARLY else FocusStatus.COMPLETED))
         restoreFocusSideEffects()
+        // Held notifications are summarised as soon as focus ends.
+        runCatching { (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).quietRepository.deliverDigest() }
         if (!early) {
             val minutes = ((end - session.startAt) / 60_000).coerceAtLeast(1)
             val streak = streak()

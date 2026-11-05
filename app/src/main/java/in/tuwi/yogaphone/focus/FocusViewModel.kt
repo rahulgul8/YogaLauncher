@@ -78,6 +78,7 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
         runCatching {
             app.organizeRepository.reconcileSchedules()?.profile?.let { if (it.focusOnActivate) repository.startFocus(null) }
         }
+        runCatching { app.quietRepository.reconcileGreyscale() }
         streak.value = runCatching { repository.streak() }.getOrDefault(0)
     }
 
@@ -110,8 +111,8 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
     fun extendTimebox(minutes: Int) = launch { repository.extendTimebox(minutes) }
     fun acknowledgeTimebox() = launch { repository.acknowledgeTimebox() }
 
-    fun startFocus(minutes: Int?) = launch { repository.startFocus(minutes) }
-    fun endFocus() = launch { repository.endFocus() }
+    fun startFocus(minutes: Int?) = launch { repository.startFocus(minutes); app.quietRepository.reconcileGreyscale() }
+    fun endFocus() = launch { repository.endFocus(); app.quietRepository.reconcileGreyscale() }
 
     fun saveSchedule(schedule: FocusScheduleEntity) = launch { repository.saveSchedule(schedule) }
     fun deleteSchedule(id: Long) = launch { repository.deleteSchedule(id) }
@@ -121,13 +122,16 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
     fun setDontAskMinutes(value: Int) = launch { repository.prefs.setDontAskMinutes(value) }
     fun setDelayOptOut(pkg: String, value: Boolean) = launch { repository.prefs.setDelayOptOut(pkg, value) }
     fun setFocusAllowed(pkg: String, value: Boolean) = launch { repository.prefs.setFocusAllowed(pkg, value) }
-    fun setFocusGreyscale(value: Boolean) = launch { repository.prefs.setFocusGreyscale(value) }
+    fun setFocusGreyscale(value: Boolean) = launch { repository.prefs.setFocusGreyscale(value); app.quietRepository.reconcileGreyscale() }
     fun setFocusDnd(value: Boolean) = launch { repository.prefs.setFocusDnd(value) }
 
     fun system() = repository.system()
 
     private fun launch(block: suspend () -> Unit) {
-        viewModelScope.launch { runCatching { block() } }
-        ticker.value = System.currentTimeMillis()
+        viewModelScope.launch {
+            runCatching { block() }
+            // Tick after the change so "time left" is measured from the new state, not a stale clock.
+            ticker.value = System.currentTimeMillis()
+        }
     }
 }

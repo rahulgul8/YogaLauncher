@@ -19,7 +19,7 @@ const val TIME_VALUE_EXPLANATION = "This is an illustrative value of your time â
 @Composable
 fun UsageToggle(title: String, checked: Boolean, onChange: (Boolean) -> Unit, enabled: Boolean = true) {
     ListItem(headlineContent = { Text(title) }, trailingContent = { Switch(checked, onChange, enabled = enabled, modifier = Modifier.semantics { contentDescription = title }) },
-        modifier = Modifier.heightIn(min = 56.dp))
+        modifier = Modifier.heightIn(min = 56.dp).clickable(enabled = enabled) { onChange(!checked) })
 }
 
 @Composable

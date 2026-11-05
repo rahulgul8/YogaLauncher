@@ -54,6 +54,17 @@ import `in`.tuwi.yogaphone.ui.CategoryPickerDialog
 import `in`.tuwi.yogaphone.ui.ProfileEditScreen
 import `in`.tuwi.yogaphone.ui.ProfileSwitcherSheet
 import `in`.tuwi.yogaphone.ui.ProfilesScreen
+import `in`.tuwi.yogaphone.ui.DigestScreen
+import `in`.tuwi.yogaphone.ui.HomeGreyIndicator
+import `in`.tuwi.yogaphone.ui.QuietNotificationsScreen
+import `in`.tuwi.yogaphone.ui.VisualInterventionsScreen
+import `in`.tuwi.yogaphone.quiet.GreyReason
+import `in`.tuwi.yogaphone.quiet.GreyTriggers
+import `in`.tuwi.yogaphone.quiet.GreyscalePolicy
+import `in`.tuwi.yogaphone.quiet.QuietPreferences
+import `in`.tuwi.yogaphone.quiet.QuietRepository
+import `in`.tuwi.yogaphone.focus.ScheduleEvaluator
+import `in`.tuwi.yogaphone.focus.toWindow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -90,6 +101,9 @@ private const val APPEARANCE = "settings/appearance"
 private const val FOCUS_SETTINGS = "settings/focus"
 private const val PROFILES = "settings/profiles"
 private const val CATEGORIES = "settings/categories"
+private const val VISUAL = "settings/visual"
+private const val QUIET = "settings/quiet"
+private const val DIGEST = "digest"
 
 private data class PendingPause(val app: AppModel, val query: String, val seconds: Int, val duringFocus: Boolean)
 
@@ -100,6 +114,7 @@ class MainActivity : ComponentActivity() {
     private var usageRequest by mutableIntStateOf(0)
     private lateinit var appChangeReceiver: AppChangeReceiver
     private var homeRequest by mutableIntStateOf(0)
+    private var digestRequest by mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,7 +125,8 @@ class MainActivity : ComponentActivity() {
             @Suppress("DEPRECATION") registerReceiver(appChangeReceiver, AppChangeReceiver.getIntentFilter())
         }
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
-        setContent { YogaLauncherApp(viewModel, usageViewModel, focusViewModel, homeRequest, usageRequest) }
+        if (intent.action == QuietRepository.ACTION_OPEN_DIGEST) digestRequest++
+        setContent { YogaLauncherApp(viewModel, usageViewModel, focusViewModel, homeRequest, usageRequest, digestRequest) }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -119,6 +135,7 @@ class MainActivity : ComponentActivity() {
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
         if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) homeRequest++
         if (intent.action == FocusSystem.ACTION_OPEN_TIMEBOX) homeRequest++
+        if (intent.action == QuietRepository.ACTION_OPEN_DIGEST) digestRequest++
     }
 
     override fun onDestroy() {
@@ -128,13 +145,25 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, focusViewModel: FocusViewModel, homeRequest: Int, usageRequest: Int) {
+private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, focusViewModel: FocusViewModel, homeRequest: Int, usageRequest: Int, digestRequest: Int) {
     val uiState by viewModel.uiState.collectAsState()
     val focusState by focusViewModel.state.collectAsState()
     // Greyscale during focus is an override; the chosen theme is never rewritten.
     val profileTheme = uiState.activeProfile?.themeOverride?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
-    val themeMode = if (focusState.focusActive && focusState.preferences.focusGreyscale) ThemeMode.GREYSCALE
-        else profileTheme ?: uiState.preferences.themeMode
+    val quiet = (androidx.compose.ui.platform.LocalContext.current.applicationContext as YogaApplication).quietRepository
+    val quietPrefs by quiet.preferences.collectAsState(initial = QuietPreferences())
+    val usageForGrey by usageViewModel.state.collectAsState()
+    val greyReason = run {
+        val bedtime = quietPrefs.greyBedtimeScheduleId?.let { id ->
+            focusState.schedules.firstOrNull { it.id == id }?.let {
+                ScheduleEvaluator.activeAt(listOf(it.toWindow()), java.time.Instant.ofEpochMilli(focusState.now), java.time.ZoneId.systemDefault()) != null
+            }
+        } ?: false
+        val over = usageForGrey.snapshot.evaluation.overall?.state == RuleState.OVER
+        GreyscalePolicy.reason(GreyTriggers(quietPrefs.greyOverLimit, focusState.preferences.focusGreyscale, quietPrefs.greyBedtimeScheduleId != null),
+            focusState.focusActive, bedtime, over, quietPrefs.greySnoozedUntil, focusState.now)
+    }
+    val themeMode = if (greyReason != null) ThemeMode.GREYSCALE else profileTheme ?: uiState.preferences.themeMode
     val activity = androidx.compose.ui.platform.LocalContext.current as ComponentActivity
     val darkIcons = themeUsesDarkIcons(themeMode)
     SideEffect {
@@ -145,7 +174,7 @@ private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewM
     }
     YogaPhoneTheme(themeMode) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, usageRequest)
+            LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, usageRequest, digestRequest, greyReason, quietPrefs, quiet)
         }
     }
 }
@@ -159,6 +188,10 @@ private fun LauncherNavigation(
     uiState: MainUiState,
     homeRequest: Int,
     usageRequest: Int,
+    digestRequest: Int,
+    greyReason: GreyReason?,
+    quietPrefs: QuietPreferences,
+    quiet: QuietRepository,
 ) {
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -176,6 +209,9 @@ private fun LauncherNavigation(
     }
     LaunchedEffect(resumed) {
         if (resumed) while (true) { usageViewModel.refresh(); delay(30_000) }
+    }
+    LaunchedEffect(digestRequest) {
+        if (digestRequest > 0) navController.navigate(DIGEST) { launchSingleTop = true }
     }
     LaunchedEffect(usageRequest) {
         if (usageRequest > 0) navController.navigate("usage?details=true") { launchSingleTop = true }
@@ -246,6 +282,7 @@ private fun LauncherNavigation(
                 onExpandNotifications = { context.expandNotifications() },
                 statusContent = {
                     Column {
+                        HomeGreyIndicator(greyReason) { scope.launch { quiet.snoozeGrey(30) } }
                         HomeFocusStatus(focusState, onTimebox = { showTimeboxControl = true }, onFocus = { showFocusControl = true })
                         HomeUsageIndicator(usageState, { navController.navigate("usage") }, { navController.navigate("usage?details=true") })
                     }
@@ -277,6 +314,8 @@ private fun LauncherNavigation(
                 onFocus = { navController.navigate(FOCUS_SETTINGS) },
                 onProfiles = { navController.navigate(PROFILES) },
                 onCategories = { navController.navigate(CATEGORIES) },
+                onVisual = { navController.navigate(VISUAL) },
+                onQuiet = { navController.navigate(QUIET) },
             )
         }
         composable("usage?details={details}", arguments = listOf(androidx.navigation.navArgument("details") { defaultValue = "false" })) { entry ->
@@ -310,6 +349,24 @@ private fun LauncherNavigation(
             val id = entry.arguments?.getString("id")?.toLongOrNull()
             val profile = uiState.profiles.firstOrNull { it.id == id }
             if (profile != null) ProfileEditScreen(profile, uiState, focusState.schedules, viewModel) { navController.popBackStack() }
+        }
+        composable(VISUAL) {
+            VisualInterventionsScreen(quietPrefs, focusState.preferences.focusGreyscale, focusState.schedules, quiet,
+                focusViewModel::setFocusGreyscale) { navController.popBackStack() }
+        }
+        composable(QUIET) {
+            val heldRules by quiet.rules.collectAsState(initial = emptyList())
+            QuietNotificationsScreen(quietPrefs, uiState.drawerApps + uiState.otherApps, heldRules,
+                isDistracting = focusState::isDistracting,
+                isEssential = { focusState.classifications[it]?.essential == true },
+                repository = quiet, onOpenDigest = { navController.navigate(DIGEST) }) { navController.popBackStack() }
+        }
+        composable(DIGEST) {
+            val held by quiet.held.collectAsState(initial = emptyList())
+            val labels = uiState.allApps.associate { it.appPackage to it.displayLabel }
+            DigestScreen(held, { labels[it] ?: it }, onOpenApp = { pkg ->
+                uiState.allApps.firstOrNull { it.appPackage == pkg }?.let { requestLaunch(it) }
+            }, repository = quiet) { navController.popBackStack() }
         }
         composable(CATEGORIES) {
             CategoriesScreen(uiState, viewModel) { navController.popBackStack() }
