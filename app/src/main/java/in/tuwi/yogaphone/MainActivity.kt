@@ -30,6 +30,25 @@ import `in`.tuwi.yogaphone.ui.UsageSettingsScreen
 import `in`.tuwi.yogaphone.ui.ValueOfTimeSettingsScreen
 import `in`.tuwi.yogaphone.ui.HomeUsageIndicator
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.rememberCoroutineScope
+import `in`.tuwi.yogaphone.data.ThemeMode
+import `in`.tuwi.yogaphone.data.db.TimeboxStatus
+import `in`.tuwi.yogaphone.focus.FocusSystem
+import `in`.tuwi.yogaphone.focus.FocusUiState
+import `in`.tuwi.yogaphone.focus.FocusViewModel
+import `in`.tuwi.yogaphone.focus.LaunchDecision
+import `in`.tuwi.yogaphone.ui.FocusControlSheet
+import `in`.tuwi.yogaphone.ui.FocusSettingsScreen
+import `in`.tuwi.yogaphone.ui.FocusStartSheet
+import `in`.tuwi.yogaphone.ui.HomeFocusStatus
+import `in`.tuwi.yogaphone.ui.HomeQuickActions
+import `in`.tuwi.yogaphone.ui.MindfulDelayScreen
+import `in`.tuwi.yogaphone.ui.TimeboxCompletionSheet
+import `in`.tuwi.yogaphone.ui.TimeboxControlSheet
+import `in`.tuwi.yogaphone.ui.TimeboxStartSheet
+import `in`.tuwi.yogaphone.usage.RuleState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -63,10 +82,14 @@ private const val HOME = "home"
 private const val SETTINGS = "settings"
 private const val HIDDEN_APPS = "settings/hidden_apps"
 private const val APPEARANCE = "settings/appearance"
+private const val FOCUS_SETTINGS = "settings/focus"
+
+private data class PendingPause(val app: AppModel, val query: String, val seconds: Int, val duringFocus: Boolean)
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private val usageViewModel: UsageViewModel by viewModels()
+    private val focusViewModel: FocusViewModel by viewModels()
     private var usageRequest by mutableIntStateOf(0)
     private lateinit var appChangeReceiver: AppChangeReceiver
     private var homeRequest by mutableIntStateOf(0)
@@ -80,7 +103,7 @@ class MainActivity : ComponentActivity() {
             @Suppress("DEPRECATION") registerReceiver(appChangeReceiver, AppChangeReceiver.getIntentFilter())
         }
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
-        setContent { YogaLauncherApp(viewModel, usageViewModel, homeRequest, usageRequest) }
+        setContent { YogaLauncherApp(viewModel, usageViewModel, focusViewModel, homeRequest, usageRequest) }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -88,6 +111,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
         if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) homeRequest++
+        if (intent.action == FocusSystem.ACTION_OPEN_TIMEBOX) homeRequest++
     }
 
     override fun onDestroy() {
@@ -97,25 +121,37 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, homeRequest: Int, usageRequest: Int) {
+private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, focusViewModel: FocusViewModel, homeRequest: Int, usageRequest: Int) {
     val uiState by viewModel.uiState.collectAsState()
+    val focusState by focusViewModel.state.collectAsState()
+    // Greyscale during focus is an override; the chosen theme is never rewritten.
+    val themeMode = if (focusState.focusActive && focusState.preferences.focusGreyscale) ThemeMode.GREYSCALE else uiState.preferences.themeMode
     val activity = androidx.compose.ui.platform.LocalContext.current as ComponentActivity
-    val darkIcons = themeUsesDarkIcons(uiState.preferences.themeMode)
+    val darkIcons = themeUsesDarkIcons(themeMode)
     SideEffect {
         activity.enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { !darkIcons },
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { !darkIcons },
         )
     }
-    YogaPhoneTheme(uiState.preferences.themeMode) {
+    YogaPhoneTheme(themeMode) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            LauncherNavigation(viewModel, usageViewModel, uiState, homeRequest, usageRequest)
+            LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, usageRequest)
         }
     }
 }
 
 @Composable
-private fun LauncherNavigation(viewModel: MainViewModel, usageViewModel: UsageViewModel, uiState: MainUiState, homeRequest: Int, usageRequest: Int) {
+private fun LauncherNavigation(
+    viewModel: MainViewModel,
+    usageViewModel: UsageViewModel,
+    focusViewModel: FocusViewModel,
+    focusState: FocusUiState,
+    uiState: MainUiState,
+    homeRequest: Int,
+    usageRequest: Int,
+) {
+    val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
     val usageState by usageViewModel.state.collectAsState()
@@ -123,7 +159,7 @@ private fun LauncherNavigation(viewModel: MainViewModel, usageViewModel: UsageVi
     var resumed by remember { mutableStateOf(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
     DisposableEffect(owner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) { resumed = true; usageViewModel.refresh() }
+            if (event == Lifecycle.Event.ON_RESUME) { resumed = true; usageViewModel.refresh(); focusViewModel.refresh() }
             if (event == Lifecycle.Event.ON_PAUSE) resumed = false
         }
         owner.lifecycle.addObserver(observer)
@@ -141,6 +177,22 @@ private fun LauncherNavigation(viewModel: MainViewModel, usageViewModel: UsageVi
     var favoriteMenuApp by remember { mutableStateOf<AppModel?>(null) }
     var drawerMenuApp by remember { mutableStateOf<AppModel?>(null) }
     var renameApp by remember { mutableStateOf<AppModel?>(null) }
+    var pendingPause by remember { mutableStateOf<PendingPause?>(null) }
+    var timeboxStartFor by remember { mutableStateOf<AppModel?>(null) }
+    var showTimeboxStart by remember { mutableStateOf(false) }
+    var showTimeboxControl by remember { mutableStateOf(false) }
+    var showFocusStart by remember { mutableStateOf(false) }
+    var showFocusControl by remember { mutableStateOf(false) }
+
+    // Every launch from Yoga goes through the mindful-pause gate.
+    fun requestLaunch(app: AppModel, query: String = "") {
+        scope.launch {
+            when (val decision = focusViewModel.decide(app)) {
+                LaunchDecision.Open -> viewModel.launchApp(app, query)
+                is LaunchDecision.Pause -> pendingPause = PendingPause(app, query, decision.seconds, decision.duringFocus)
+            }
+        }
+    }
 
     LaunchedEffect(homeRequest) {
         if (homeRequest > 0) {
@@ -149,6 +201,10 @@ private fun LauncherNavigation(viewModel: MainViewModel, usageViewModel: UsageVi
             favoriteMenuApp = null
             drawerMenuApp = null
             renameApp = null
+            showTimeboxStart = false
+            showTimeboxControl = false
+            showFocusStart = false
+            showFocusControl = false
             navController.returnHome()
         }
     }
@@ -160,16 +216,34 @@ private fun LauncherNavigation(viewModel: MainViewModel, usageViewModel: UsageVi
         modifier = Modifier.statusBarsPadding().navigationBarsPadding(),
     ) {
         composable(HOME) {
+            val homeState = if (focusState.focusActive)
+                uiState.copy(favoriteApps = uiState.favoriteApps.filterNot { focusState.pausedByFocus(it.appPackage) })
+            else uiState
             HomeScreen(
-                uiState = uiState,
-                onAppClick = { viewModel.launchApp(it) },
+                uiState = homeState,
+                onAppClick = { requestLaunch(it) },
                 onAppLongClick = { favoriteMenuApp = it },
                 onOpenAppDrawer = { showDrawer = true; replacingApp = null },
                 onOpenSettings = { navController.navigate(SETTINGS) },
                 onOpenClock = { context.openClock() },
                 onOpenCalendar = { context.openCalendar() },
                 onExpandNotifications = { context.expandNotifications() },
-                statusContent = { HomeUsageIndicator(usageState, { navController.navigate("usage") }, { navController.navigate("usage?details=true") }) },
+                statusContent = {
+                    Column {
+                        HomeFocusStatus(focusState, onTimebox = { showTimeboxControl = true }, onFocus = { showFocusControl = true })
+                        HomeUsageIndicator(usageState, { navController.navigate("usage") }, { navController.navigate("usage?details=true") })
+                    }
+                },
+                quickActions = {
+                    HomeQuickActions(
+                        onTimebox = {
+                            if (focusState.timeboxRemainingMs != null) showTimeboxControl = true
+                            else { timeboxStartFor = null; showTimeboxStart = true }
+                        },
+                        onFocus = { showFocusStart = true },
+                        focusActive = focusState.focusActive,
+                    )
+                },
                 modifier = Modifier,
             )
         }
@@ -182,6 +256,7 @@ private fun LauncherNavigation(viewModel: MainViewModel, usageViewModel: UsageVi
                 onUsage = { navController.navigate("usage") },
                 onUsageRules = { navController.navigate("settings/usage") },
                 onValueOfTime = { navController.navigate("settings/value") },
+                onFocus = { navController.navigate(FOCUS_SETTINGS) },
             )
         }
         composable("usage?details={details}", arguments = listOf(androidx.navigation.navArgument("details") { defaultValue = "false" })) { entry ->
@@ -207,6 +282,9 @@ private fun LauncherNavigation(viewModel: MainViewModel, usageViewModel: UsageVi
                 onAlignment = viewModel::setHomeTextAlignment,
             )
         }
+        composable(FOCUS_SETTINGS) {
+            FocusSettingsScreen(focusState, uiState.drawerApps, focusViewModel) { navController.popBackStack() }
+        }
         composable(HIDDEN_APPS) {
             HiddenAppsScreen(uiState.hiddenApps, { navController.popBackStack() }) { viewModel.setHidden(it, false) }
         }
@@ -221,12 +299,13 @@ private fun LauncherNavigation(viewModel: MainViewModel, usageViewModel: UsageVi
             onAppClick = { selected, query ->
                 val replaced = replacingApp
                 if (replaced != null) viewModel.setFavorite(selected, true, replaced.appPackage)
-                else viewModel.launchApp(selected, query)
+                else requestLaunch(selected, query)
                 showDrawer = false
                 replacingApp = null
             },
             onAppLongClick = { drawerMenuApp = it; showDrawer = false },
             onDismiss = { showDrawer = false; replacingApp = null },
+            isPaused = { focusState.pausedByFocus(it.appPackage) },
         )
     }
 
@@ -252,6 +331,7 @@ private fun LauncherNavigation(viewModel: MainViewModel, usageViewModel: UsageVi
                     viewModel.setFavorite(app, !app.isFavorite)
                 },
                 AppMenuAction("Rename") { renameApp = app },
+                AppMenuAction("Timebox this app") { timeboxStartFor = app; showTimeboxStart = true },
                 AppMenuAction("Hide") { viewModel.setHidden(app, true) },
                 AppMenuAction("App info") { context.openAppInfo(app.appPackage) },
                 AppMenuAction("Uninstall") { context.uninstall(app.appPackage) },
@@ -259,6 +339,73 @@ private fun LauncherNavigation(viewModel: MainViewModel, usageViewModel: UsageVi
         ) { drawerMenuApp = null }
     }
     renameApp?.let { app -> RenameAppDialog(app, { renameApp = null }) { viewModel.renameApp(app, it) } }
+
+    if (showTimeboxStart) {
+        val bound = timeboxStartFor
+        TimeboxStartSheet(
+            lastMinutes = focusState.preferences.lastTimeboxMinutes,
+            recentPurposes = focusState.preferences.timeboxPurposes,
+            boundApp = bound,
+            onStart = { minutes, purpose ->
+                focusViewModel.startTimebox(minutes, purpose, bound?.appPackage)
+                // A timeboxed app is a deliberate choice, so it opens without the pause.
+                bound?.let { viewModel.launchApp(it) }
+            },
+            onDismiss = { showTimeboxStart = false; timeboxStartFor = null },
+        )
+    }
+    val timebox = focusState.timebox
+    val timeboxRemaining = focusState.timeboxRemainingMs
+    if (showTimeboxControl && timebox != null && timeboxRemaining != null) {
+        TimeboxControlSheet(
+            session = timebox,
+            remainingMs = timeboxRemaining,
+            onPause = focusViewModel::pauseTimebox,
+            onResume = focusViewModel::resumeTimebox,
+            onStop = focusViewModel::stopTimebox,
+            onExtend = focusViewModel::extendTimebox,
+            onDismiss = { showTimeboxControl = false },
+        )
+    }
+    if (timebox != null && timebox.status == TimeboxStatus.COMPLETED && !timebox.acknowledged && route == HOME) {
+        TimeboxCompletionSheet(
+            session = timebox,
+            streak = focusState.streak,
+            onDone = focusViewModel::acknowledgeTimebox,
+            onExtend = focusViewModel::extendTimebox,
+            onStartFocus = { showFocusStart = true },
+        )
+    }
+    if (showFocusStart) {
+        FocusStartSheet(focusState.preferences.lastFocusMinutes, focusViewModel::startFocus) { showFocusStart = false }
+    }
+    if (showFocusControl && focusState.focusActive) {
+        FocusControlSheet(focusState, focusViewModel::endFocus) { showFocusControl = false }
+    }
+
+    pendingPause?.let { pause ->
+        val overall = usageState.snapshot.evaluation.overall
+        val usageLine = overall?.takeIf { usageState.snapshot.available }?.let {
+            if (it.state == RuleState.OVER) "You're ${it.excessMinutes} minutes past today's limit."
+            else "You've used ${it.used} of ${it.allowance} minutes today."
+        }
+        MindfulDelayScreen(
+            app = pause.app,
+            seconds = pause.seconds,
+            duringFocus = pause.duringFocus,
+            usageLine = usageLine,
+            recentPurposes = focusState.preferences.delayPurposes,
+            onContinue = { purpose ->
+                focusViewModel.pauseOutcome(pause.app, continued = true, duringFocus = pause.duringFocus, purpose = purpose)
+                viewModel.launchApp(pause.app, pause.query)
+                pendingPause = null
+            },
+            onGoBack = {
+                focusViewModel.pauseOutcome(pause.app, continued = false, duringFocus = pause.duringFocus, purpose = null)
+                pendingPause = null
+            },
+        )
+    }
 }
 
 private fun NavHostController.returnHome() {

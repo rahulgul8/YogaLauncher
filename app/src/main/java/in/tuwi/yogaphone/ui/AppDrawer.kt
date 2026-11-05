@@ -41,6 +41,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.TextButton
 import `in`.tuwi.yogaphone.data.AppModel
 import `in`.tuwi.yogaphone.logic.SearchableApp
 import `in`.tuwi.yogaphone.logic.rankAppSearch
@@ -56,8 +57,10 @@ fun AppDrawerBottomSheet(
     onAppLongClick: (AppModel) -> Unit,
     onDismiss: () -> Unit,
     replacingApp: AppModel? = null,
+    isPaused: (AppModel) -> Boolean = { false },
     modifier: Modifier = Modifier,
 ) {
+    var showPaused by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -107,14 +110,31 @@ fun AppDrawerBottomSheet(
                 }
             }
             LazyColumn(Modifier.fillMaxSize().padding(top = 8.dp)) {
-                items(matches, key = { "${it.appPackage}:${it.activityClassName}" }) { app ->
+                // While focus is on, paused apps sit in a collapsed section unless the user searches for them.
+                val grouped = query.isBlank() && replacingApp == null
+                val visible = if (grouped) matches.filterNot(isPaused) else matches
+                val paused = if (grouped) matches.filter(isPaused) else emptyList()
+                items(visible, key = { "${it.appPackage}:${it.activityClassName}" }) { app ->
                     DrawerAppRow(
                         app = app,
                         fontSize = fontSize,
                         highlighted = query.isNotBlank() && matches.size == 1,
+                        deemphasized = isPaused(app),
                         onClick = { onAppClick(app, query) },
                         onLongClick = { if (replacingApp == null) onAppLongClick(app) },
                     )
+                }
+                if (paused.isNotEmpty()) {
+                    item(key = "paused-header") {
+                        TextButton(onClick = { showPaused = !showPaused }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                            Text((if (showPaused) "Hide" else "Show") + " ${paused.size} paused during focus",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                    if (showPaused) items(paused, key = { "paused:${it.appPackage}:${it.activityClassName}" }) { app ->
+                        DrawerAppRow(app = app, fontSize = fontSize, highlighted = false, deemphasized = true,
+                            onClick = { onAppClick(app, query) }, onLongClick = { onAppLongClick(app) })
+                    }
                 }
                 if (matches.isEmpty()) item {
                     Text(
@@ -134,6 +154,7 @@ private fun DrawerAppRow(
     app: AppModel,
     fontSize: Int,
     highlighted: Boolean,
+    deemphasized: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -143,6 +164,7 @@ private fun DrawerAppRow(
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
-        Text(app.displayLabel, fontSize = fontSize.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp))
+        Text(app.displayLabel, fontSize = fontSize.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
+            color = if (deemphasized) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f) else MaterialTheme.colorScheme.onSurface)
     }
 }

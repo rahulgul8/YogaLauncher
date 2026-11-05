@@ -462,10 +462,10 @@ Each work item should become a ticket with interaction details, states, permissi
 - [x] Normalize daily/app usage and define eligible minute rules.
 - [x] Implement allowance editing, exclusions, and threshold evaluation.
 - [x] Build usage dashboard and near/over-limit feedback.
-- [ ] Implement timebox lifecycle and completion prompts.
-- [ ] Prototype deliberate launch delay and limitations.
+- [x] Implement timebox lifecycle and completion prompts.
+- [x] Prototype deliberate launch delay and limitations.
 - [ ] Prototype grayscale workflow and supported fallback.
-- [ ] Prototype focus sessions and essential-app exceptions.
+- [x] Prototype focus sessions and essential-app exceptions.
 - [ ] Investigate notification quieting, consent, and digest options.
 
 ### Differentiation and refinement

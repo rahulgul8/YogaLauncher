@@ -39,9 +39,9 @@
 - Enable greyscale auto-switch when focus begins.
 
 **Tasks & To-Dos:**
-- [ ] Implement deep link integration with Android DND.
+- [x] Implement deep link integration with Android DND.
 - [ ] Build background service to monitor screen unlocks and enforce limits.
-- [ ] Add real-time delay and lock overlay.
+- [x] Add real-time delay and lock overlay. (Launcher-level pause; apps opened from notifications or other apps skip it.)
 - [ ] Integrate AI-based trigger predictions (detect recurring distraction windows).
 
 ---

@@ -45,6 +45,7 @@ fun SettingsScreen(
     onUsage: () -> Unit,
     onUsageRules: () -> Unit,
     onValueOfTime: () -> Unit,
+    onFocus: () -> Unit,
 ) {
     val context = LocalContext.current
     var isDefault by remember { mutableStateOf(isDefaultHome(context)) }
@@ -87,6 +88,8 @@ fun SettingsScreen(
         item { SettingsRow("Usage dashboard", "Today and last 7 days", onUsage) }
         item { SettingsRow("Usage rules", "Allowances, essential apps and reminders", onUsageRules) }
         item { SettingsRow("Value of time", "Optional illustrative hourly value", onValueOfTime) }
+        item { SectionTitle("Focus") }
+        item { SettingsRow("Focus and timebox", "Mindful pause, focus schedules, Do Not Disturb", onFocus) }
         item { SectionTitle("Appearance") }
         item { SettingsRow("Home and appearance", "Theme, type, clock, date and layout", onAppearance) }
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
@@ -146,5 +149,5 @@ private fun versionName(context: Context): String = runCatching {
     } else {
         @Suppress("DEPRECATION") context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }
-}.getOrNull() ?: "â€”"
+}.getOrNull() ?: "—"
 

@@ -58,6 +58,7 @@ fun HomeScreen(
     onOpenCalendar: () -> Unit,
     onExpandNotifications: () -> Unit,
     statusContent: @Composable () -> Unit = {},
+    quickActions: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -70,7 +71,7 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
-        while (true) { now = System.currentTimeMillis(); delay(30_000) }
+        while (true) { now = System.currentTimeMillis(); delay(60_000 - now % 60_000 + 50) }
     }
 
     Box(
@@ -123,7 +124,7 @@ fun HomeScreen(
             HomeStatusArea(content = statusContent)
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 when {
-                    uiState.isLoading -> CalmHint("Loading appsâ€¦")
+                    uiState.isLoading -> CalmHint("Loading apps…")
                     uiState.favoriteApps.isEmpty() -> CalmHint("Swipe up or search to choose home apps")
                     else -> LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -145,7 +146,8 @@ fun HomeScreen(
                     }
                 }
             }
-            Spacer(Modifier.size(64.dp))
+            quickActions()
+            Spacer(Modifier.size(72.dp))
         }
 
         FloatingActionButton(

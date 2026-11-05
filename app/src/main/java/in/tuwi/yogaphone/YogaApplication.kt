@@ -8,6 +8,8 @@ import `in`.tuwi.yogaphone.data.db.YogaDatabase
 import `in`.tuwi.yogaphone.usage.UsagePrefs
 import `in`.tuwi.yogaphone.usage.UsageRepository
 import `in`.tuwi.yogaphone.usage.UsageWorker
+import `in`.tuwi.yogaphone.focus.FocusPrefs
+import `in`.tuwi.yogaphone.focus.FocusRepository
 
 class YogaApplication : Application() {
     val usagePrefs by lazy { UsagePrefs(this) }
@@ -16,5 +18,7 @@ class YogaApplication : Application() {
     val prefs by lazy { Prefs(this) }
     val database by lazy { YogaDatabase.create(this) }
     val appRepository by lazy { AppRepository(this, database, prefs) }
+    val focusPrefs by lazy { FocusPrefs(this) }
+    val focusRepository by lazy { FocusRepository(this, database, focusPrefs) }
 }
 

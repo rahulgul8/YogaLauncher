@@ -91,19 +91,19 @@ Focus on getting things working quickly, then iterate and improve.
 **Status:** ⏳ Pending
 
 ### Tasks
-- [ ] Request PACKAGE_USAGE_STATS permission
-- [ ] Request AccessibilityService permission
-- [ ] Create AccessibilityService to detect app launches
-- [ ] Build simple FocusMode entity in database (enabled, blockedApps list)
-- [ ] Add Focus Mode toggle in settings
-- [ ] Select apps to block (multi-select list)
-- [ ] When app is launched, show blocking overlay:
-  - [ ] Simple fullscreen composable
-  - [ ] "This app is blocked" message
-  - [ ] Countdown (5 seconds fixed for now)
-  - [ ] "Go Back" button
-- [ ] After countdown, allow app to open
-- [ ] Add persistent notification when Focus Mode is on
+- [x] Request PACKAGE_USAGE_STATS permission
+- [ ] Request AccessibilityService permission (not used: Yoga pauses launches it starts itself, no Accessibility service)
+- [ ] Create AccessibilityService to detect app launches (deferred, see above)
+- [x] Build simple FocusMode entity in database (enabled, blockedApps list)
+- [x] Add Focus Mode toggle in settings
+- [x] Select apps to block (multi-select list)
+- [x] When app is launched, show blocking overlay:
+  - [x] Simple fullscreen composable
+  - [x] "This app is blocked" message
+  - [x] Countdown (5 seconds fixed for now)
+  - [x] "Go Back" button
+- [x] After countdown, allow app to open
+- [ ] Add persistent notification when Focus Mode is on (focus status shows on home instead)
 
 **Acceptance Criteria:**
 - Focus Mode can be toggled on/off
@@ -121,15 +121,15 @@ Focus on getting things working quickly, then iterate and improve.
 **Status:** ⏳ Pending
 
 ### 3.1 Timebox Timer
-- [ ] Create FocusSession entity (startTime, duration, completed)
-- [ ] Build timer screen:
-  - [ ] Display countdown (25 min default)
-  - [ ] Start/Stop buttons
-  - [ ] Simple progress indicator
-- [ ] Implement foreground service for timer
-- [ ] Show notification with timer countdown
+- [x] Create FocusSession entity (startTime, duration, completed)
+- [x] Build timer screen:
+  - [x] Display countdown (25 min default)
+  - [x] Start/Stop buttons
+  - [x] Simple progress indicator
+- [x] Implement foreground service for timer (alarm + countdown notification instead of a service)
+- [x] Show notification with timer countdown
 - [ ] Play simple beep on completion
-- [ ] Store completed sessions in database
+- [x] Store completed sessions in database
 - [ ] Show count of sessions today on home screen
 
 **Acceptance Criteria:**
@@ -476,3 +476,11 @@ No overlay or network access is introduced. Usage DB and preferences are exclude
 Verification: pure JVM tests run independently; full Android packaging/build requires an
 accessible Android 36 SDK and Gradle cache. Physical-device checks (permission revocation,
 OEM event feeds, notification permission, DST/timezone and midnight rollover) remain pending.
+
+## Piece 3 — Timebox, focus and mindful pause (6 November 2026)
+
+- [x] Timebox with presets, custom length, purpose chips, optional bound app, pause/resume/extend, countdown notification and completion prompt; survives reboot.
+- [x] Focus sessions (manual or "until I stop") and recurring schedules, including windows past midnight; distracting apps step aside on home and in the drawer.
+- [x] Optional greyscale launcher and Do Not Disturb during focus, restored afterwards only if Yoga changed them.
+- [x] Mindful pause before distracting apps (2–10 s, +5 s during focus), purpose chips, "don't ask again" window, per-app opt-out; outcomes recorded.
+- [x] Streak count (days with a completed focus session or timebox) shown in completion messages.
