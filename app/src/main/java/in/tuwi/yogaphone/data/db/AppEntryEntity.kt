@@ -13,4 +13,6 @@ data class AppEntryEntity(
     val isHidden: Boolean = false,
     val isEssential: Boolean = false,
     val isDistracting: Boolean = false,
+    val userClassified: Boolean = false,
 )
+

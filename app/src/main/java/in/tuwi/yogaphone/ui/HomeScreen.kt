@@ -57,6 +57,7 @@ fun HomeScreen(
     onOpenClock: () -> Unit,
     onOpenCalendar: () -> Unit,
     onExpandNotifications: () -> Unit,
+    statusContent: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -119,10 +120,10 @@ fun HomeScreen(
                         .padding(vertical = 8.dp),
                 )
             }
-            HomeStatusArea()
+            HomeStatusArea(content = statusContent)
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 when {
-                    uiState.isLoading -> CalmHint("Loading apps…")
+                    uiState.isLoading -> CalmHint("Loading appsâ€¦")
                     uiState.favoriteApps.isEmpty() -> CalmHint("Swipe up or search to choose home apps")
                     else -> LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -159,7 +160,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun HomeStatusArea(modifier: Modifier = Modifier) { Spacer(modifier = modifier) }
+fun HomeStatusArea(modifier: Modifier = Modifier, content: @Composable () -> Unit = {}) { Column(modifier) { content() } }
 
 @Composable
 private fun CalmHint(text: String) {
@@ -193,3 +194,4 @@ fun homeFontSize(option: FontSizeOption): Int = when (option) {
     FontSizeOption.LARGE -> 26
     FontSizeOption.EXTRA_LARGE -> 30
 }
+

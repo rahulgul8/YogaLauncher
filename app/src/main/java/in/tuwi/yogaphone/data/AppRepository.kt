@@ -25,13 +25,14 @@ class AppRepository(
         val metadata = entries.associateBy(AppEntryEntity::packageName)
         installed.map { app ->
             val entry = metadata[app.appPackage]
+            val classification = `in`.tuwi.yogaphone.usage.AppClassifier(context).classify(app.appPackage, entry)
             app.copy(
                 customLabel = entry?.customLabel,
                 isFavorite = entry?.isFavorite ?: false,
                 favoriteOrder = entry?.favoriteOrder ?: Int.MAX_VALUE,
                 isHidden = entry?.isHidden ?: false,
-                isEssential = entry?.isEssential ?: false,
-                isDistracting = entry?.isDistracting ?: false,
+                isEssential = classification.essential,
+                isDistracting = classification.distracting,
             )
         }.sorted()
     }
@@ -109,3 +110,4 @@ class AppRepository(
         prefs.markFavoritesMigrated()
     }
 }
+

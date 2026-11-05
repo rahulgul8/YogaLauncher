@@ -138,9 +138,9 @@ Focus on getting things working quickly, then iterate and improve.
 - Sessions are logged
 
 ### 3.2 Basic Usage Stats
-- [ ] Query UsageStatsManager for today's data
-- [ ] Store in simple UsageStats entity
-- [ ] Create basic dashboard screen:
+- [x] Query UsageStatsManager for today's data
+- [x] Store in simple UsageStats entity
+- [x] Create basic dashboard screen:
   - [ ] Total screen time today
   - [ ] Number of unlocks
   - [ ] Top 3 apps used
@@ -192,16 +192,16 @@ Focus on getting things working quickly, then iterate and improve.
 **Status:** ⏳ Pending
 
 ### Tasks
-- [ ] Enhance usage tracking (track per-app time, not just totals)
+- [x] Enhance usage tracking (track per-app time, not just totals)
 - [ ] Build better dashboard:
-  - [ ] Week view (last 7 days)
+  - [x] Week view (last 7 days)
   - [ ] Simple bar chart for daily screen time
-  - [ ] App usage breakdown (list with durations)
+  - [x] App usage breakdown (list with durations)
   - [ ] Streak counter (consecutive days with <X screen time)
 - [ ] Add simple goal setting:
-  - [ ] Daily screen time goal
-  - [ ] Show progress bar
-  - [ ] Notification when goal exceeded
+  - [x] Daily screen time goal
+  - [x] Show progress bar
+  - [x] Notification when goal exceeded
 - [ ] Create 3-5 insight templates:
   - [ ] "Screen time down X% this week"
   - [ ] "You unlocked phone X times today"
@@ -286,7 +286,7 @@ Focus on getting things working quickly, then iterate and improve.
 - [ ] Write critical unit tests:
   - [ ] ViewModels
   - [ ] Repository logic
-  - [ ] Usage stats calculation
+  - [x] Usage stats calculation
 - [ ] Write key UI tests:
   - [ ] App launch flow
   - [ ] Focus mode activation
@@ -456,3 +456,23 @@ The features document lists ALL possible features. This roadmap:
 4. **Start Phase 1:** Build the basic launcher
 
 Good luck building Yoga Launcher! 🧘‍♂️
+
+## Piece 2 — Phase 1 usage awareness (6 November 2026)
+
+- [x] Usage Access explanation, permission status and unavailable-data fallback.
+- [x] Daily/app foreground normalization, essential exclusions and editable classifications.
+- [x] Total/per-app allowances, eligibility choices and configurable near/over thresholds.
+- [x] Today/last-seven-days dashboard and quiet home progress indicator.
+- [x] Local aggregate history, daily/periodic work and once-per-day-state reminders.
+- [x] Optional hourly value, currency, calculation details and snoozable silent notification.
+- [x] Pure JVM coverage for usage windows, thresholds, rounding and reminder deduplication.
+
+Foreground totals deliberately differ from screen-on time; unlock/focus counts and trend
+claims remain future work. Weekly comparisons use the current allowance and recorded
+eligibility, with missing days disclosed. Android foreground events are approximate,
+queried with a 24-hour lookback; WorkManager checks can be delayed by the OS.
+No overlay or network access is introduced. Usage DB and preferences are excluded from backup.
+
+Verification: pure JVM tests run independently; full Android packaging/build requires an
+accessible Android 36 SDK and Gradle cache. Physical-device checks (permission revocation,
+OEM event feeds, notification permission, DST/timezone and midnight rollover) remain pending.

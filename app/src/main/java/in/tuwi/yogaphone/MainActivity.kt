@@ -19,6 +19,17 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import `in`.tuwi.yogaphone.usage.UsageViewModel
+import `in`.tuwi.yogaphone.usage.UsageNotifications
+import `in`.tuwi.yogaphone.ui.UsageDashboardScreen
+import `in`.tuwi.yogaphone.ui.UsageSettingsScreen
+import `in`.tuwi.yogaphone.ui.ValueOfTimeSettingsScreen
+import `in`.tuwi.yogaphone.ui.HomeUsageIndicator
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -55,6 +66,8 @@ private const val APPEARANCE = "settings/appearance"
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
+    private val usageViewModel: UsageViewModel by viewModels()
+    private var usageRequest by mutableIntStateOf(0)
     private lateinit var appChangeReceiver: AppChangeReceiver
     private var homeRequest by mutableIntStateOf(0)
 
@@ -66,12 +79,14 @@ class MainActivity : ComponentActivity() {
         } else {
             @Suppress("DEPRECATION") registerReceiver(appChangeReceiver, AppChangeReceiver.getIntentFilter())
         }
-        setContent { YogaLauncherApp(viewModel, homeRequest) }
+        if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
+        setContent { YogaLauncherApp(viewModel, usageViewModel, homeRequest, usageRequest) }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
         if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) homeRequest++
     }
 
@@ -82,7 +97,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun YogaLauncherApp(viewModel: MainViewModel, homeRequest: Int) {
+private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, homeRequest: Int, usageRequest: Int) {
     val uiState by viewModel.uiState.collectAsState()
     val activity = androidx.compose.ui.platform.LocalContext.current as ComponentActivity
     val darkIcons = themeUsesDarkIcons(uiState.preferences.themeMode)
@@ -94,15 +109,32 @@ private fun YogaLauncherApp(viewModel: MainViewModel, homeRequest: Int) {
     }
     YogaPhoneTheme(uiState.preferences.themeMode) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            LauncherNavigation(viewModel, uiState, homeRequest)
+            LauncherNavigation(viewModel, usageViewModel, uiState, homeRequest, usageRequest)
         }
     }
 }
 
 @Composable
-private fun LauncherNavigation(viewModel: MainViewModel, uiState: MainUiState, homeRequest: Int) {
+private fun LauncherNavigation(viewModel: MainViewModel, usageViewModel: UsageViewModel, uiState: MainUiState, homeRequest: Int, usageRequest: Int) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
+    val usageState by usageViewModel.state.collectAsState()
+    val owner = LocalLifecycleOwner.current
+    var resumed by remember { mutableStateOf(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) { resumed = true; usageViewModel.refresh() }
+            if (event == Lifecycle.Event.ON_PAUSE) resumed = false
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(resumed) {
+        if (resumed) while (true) { usageViewModel.refresh(); delay(30_000) }
+    }
+    LaunchedEffect(usageRequest) {
+        if (usageRequest > 0) navController.navigate("usage?details=true") { launchSingleTop = true }
+    }
     val route = navController.currentBackStackEntryAsState().value?.destination?.route
     var showDrawer by remember { mutableStateOf(false) }
     var replacingApp by remember { mutableStateOf<AppModel?>(null) }
@@ -137,6 +169,7 @@ private fun LauncherNavigation(viewModel: MainViewModel, uiState: MainUiState, h
                 onOpenClock = { context.openClock() },
                 onOpenCalendar = { context.openCalendar() },
                 onExpandNotifications = { context.expandNotifications() },
+                statusContent = { HomeUsageIndicator(usageState, { navController.navigate("usage") }, { navController.navigate("usage?details=true") }) },
                 modifier = Modifier,
             )
         }
@@ -146,7 +179,21 @@ private fun LauncherNavigation(viewModel: MainViewModel, uiState: MainUiState, h
                 onAppearance = { navController.navigate(APPEARANCE) },
                 onHiddenApps = { navController.navigate(HIDDEN_APPS) },
                 onResetNames = viewModel::resetCustomLabels,
+                onUsage = { navController.navigate("usage") },
+                onUsageRules = { navController.navigate("settings/usage") },
+                onValueOfTime = { navController.navigate("settings/value") },
             )
+        }
+        composable("usage?details={details}", arguments = listOf(androidx.navigation.navArgument("details") { defaultValue = "false" })) { entry ->
+            UsageDashboardScreen(usageState, usageViewModel, { navController.popBackStack() },
+                { navController.navigate("settings/usage") }, entry.arguments?.getString("details") == "true")
+        }
+        composable("settings/usage") {
+            UsageSettingsScreen(usageState, usageViewModel, { navController.popBackStack() },
+                { navController.navigate("usage") }, { navController.navigate("settings/value") })
+        }
+        composable("settings/value") {
+            ValueOfTimeSettingsScreen(usageState, usageViewModel, { navController.popBackStack() })
         }
         composable(APPEARANCE) {
             AppearanceSettingsScreen(
@@ -247,3 +294,4 @@ private fun Context.expandNotifications() {
         service.javaClass.getMethod("expandNotificationsPanel").invoke(service)
     }
 }
+

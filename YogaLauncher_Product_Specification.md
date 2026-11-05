@@ -458,10 +458,10 @@ Each work item should become a ticket with interaction details, states, permissi
 
 ### Usage and interventions
 
-- [ ] Build Usage Access explanation and permission status UI.
-- [ ] Normalize daily/app usage and define eligible minute rules.
-- [ ] Implement allowance editing, exclusions, and threshold evaluation.
-- [ ] Build usage dashboard and near/over-limit feedback.
+- [x] Build Usage Access explanation and permission status UI.
+- [x] Normalize daily/app usage and define eligible minute rules.
+- [x] Implement allowance editing, exclusions, and threshold evaluation.
+- [x] Build usage dashboard and near/over-limit feedback.
 - [ ] Implement timebox lifecycle and completion prompts.
 - [ ] Prototype deliberate launch delay and limitations.
 - [ ] Prototype grayscale workflow and supported fallback.
@@ -470,7 +470,7 @@ Each work item should become a ticket with interaction details, states, permissi
 
 ### Differentiation and refinement
 
-- [ ] Build hourly value setup and cost-equivalent calculation.
+- [x] Build hourly value setup and cost-equivalent calculation.
 - [ ] Design optional overlay/notification cost indicator and safety exclusions.
 - [ ] Test metaphor and copy with prospective users.
 - [ ] Add automatic categories and manual recategorization.
@@ -491,3 +491,4 @@ Each work item should become a ticket with interaction details, states, permissi
 This document consolidates the Yoga Launcher project discussions available through 5 November 2026: minimalist launcher identity, OLauncher basis, grayscale, focus mode, notification filtering, deliberate delays, automatic categories, widget support, timebox timer, app grouping/profile priority, onboarding priority, progress messaging, optional value-of-time setup, allowance-based monetary indicator, and a free online overuse questionnaire. It expands these into actionable product and design detail.
 
 The exact designs, thresholds, data models, roadmap phase allocation, and acceptance criteria are recommendations where prior conversations did not establish a final decision. No implementation, screenshots, codebase, or finished UX designs were provided for verification in this consolidation.
+
