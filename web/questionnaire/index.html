@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone habits check-in</title>
+<meta name="description" content="A 2-minute self-reflection on your phone habits. Answers stay in your browser.">
+<style>
+  :root {
+    --bg: #f7f6f2; --fg: #1f2421; --muted: #5d655f; --line: #d9dbd5; --accent: #4f6f5a; --accent-fg: #ffffff; --card: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151816; --fg: #e8ebe7; --muted: #a3aba5; --line: #2c322e; --accent: #8fb39b; --accent-fg: #102016; --card: #1c201d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 18px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 12px; font-weight: 600; }
+  h2 { font-size: 1.35rem; margin: 0 0 12px; font-weight: 600; }
+  p { margin: 0 0 14px; }
+  .muted { color: var(--muted); font-size: 0.95rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin: 16px 0; }
+  button { font: inherit; cursor: pointer; border-radius: 999px; padding: 12px 22px; min-height: 48px; border: 1px solid var(--line); background: transparent; color: var(--fg); }
+  button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  button:focus-visible, a:focus-visible, label:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .options { display: grid; gap: 10px; margin: 18px 0; }
+  .options label { display: flex; align-items: center; gap: 12px; padding: 12px 16px; min-height: 52px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+  .options input { width: 20px; height: 20px; accent-color: var(--accent); }
+  .progress { height: 4px; background: var(--line); border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
+  .progress > div { height: 100%; background: var(--accent); width: 0; transition: width 200ms ease; }
+  .nav { display: flex; justify-content: space-between; gap: 12px; }
+  .bar { display: grid; grid-template-columns: 110px 1fr 48px; align-items: center; gap: 10px; margin: 8px 0; }
+  .bar .track { height: 10px; background: var(--line); border-radius: 6px; overflow: hidden; }
+  .bar .fill { height: 100%; background: var(--accent); }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 10px; }
+  a { color: var(--accent); }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <section id="intro">
+    <h1>A 2-minute check-in on your phone habits</h1>
+    <p>Twelve short questions about how you use your phone — when you reach for it, at night, while you focus, and how in control it feels.</p>
+    <div class="card">
+      <p><strong>This is a self-reflection, not a test.</strong> It isn't a medical or psychological assessment and it doesn't diagnose anything. There are no right or wrong answers.</p>
+      <p class="muted">Your answers never leave this page: nothing is sent anywhere, and nothing is stored after you close the tab.</p>
+    </div>
+    <button class="primary" id="start">Start</button>
+  </section>
+
+  <section id="quiz" hidden aria-live="polite">
+    <div class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="12" id="progress"><div></div></div>
+    <p class="muted" id="counter"></p>
+    <fieldset style="border:0;padding:0;margin:0">
+      <legend><h2 id="question"></h2></legend>
+      <div class="options" id="options"></div>
+    </fieldset>
+    <div class="nav">
+      <button id="back">Back</button>
+      <button class="primary" id="next" disabled>Next</button>
+    </div>
+  </section>
+
+  <section id="results" hidden>
+    <p class="muted">Your check-in</p>
+    <h1 id="band-title"></h1>
+    <p id="band-text"></p>
+    <div class="card" id="bars" aria-label="Scores by theme"></div>
+    <h2>Things that could help</h2>
+    <div id="suggestions"></div>
+    <div class="card">
+      <p><strong>Yoga Launcher</strong> is a calm Android home screen built around these ideas — awareness first, gentle friction only where you want it, and everything kept on your phone.</p>
+      <a href="#install"><button class="primary" type="button">Try Yoga Launcher</button></a>
+      <!-- TODO: the store link is not decided yet. Any future email or update opt-in must be a separate, explicit choice. -->
+    </div>
+    <p class="muted">This summary reflects only your own answers today. It is not a diagnosis. If your phone use is causing you real distress, consider talking to someone you trust or a professional.</p>
+    <button id="restart">Start again</button>
+  </section>
+</main>
+<script src="scoring.js"></script>
+<script>
+  const { QUESTIONS, SCALE, BANDS, SUGGESTIONS, scoreAnswers } = window.HabitsScoring;
+  const THEME_NAMES = { checking: "Checking", sleep: "Sleep", focus: "Focus", control: "Control" };
+  const $ = (id) => document.getElementById(id);
+  let answers = load() || Array(QUESTIONS.length).fill(null);
+  let index = 0;
+
+  function load() {
+    try { const v = JSON.parse(sessionStorage.getItem("habits-answers")); return Array.isArray(v) && v.length === 12 ? v : null; } catch { return null; }
+  }
+  function save() { try { sessionStorage.setItem("habits-answers", JSON.stringify(answers)); } catch {} }
+
+  function show(section) { ["intro", "quiz", "results"].forEach((s) => $(s).hidden = s !== section); window.scrollTo(0, 0); }
+
+  function render() {
+    const q = QUESTIONS[index];
+    $("counter").textContent = `Question ${index + 1} of ${QUESTIONS.length}`;
+    $("progress").setAttribute("aria-valuenow", index + 1);
+    $("progress").firstElementChild.style.width = `${((index + 1) / QUESTIONS.length) * 100}%`;
+    $("question").textContent = q.text;
+    $("options").innerHTML = "";
+    SCALE.forEach((label, value) => {
+      const wrap = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "radio"; input.name = "answer"; input.value = value; input.checked = answers[index] === value;
+      input.addEventListener("change", () => { answers[index] = value; save(); $("next").disabled = false; });
+      wrap.append(input, document.createTextNode(label));
+      $("options").append(wrap);
+    });
+    $("back").disabled = index === 0;
+    $("next").disabled = answers[index] === null;
+    $("next").textContent = index === QUESTIONS.length - 1 ? "See my check-in" : "Next";
+    const checked = $("options").querySelector("input:checked") || $("options").querySelector("input");
+    checked && checked.focus();
+  }
+
+  function results() {
+    const r = scoreAnswers(answers);
+    const band = BANDS.find((b) => b.id === r.band);
+    $("band-title").textContent = band.title;
+    $("band-text").textContent = band.text;
+    $("bars").innerHTML = "";
+    Object.entries(r.themes).forEach(([theme, score]) => {
+      const row = document.createElement("div");
+      row.className = "bar";
+      row.innerHTML = `<span>${THEME_NAMES[theme]}</span><div class="track"><div class="fill" style="width:${(score / 12) * 100}%"></div></div><span>${score}/12</span>`;
+      $("bars").append(row);
+    });
+    $("suggestions").innerHTML = "";
+    r.topThemes.forEach((theme) => {
+      const card = document.createElement("div");
+      card.className = "card";
+      const items = SUGGESTIONS[theme].map((s) => `<li>${s.tip} <span class="muted">${s.yoga}</span></li>`).join("");
+      card.innerHTML = `<h2>${THEME_NAMES[theme]}</h2><ul>${items}</ul>`;
+      $("suggestions").append(card);
+    });
+    show("results");
+  }
+
+  $("start").addEventListener("click", () => { index = Math.max(0, answers.findIndex((a) => a === null)); if (index < 0) index = 0; show("quiz"); render(); });
+  $("back").addEventListener("click", () => { if (index > 0) { index--; render(); } });
+  $("next").addEventListener("click", () => { if (index < QUESTIONS.length - 1) { index++; render(); } else results(); });
+  $("restart").addEventListener("click", () => { answers = Array(QUESTIONS.length).fill(null); save(); index = 0; show("intro"); });
+  document.addEventListener("keydown", (e) => {
+    if ($("quiz").hidden) return;
+    const n = Number(e.key);
+    if (n >= 1 && n <= 5) { const input = $("options").querySelectorAll("input")[n - 1]; input.checked = true; input.dispatchEvent(new Event("change")); }
+    if (e.key === "Enter" && !$("next").disabled) $("next").click();
+  });
+</script>
+</body>
+</html>

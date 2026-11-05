@@ -6,7 +6,7 @@ Yoga Launcher is a mindful, AI-enhanced Android launcher designed to help users 
 
 ## 📍 Status (November 2026)
 
-Built and on `main`: minimalist home and drawer, profiles and categories, usage allowances with reminders and the optional value-of-time indicator, timebox, focus sessions and schedules, the mindful launch pause, greyscale and quiet-notification interventions, insights, first-run setup, privacy controls and backup. Everything runs on the device with Room, DataStore and WorkManager; the AI/ML items below are deferred in favour of local rules and templates. See `ROADMAP.md` for the piece-by-piece log and `docs/launch/` for store and privacy drafts.
+Built and on `main`: minimalist home and drawer, profiles and categories, usage allowances with reminders and the optional value-of-time indicator, timebox, focus sessions and schedules, the mindful launch pause, greyscale and quiet-notification interventions, insights, first-run setup, privacy controls and backup. Everything runs on the device with Room, DataStore and WorkManager; the AI/ML items below are deferred in favour of local rules and templates. See `ROADMAP.md` for the piece-by-piece log and `docs/launch/` for store and privacy drafts. A prototype of the free phone-habits check-in lives in `web/questionnaire/`.
 
 ## 🌿 Overview
 Yoga Launcher transforms your home screen into a calm, focus-driven space. It uses AI to understand your habits, personalize layouts, and provide meaningful insights — helping you stay focused without giving up functionality.

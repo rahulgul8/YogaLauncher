@@ -487,7 +487,8 @@ Each work item should become a ticket with interaction details, states, permissi
 - [ ] Test device matrix and long-running reliability.
 - [ ] Create store listing, screenshots, support, and privacy content.
   - Drafts in `docs/launch/` (privacy policy, listing and permission declarations, audit checklist); screenshots and review still to do.
-- [ ] Prototype free online questionnaire and scoring interpretation.
+- [x] Prototype free online questionnaire and scoring interpretation.
+  - `web/questionnaire/`: static, private, non-clinical; store link and hosting still open.
 - [ ] Run controlled beta; revise interventions based on feedback.
 
 ## 14. Scope notes and provenance

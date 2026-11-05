@@ -514,3 +514,7 @@ OEM event feeds, notification permission, DST/timezone and midnight rollover) re
 - [x] Add flow: searchable provider picker with previews, bind permission prompt, provider configure activities; failures release the widget id.
 - [x] Settings → Widgets: Small / Medium / Large heights (never below the provider minimum), reorder, remove with undo; uninstalled providers cleaned up on resume.
 - [x] Widgets step aside during focus and in profiles that tuck other apps away.
+
+## Piece 7 — Phone-habits check-in (6 November 2026)
+
+- [x] Static, private, non-clinical questionnaire in `web/questionnaire/`: 12 original questions in four themes, three bands, suggestions linked to Yoga features; no network, no cookies; Node tests for scoring.
