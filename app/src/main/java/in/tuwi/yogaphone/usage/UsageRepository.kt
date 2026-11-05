@@ -21,6 +21,7 @@ data class UsageSnapshot(
     val essentialPackages: Set<String> = emptySet(),
     val evaluation: RuleEvaluation = RuleEvaluation(emptyList(), null),
     val categoryOf: Map<String, String> = emptyMap(),
+    val unlocksToday: Int? = null,
     val error: String? = null,
 )
 
@@ -33,7 +34,9 @@ class UsageRepository(private val context: Context, private val database: YogaDa
     val rules = dao.observeRules()
 
     private suspend fun collect(date: LocalDate, p: UsagePreferences): List<UsageAggregateEntity>? {
-        val (usage, hourly) = reader.readDay(date) ?: return null
+        val day = reader.readDay(date) ?: return null
+        val usage = day.totals
+        val hourly = day.hours
         val rows = usage.map { (pkg, millis) ->
             val classification = classifier.classify(pkg, database.appEntryDao().get(pkg))
             UsageAggregateEntity(date.toString(), pkg, (millis + 30_000) / 60_000,
@@ -48,7 +51,7 @@ class UsageRepository(private val context: Context, private val database: YogaDa
             dao.clearHours(date.toString())
             dao.saveHours(hourRows)
             dao.saveAggregates(rows)
-            dao.saveDay(UsageDayEntity(date.toString(), System.currentTimeMillis()))
+            dao.saveDay(UsageDayEntity(date.toString(), System.currentTimeMillis(), day.unlocks))
         }
         return rows
     }
@@ -91,7 +94,8 @@ class UsageRepository(private val context: Context, private val database: YogaDa
             }
             if (rows != null) UsageNotifications(context).check(today.toString(), evaluation, p, prefs)
             else UsageNotifications(context).cancelOngoing()
-            UsageSnapshot(today, true, rows != null, rows.orEmpty(), week, known, essential, evaluation, categoryOf,
+            val unlocksToday = dao.days(today.toString(), today.toString()).firstOrNull()?.unlocks
+            UsageSnapshot(today, true, rows != null, rows.orEmpty(), week, known, essential, evaluation, categoryOf, unlocksToday,
                 if (rows == null) "Android usage data is not available yet. Try again after using an app." else null)
         }
     }

@@ -22,6 +22,8 @@ data class InsightInput(
     val categoryMinutesThisWeek: Map<String, Long>,
     val weeklyTimeValue: String?,
     val nowHour: Int,
+    /** Unlock count per sampled day (Android 9+). */
+    val unlocksByDay: Map<LocalDate, Int> = emptyMap(),
 )
 
 data class InsightCard(val id: String, val title: String, val body: String)
@@ -107,6 +109,11 @@ object InsightEngine {
 
         input.weeklyTimeValue?.let {
             cards += InsightCard("time_value", "Value of time", "Time past your limit this week ≈ $it. An illustrative value, not money spent.")
+        }
+
+        val weekUnlocks = week.mapNotNull { input.unlocksByDay[it] }.filter { it > 0 }
+        if (weekUnlocks.size >= 3) {
+            cards += InsightCard("unlocks", "Unlocks", "About ${weekUnlocks.average().roundToInt()} unlocks a day this week.")
         }
 
         input.hourly[input.today]?.let { hours ->

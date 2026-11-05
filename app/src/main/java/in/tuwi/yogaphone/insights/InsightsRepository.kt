@@ -138,7 +138,9 @@ class InsightsRepository(private val context: Context, private val database: Yog
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
         val usage = database.usageDao()
-        val sampled = usage.days(today.minusDays(27).toString(), today.toString()).map { LocalDate.parse(it.date) }.toSet()
+        val dayRows = usage.days(today.minusDays(27).toString(), today.toString())
+        val sampled = dayRows.map { LocalDate.parse(it.date) }.toSet()
+        val unlocksByDay = dayRows.associate { LocalDate.parse(it.date) to it.unlocks }
         val aggregates = usage.aggregates(today.minusDays(13).toString(), today.toString())
         val eligibleByDay = sampled.filter { !it.isBefore(today.minusDays(13)) }.associateWith { day ->
             aggregates.filter { it.date == day.toString() && it.eligible }.sumOf { it.foregroundMinutes }
@@ -174,6 +176,7 @@ class InsightsRepository(private val context: Context, private val database: Yog
             timeboxesExtended = timeboxes.count { it.extendedMinutes > 0 },
             focusMinutesThisWeek = focusWeek, streak = app.focusRepository.streak(),
             categoryMinutesThisWeek = categoryMinutes, weeklyTimeValue = weeklyValue, nowHour = ZonedDateTime.now(zone).hour,
+            unlocksByDay = unlocksByDay,
         )
         val prefs = preferences.first()
         val suggestion = InsightEngine.suggestedAllowance(allowance, eligibleByDay, today)

@@ -20,7 +20,7 @@ data class UsageHourEntity(val date: String, val hour: Int, val eligibleMinutes:
 
 /** Records which dates were actually sampled, including genuine empty days. */
 @Entity(tableName = "usage_days")
-data class UsageDayEntity(@PrimaryKey val date: String, val sampledAt: Long)
+data class UsageDayEntity(@PrimaryKey val date: String, val sampledAt: Long, val unlocks: Int = 0)
 
 @Dao
 interface UsageDao {

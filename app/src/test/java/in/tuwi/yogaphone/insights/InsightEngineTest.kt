@@ -38,6 +38,13 @@ class InsightEngineTest {
         assertEquals(5, InsightEngine.longestBreakHours(hours, 12))
     }
 
+    @Test fun unlockCardNeedsThreeDays() {
+        val two = input(emptyMap()).copy(unlocksByDay = mapOf(today to 40, today.minusDays(1) to 50))
+        assertFalse(InsightEngine.cards(two, CoachingTone.GENTLE).any { it.id == "unlocks" })
+        val three = two.copy(unlocksByDay = two.unlocksByDay + (today.minusDays(2) to 60))
+        assertEquals("About 50 unlocks a day this week.", InsightEngine.cards(three, CoachingTone.GENTLE).first { it.id == "unlocks" }.body)
+    }
+
     @Test fun percentChangeNeedsPositiveBaseline() {
         assertNull(InsightEngine.percentChange(0.0, 10.0))
         assertNull(InsightEngine.percentChange(null, 10.0))

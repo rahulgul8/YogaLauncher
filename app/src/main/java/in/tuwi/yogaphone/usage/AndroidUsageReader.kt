@@ -27,13 +27,16 @@ object UsageAccess {
     }
 }
 
+/** One local day: per-app foreground milliseconds, the same split by hour (0..23), and unlock count. */
+data class DayUsage(val totals: Map<String, Long>, val hours: Map<Int, Map<String, Long>>, val unlocks: Int)
+
 class AndroidUsageReader(private val context: Context) {
     /** Null means access/data unavailable; it must never be represented as zero usage. */
     fun read(date: LocalDate, now: Long = System.currentTimeMillis()): Map<String, Long>? =
-        readDay(date, now)?.first
+        readDay(date, now)?.totals
 
     /** Per-package totals for the day, plus per-hour per-package totals (hour 0..23, local time). */
-    fun readDay(date: LocalDate, now: Long = System.currentTimeMillis()): Pair<Map<String, Long>, Map<Int, Map<String, Long>>>? {
+    fun readDay(date: LocalDate, now: Long = System.currentTimeMillis()): DayUsage? {
         if (!UsageAccess.granted(context)) return null
         val zone = ZoneId.systemDefault()
         val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -42,6 +45,7 @@ class AndroidUsageReader(private val context: Context) {
             val source = context.getSystemService(UsageStatsManager::class.java)
                 .queryEvents(start - 24 * 60 * 60 * 1000L, end) ?: return null
             val events = mutableListOf<ForegroundEvent>()
+            var unlocks = 0
             val event = UsageEvents.Event()
             while (source.hasNextEvent()) {
                 source.getNextEvent(event)
@@ -53,6 +57,9 @@ class AndroidUsageReader(private val context: Context) {
                     event.eventType == UsageEvents.Event.MOVE_TO_BACKGROUND -> ForegroundEvent.Type.PAUSED
                     else -> null
                 }
+                // KEYGUARD_HIDDEN (API 28+) marks the phone being unlocked.
+                if (Build.VERSION.SDK_INT >= 28 && event.eventType == UsageEvents.Event.KEYGUARD_HIDDEN &&
+                    event.timeStamp in start until end) unlocks++
                 if (type != null) events += ForegroundEvent(event.packageName.orEmpty(), event.timeStamp, type, event.className)
             }
             // An empty event feed can mean a locked user or expired retention. Preserve prior aggregates.
@@ -64,7 +71,7 @@ class AndroidUsageReader(private val context: Context) {
                 val hourEnd = date.atStartOfDay(zone).plusHours(hour + 1L).toInstant().toEpochMilli()
                 if (hourStart >= end) emptyMap() else calculator.calculate(events, hourStart, minOf(hourEnd, end), now)
             }
-            calculator.calculate(events, start, end, now) to hours
+            DayUsage(calculator.calculate(events, start, end, now), hours, unlocks)
         }.getOrNull()
     }
 }

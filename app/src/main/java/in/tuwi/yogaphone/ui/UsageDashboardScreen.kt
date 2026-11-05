@@ -49,6 +49,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
                         Text("$eligible eligible minutes", style = MaterialTheme.typography.headlineSmall)
                         Text(if (total == null) "Daily allowance is off" else if (weekly) "${total.dailyAllowanceMinutes} min daily allowance · $overDays over-limit days" else "of ${total.dailyAllowanceMinutes} minutes today")
                         Text("${rows.sumOf { it.foregroundMinutes }} min all app foreground time")
+                        if (!weekly) s.unlocksToday?.let { Text("$it unlocks today") }
                         if (!weekly && total != null) {
                             LinearProgressIndicator(progress = { (eligible.toFloat() / total.dailyAllowanceMinutes).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
                             val result = s.evaluation.overall
