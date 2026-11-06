@@ -7,6 +7,9 @@ import java.math.BigDecimal
 import java.util.Locale
 
 class BurnMeterTest {
+    @Test fun countsFromTheFirstMinuteByDefault() {
+        assertEquals(StartCounting.FROM_FIRST_MINUTE, GuardPreferences().startCounting)
+    }
     private fun total(used: Long) = RuleEvaluator().evaluate(
         listOf(UsageRule("total", RuleScope.TOTAL, null, 60)), mapOf("app" to used)).overall
     @Test fun afterLimitUsesExcessAndLiveSeconds() {

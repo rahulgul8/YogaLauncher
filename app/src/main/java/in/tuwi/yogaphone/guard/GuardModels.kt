@@ -7,7 +7,7 @@ data class SurfaceSettings(val enabled: Boolean = false, val allowanceMinutes: I
 data class GuardPreferences(
     val liveIndicator: Boolean = false,
     val style: GuardStyle = GuardStyle.BURNING,
-    val startCounting: StartCounting = StartCounting.AFTER_LIMIT,
+    val startCounting: StartCounting = StartCounting.FROM_FIRST_MINUTE,
     val positionY: Int = 80,
     val surfaces: Map<GuardSurface, SurfaceSettings> = emptyMap(),
 ) {

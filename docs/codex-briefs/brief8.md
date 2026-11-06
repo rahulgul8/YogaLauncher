@@ -13,7 +13,7 @@ The spec's floating opportunity-cost indicator. The user asked for it explicitly
 1. Detect the foreground app from `TYPE_WINDOW_STATE_CHANGED` events. Ignore our own package, the system UI, IME/keyboard windows and the launcher itself.
 2. **Eligible app** means the same thing as in `UsageRepository.collect`: not essential, and distracting (or any non-essential app when `AllowanceCounts.ALL_EXCEPT_ESSENTIAL` is set).
 3. New setting **"Start counting"**:
-   - `AFTER_LIMIT` (default, per the spec): count only once today's TOTAL rule is OVER.
+   - `AFTER_LIMIT` (the brief's original default; changed to FROM_FIRST_MINUTE on 2026-11-06): count only once today's TOTAL rule is OVER.
    - `FROM_FIRST_MINUTE`: count every minute in an eligible app.
 4. **Amount** = baseline minutes + the live seconds since this eligible app came to the foreground, × hourly value / 3600.
    - The baseline is today's `overall.excessMinutes` for AFTER_LIMIT, or today's eligible minutes for FROM_FIRST_MINUTE.

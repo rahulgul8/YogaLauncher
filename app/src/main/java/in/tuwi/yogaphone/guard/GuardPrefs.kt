@@ -20,7 +20,7 @@ class GuardPrefs(private val context: Context) {
     private fun used(s: GuardSurface) = longPreferencesKey("guard_${s.name}_used")
     private fun read(p: Preferences) = GuardPreferences(p[live] ?: false,
         runCatching { GuardStyle.valueOf(p[style].orEmpty()) }.getOrDefault(GuardStyle.BURNING),
-        runCatching { StartCounting.valueOf(p[start].orEmpty()) }.getOrDefault(StartCounting.AFTER_LIMIT),
+        runCatching { StartCounting.valueOf(p[start].orEmpty()) }.getOrDefault(StartCounting.FROM_FIRST_MINUTE),
         p[y] ?: 80, GuardSurface.entries.associateWith { s -> SurfaceSettings(p[enabled(s)] ?: false,
             p[allowance(s)] ?: 0, p[last(s)] ?: 10) })
     val preferences = context.dataStore.data.map(::read).distinctUntilChanged()

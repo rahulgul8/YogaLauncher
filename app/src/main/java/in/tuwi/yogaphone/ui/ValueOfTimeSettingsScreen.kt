@@ -77,7 +77,7 @@ fun ValueOfTimeSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, gu
             }
         }
         item { SectionTitle("Start counting") }
-        items(StartCounting.entries.toList()) { start ->
+        items(listOf(StartCounting.FROM_FIRST_MINUTE, StartCounting.AFTER_LIMIT)) { start ->
             Row(Modifier.fillMaxWidth().selectable(guard.startCounting == start, role = Role.RadioButton) {
                     scope.launch { guardPrefs.update { it.copy(startCounting = start) } } }
                 .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {

@@ -21,3 +21,5 @@ All 15 guard JUnit tests pass using cached Kotlin 2.0.21 and JUnit directly, wit
 ## Device check (Moto g31, Android 12, YouTube 21.43)
 
 Verified by Claude on 2026-11-06: disclosure → accessibility settings → service on; Shorts tab and an external `youtube.com/shorts` link are both blocked, each counted once; the live pill shows and ticks in YouTube, collapses on tap, hides in Yoga and on the device home screen, and stays hidden with "After my limit" and no daily limit. Motorola's launcher sends no window-state event on Home, so the service also confirms the active window's package on every tick. Instagram Reels and browser detection are untested (Instagram not installed).
+
+Default changed on 2026-11-06 at the founder's request: the pill counts from the first minute in an eligible app; "After my limit" stays as an option. The spec suggested after-limit, but the point is to show the cost of wasteful use as it happens.

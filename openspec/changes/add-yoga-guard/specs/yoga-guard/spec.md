@@ -5,7 +5,7 @@ Yoga SHALL offer a non-focus-stealing accessibility overlay for eligible app tim
 
 #### Scenario: Safe eligible use
 - **WHEN** live time value, usage measuring and the hourly value feature are enabled, today is not snoozed, and the foreground app is eligible
-- **THEN** show the selected counting mode's illustrative amount, only after a TOTAL rule is OVER in after-limit mode
+- **THEN** show the selected counting mode's illustrative amount (default: from the first minute), only after a TOTAL rule is OVER in after-limit mode
 - **AND** allow collapse and vertical repositioning without taking outside touches
 
 #### Scenario: Sensitive context
