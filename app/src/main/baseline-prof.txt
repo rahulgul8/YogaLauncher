@@ -1,0 +1,3 @@
+# Ship Yoga's own code pre-compiled so the home screen and drawer are smooth from the first launch.
+HSPLin/tuwi/yogaphone/**;->**(**)**
+Lin/tuwi/yogaphone/**;

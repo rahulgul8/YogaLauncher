@@ -27,6 +27,13 @@ android {
                 "proguard-rules.pro"
             )
         }
+        // Release-speed build for on-device checks: not debuggable, signed with the debug key.
+        create("profile") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

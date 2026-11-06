@@ -28,7 +28,15 @@ data class UserPreferences(
     val homeTextAlignment: HomeTextAlignment = HomeTextAlignment.LEFT,
     val recentSearches: List<String> = emptyList(),
     val favoritesMigrated: Boolean = false,
+    /** Quick-launch dock, four slots: [DOCK_DEFAULT] (the phone's own app for that slot), [DOCK_EMPTY], or a package. */
+    val dockSlots: List<String> = List(DOCK_SIZE) { DOCK_DEFAULT },
+    val homeRoleAsked: Boolean = false,
 )
+
+const val DOCK_SIZE = 4
+const val DOCK_DEFAULT = "@default"
+const val DOCK_EMPTY = "@empty"
+
 
 class Prefs(private val context: Context) {
     private object Keys {
@@ -42,6 +50,8 @@ class Prefs(private val context: Context) {
         val alignment = stringPreferencesKey("home_text_alignment")
         val recentSearches = stringPreferencesKey("recent_searches")
         val favoritesMigrated = booleanPreferencesKey("favorites_migrated_to_room")
+        val dockSlots = stringPreferencesKey("dock_slots")
+        val homeRoleAsked = booleanPreferencesKey("home_role_asked")
     }
 
     val userPreferences: Flow<UserPreferences> = context.dataStore.data.map { values ->
@@ -64,6 +74,9 @@ class Prefs(private val context: Context) {
             homeTextAlignment = values[Keys.alignment].enumOrNull<HomeTextAlignment>() ?: HomeTextAlignment.LEFT,
             recentSearches = values[Keys.recentSearches]?.split(RECENT_SEPARATOR)?.filter(String::isNotBlank).orEmpty(),
             favoritesMigrated = values[Keys.favoritesMigrated] ?: false,
+            dockSlots = values[Keys.dockSlots]?.split(RECENT_SEPARATOR)?.takeIf { it.size == DOCK_SIZE }
+                ?: List(DOCK_SIZE) { DOCK_DEFAULT },
+            homeRoleAsked = values[Keys.homeRoleAsked] ?: false,
         )
     }
 
@@ -73,6 +86,17 @@ class Prefs(private val context: Context) {
     suspend fun setShowDate(value: Boolean) = setBoolean(Keys.showDate, value)
     suspend fun setHomeAppCount(value: Int) = setInt(Keys.homeAppCount, value.coerceIn(4, 12))
     suspend fun setHomeTextAlignment(value: HomeTextAlignment) = setString(Keys.alignment, value.name)
+
+    suspend fun setDockSlot(index: Int, value: String) {
+        context.dataStore.edit { values ->
+            val current = values[Keys.dockSlots]?.split(RECENT_SEPARATOR)?.takeIf { it.size == DOCK_SIZE }
+                ?: List(DOCK_SIZE) { DOCK_DEFAULT }
+            if (index in current.indices) values[Keys.dockSlots] = current.toMutableList().also { it[index] = value }
+                .joinToString(RECENT_SEPARATOR)
+        }
+    }
+
+    suspend fun markHomeRoleAsked() = setBoolean(Keys.homeRoleAsked, true)
 
     suspend fun recordRecentSearch(term: String) {
         context.dataStore.edit { values ->

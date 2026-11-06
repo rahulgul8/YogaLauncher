@@ -47,16 +47,13 @@ import `in`.tuwi.yogaphone.focus.label
 import java.text.DateFormat
 import java.util.Date
 
+/** Timebox and Focus as quiet icons in the home top bar; each lights up brass while it is running. */
 @Composable
-fun HomeQuickActions(onTimebox: () -> Unit, onFocus: () -> Unit, focusActive: Boolean, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        TextButton(onClick = onTimebox, modifier = Modifier.heightIn(min = 48.dp)) {
-            Text("Timebox", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (!focusActive) TextButton(onClick = onFocus, modifier = Modifier.heightIn(min = 48.dp)) {
-            Text("Focus", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
+fun HomeQuickActions(onTimebox: () -> Unit, onFocus: () -> Unit, focusActive: Boolean, timeboxActive: Boolean = false) {
+    HomeIconButton(`in`.tuwi.yogaphone.ui.theme.YogaIcons.Timebox, if (timeboxActive) "Timebox running" else "Start a timebox",
+        onTimebox, active = timeboxActive)
+    HomeIconButton(`in`.tuwi.yogaphone.ui.theme.YogaIcons.Focus, if (focusActive) "Focus is on" else "Start focus",
+        onFocus, active = focusActive)
 }
 
 /** Quiet status lines for a running timebox and an active focus session. */

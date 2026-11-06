@@ -22,7 +22,7 @@ class UsageNotifications(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
     private fun canPost() = (Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) && manager.areNotificationsEnabled()
     private fun builder() = NotificationCompat.Builder(context, CHANNEL)
-        .setSmallIcon(R.drawable.ic_launcher_foreground).setContentTitle("Yoga · Usage")
+        .setSmallIcon(R.drawable.ic_notification).setContentTitle("Yoga · Usage")
         .setPriority(NotificationCompat.PRIORITY_LOW).setOnlyAlertOnce(true).setSilent(true)
         .setContentIntent(PendingIntent.getActivity(context, 20,
             Intent(context, MainActivity::class.java).setAction(ACTION_DETAILS), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))

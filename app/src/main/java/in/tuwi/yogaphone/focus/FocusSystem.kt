@@ -73,7 +73,7 @@ class FocusSystem(private val context: Context) {
         ensureChannels()
         val paused = pausedRemainingMs != null
         val builder = NotificationCompat.Builder(context, CHANNEL_TIMEBOX)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(label)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -91,7 +91,7 @@ class FocusSystem(private val context: Context) {
         if (!canPost()) return
         ensureChannels()
         val notification = NotificationCompat.Builder(context, CHANNEL_DONE)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Your $minutes-minute timebox is done")
             .setContentText(label)
             .setAutoCancel(true)
@@ -111,7 +111,7 @@ class FocusSystem(private val context: Context) {
         if (!canPost()) return
         ensureChannels()
         val notification = NotificationCompat.Builder(context, CHANNEL_DONE)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(text)
             .setAutoCancel(true)
             .setContentIntent(openLauncher())

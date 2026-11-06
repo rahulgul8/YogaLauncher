@@ -100,7 +100,18 @@ import androidx.navigation.compose.rememberNavController
 import `in`.tuwi.yogaphone.data.AppModel
 import `in`.tuwi.yogaphone.receiver.AppChangeReceiver
 import `in`.tuwi.yogaphone.ui.AppActionSheet
-import `in`.tuwi.yogaphone.ui.AppDrawerBottomSheet
+import `in`.tuwi.yogaphone.ui.AppDrawerLayer
+import `in`.tuwi.yogaphone.ui.rememberDrawerController
+import `in`.tuwi.yogaphone.ui.DockRole
+import `in`.tuwi.yogaphone.ui.DockSlot
+import `in`.tuwi.yogaphone.ui.HomeDock
+import `in`.tuwi.yogaphone.ui.resolveDock
+import `in`.tuwi.yogaphone.ui.DefaultHomePrompt
+import `in`.tuwi.yogaphone.ui.isDefaultHome
+import `in`.tuwi.yogaphone.ui.defaultHomeIntent
+import `in`.tuwi.yogaphone.data.DOCK_DEFAULT
+import `in`.tuwi.yogaphone.data.DOCK_EMPTY
+import androidx.compose.ui.graphics.graphicsLayer
 import `in`.tuwi.yogaphone.ui.AppMenuAction
 import `in`.tuwi.yogaphone.ui.AppearanceSettingsScreen
 import `in`.tuwi.yogaphone.ui.HiddenAppsScreen
@@ -322,7 +333,41 @@ private fun LauncherNavigation(
         if (usageRequest > 0) navController.navigate("usage?details=true") { launchSingleTop = true }
     }
     val route = navController.currentBackStackEntryAsState().value?.destination?.route
-    var showDrawer by remember { mutableStateOf(false) }
+    val drawer = rememberDrawerController()
+    // Read the drawer position only through this, so a slide doesn't recompose the whole home screen.
+    val drawerClosed by remember { androidx.compose.runtime.derivedStateOf { drawer.isClosed } }
+    var pickingDockSlot by remember { mutableStateOf<Int?>(null) }
+    var dockMenuSlot by remember { mutableStateOf<DockSlot?>(null) }
+    var isDefault by remember { mutableStateOf(isDefaultHome(context)) }
+    var homeAskedAt by remember { mutableStateOf(0L) }
+    var homeAskFromButton by remember { mutableStateOf(false) }
+    val homeRoleLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+    ) { _ ->
+        isDefault = isDefaultHome(context)
+        // Android stops showing the role dialog after it was dismissed a few times and answers at once.
+        // Only then, and only when the user tapped "Make it home", open the system's home-app picker.
+        val instant = android.os.SystemClock.elapsedRealtime() - homeAskedAt < 600
+        if (!isDefault && instant && homeAskFromButton) runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_HOME_SETTINGS)) }
+    }
+    fun askToBeHome(fromButton: Boolean = true) {
+        homeAskedAt = android.os.SystemClock.elapsedRealtime(); homeAskFromButton = fromButton
+        runCatching { homeRoleLauncher.launch(defaultHomeIntent(context)) }
+    }
+    LaunchedEffect(resumed) { if (resumed) isDefault = isDefaultHome(context) }
+    // Ask once, after setup, if Yoga isn't the home app yet. The home banner covers later visits.
+    LaunchedEffect(resumed, uiState.isLoading, insightsPrefs?.onboardingVersion) {
+        val onboarded = (insightsPrefs?.onboardingVersion ?: 0) >= 1
+        if (resumed && onboarded && !uiState.isLoading && !uiState.preferences.homeRoleAsked && !isDefaultHome(context)) {
+            viewModel.markHomeRoleAsked(); askToBeHome(fromButton = false)
+        }
+    }
+    DisposableEffect(owner) {
+        // Leaving for an app closes the drawer without an animation, so coming back lands on home.
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) drawer.snapClosed() }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
     var replacingApp by remember { mutableStateOf<AppModel?>(null) }
     var favoriteMenuApp by remember { mutableStateOf<AppModel?>(null) }
     var drawerMenuApp by remember { mutableStateOf<AppModel?>(null) }
@@ -353,8 +398,9 @@ private fun LauncherNavigation(
 
     LaunchedEffect(homeRequest) {
         if (homeRequest > 0) {
-            showDrawer = false
+            drawer.close()
             replacingApp = null
+            pickingDockSlot = null
             favoriteMenuApp = null
             drawerMenuApp = null
             renameApp = null
@@ -365,7 +411,7 @@ private fun LauncherNavigation(
             navController.returnHome()
         }
     }
-    BackHandler(enabled = route == HOME && !showDrawer) { /* A HOME activity stays home. */ }
+    BackHandler(enabled = route == HOME && drawerClosed) { /* A HOME activity stays home. */ }
 
     NavHost(
         navController = navController,
@@ -380,13 +426,15 @@ private fun LauncherNavigation(
                 uiState = homeState,
                 onAppClick = { requestLaunch(it) },
                 onAppLongClick = { favoriteMenuApp = it },
-                onOpenAppDrawer = { showDrawer = true; replacingApp = null },
+                onDrawerDrag = drawer::dragBy,
+                onDrawerRelease = drawer::release,
                 onOpenSettings = { navController.navigate(SETTINGS) },
                 onOpenClock = { context.openClock() },
                 onOpenCalendar = { context.openCalendar() },
                 onExpandNotifications = { context.expandNotifications() },
                 statusContent = {
                     Column {
+                        if (!isDefault) DefaultHomePrompt { askToBeHome() }
                         HomeGreyIndicator(greyReason) { scope.launch { quiet.snoozeGrey(30) } }
                         val prefsNow = insightsPrefs
                         if (prefsNow != null && prefsNow.onboardingVersion >= 1 && "swipe_up" !in prefsNow.tipsSeen) {
@@ -403,14 +451,31 @@ private fun LauncherNavigation(
                         HomeUsageIndicator(usageState, { navController.navigate("usage") }, { navController.navigate("usage?details=true") })
                     }
                 },
-                quickActions = {
+                topActions = {
                     HomeQuickActions(
                         onTimebox = {
                             if (focusState.timeboxRemainingMs != null) showTimeboxControl = true
                             else { timeboxStartFor = null; showTimeboxStart = true }
                         },
-                        onFocus = { showFocusStart = true },
+                        onFocus = { if (focusState.focusActive) showFocusControl = true else showFocusStart = true },
                         focusActive = focusState.focusActive,
+                        timeboxActive = focusState.timeboxRemainingMs != null,
+                    )
+                },
+                dock = {
+                    val slots = remember(uiState.preferences.dockSlots, uiState.allApps) {
+                        resolveDock(context, uiState.preferences.dockSlots, uiState.allApps.filterNot(AppModel::isHidden))
+                    }
+                    HomeDock(
+                        slots = slots,
+                        onSearch = { replacingApp = null; pickingDockSlot = null; drawer.open(search = true) },
+                        onSlotClick = { slot ->
+                            val app = slot.app
+                            if (app != null) requestLaunch(app) else { pickingDockSlot = slot.index; drawer.open() }
+                        },
+                        onSlotLongClick = { slot ->
+                            if (slot.isEmpty) { pickingDockSlot = slot.index; drawer.open() } else dockMenuSlot = slot
+                        },
                     )
                 },
                 profileLabel = if (uiState.profiles.isNotEmpty()) uiState.activeProfileName else null,
@@ -555,22 +620,26 @@ private fun LauncherNavigation(
         }
     }
 
-    if (showDrawer) {
+    if (route == HOME) {
         val categoryNames = uiState.categories.associate { it.id to it.name }
-        AppDrawerBottomSheet(
+        AppDrawerLayer(
+            controller = drawer,
             apps = uiState.drawerApps,
             recentSearches = uiState.preferences.recentSearches,
             fontSize = homeFontSize(uiState.preferences.fontSize),
-            replacingApp = replacingApp,
+            pickingTitle = replacingApp?.let { "Replace ${it.displayLabel}" }
+                ?: pickingDockSlot?.let { "Choose an app for the dock" },
             onAppClick = { selected, query ->
                 val replaced = replacingApp
-                if (replaced != null) viewModel.setFavorite(selected, true, replaced.appPackage)
-                else requestLaunch(selected, query)
-                showDrawer = false
-                replacingApp = null
+                val slot = pickingDockSlot
+                when {
+                    replaced != null -> { viewModel.setFavorite(selected, true, replaced.appPackage); drawer.close() }
+                    slot != null -> { viewModel.setDockSlot(slot, selected.appPackage); drawer.close() }
+                    else -> requestLaunch(selected, query)
+                }
             },
-            onAppLongClick = { drawerMenuApp = it; showDrawer = false },
-            onDismiss = { showDrawer = false; replacingApp = null },
+            onAppLongClick = { drawerMenuApp = it },
+            onClosed = { replacingApp = null; pickingDockSlot = null },
             isPaused = { focusState.pausedByFocus(it.appPackage) },
             groupOf = categoryNames.takeIf { uiState.organize.groupDrawerByCategory }?.let { names ->
                 { app: AppModel -> names[uiState.categoryOf[app.appPackage]] ?: "Other" }
@@ -578,13 +647,27 @@ private fun LauncherNavigation(
             otherApps = uiState.otherApps,
         )
     }
+    LaunchedEffect(route) { if (route != HOME) drawer.snapClosed() }
+
+    dockMenuSlot?.let { slot ->
+        val app = slot.app
+        if (app != null) AppActionSheet(
+            app,
+            listOf(
+                AppMenuAction("Change app") { pickingDockSlot = slot.index; drawer.open() },
+                AppMenuAction("Use the phone's ${DockRole.entries.getOrNull(slot.index)?.label?.lowercase() ?: "default"} app",
+                    slot.role == null && slot.index < DockRole.entries.size) { viewModel.setDockSlot(slot.index, DOCK_DEFAULT) },
+                AppMenuAction("Remove from dock") { viewModel.setDockSlot(slot.index, DOCK_EMPTY) },
+            ),
+        ) { dockMenuSlot = null }
+    }
 
     favoriteMenuApp?.let { app ->
         val index = uiState.favoriteApps.indexOfFirst { it.appPackage == app.appPackage }
         AppActionSheet(
             app,
             listOf(
-                AppMenuAction("Replace") { replacingApp = app; showDrawer = true },
+                AppMenuAction("Replace") { replacingApp = app; pickingDockSlot = null; drawer.open() },
                 AppMenuAction("Remove from home") { viewModel.setFavorite(app, false) },
                 AppMenuAction("Rename") { renameApp = app },
                 AppMenuAction("Move up", index > 0) { viewModel.moveFavorite(app, -1) },

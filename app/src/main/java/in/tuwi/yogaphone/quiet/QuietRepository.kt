@@ -137,7 +137,7 @@ class QuietRepository(private val context: Context, private val database: YogaDa
         val open = PendingIntent.getActivity(context, 60, Intent(context, MainActivity::class.java).setAction(ACTION_OPEN_DIGEST)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(context, CHANNEL_DIGEST)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(Digest.summary(groups))
             .setContentText("Tap to read them in Yoga")
             .setContentIntent(open)

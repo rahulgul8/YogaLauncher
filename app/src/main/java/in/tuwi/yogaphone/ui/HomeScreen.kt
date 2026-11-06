@@ -1,7 +1,18 @@
 package `in`.tuwi.yogaphone.ui
 
-import android.text.format.DateFormat
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
+import `in`.tuwi.yogaphone.ui.theme.YogaIcons
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -17,13 +28,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,20 +58,23 @@ fun HomeScreen(
     uiState: MainUiState,
     onAppClick: (AppModel) -> Unit,
     onAppLongClick: (AppModel) -> Unit,
-    onOpenAppDrawer: () -> Unit,
+    /** Finger movement in pixels while the app drawer is being pulled up (negative is up). */
+    onDrawerDrag: (Float) -> Unit,
+    /** The finger lifted; vertical velocity in pixels per second. */
+    onDrawerRelease: (Float) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenClock: () -> Unit,
     onOpenCalendar: () -> Unit,
     onExpandNotifications: () -> Unit,
     statusContent: @Composable () -> Unit = {},
-    quickActions: @Composable () -> Unit = {},
+    topActions: @Composable RowScope.() -> Unit = {},
     profileLabel: String? = null,
     widgets: @Composable () -> Unit = {},
     onProfileClick: () -> Unit = {},
+    dock: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val context = LocalContext.current
     val preferences = uiState.preferences
     val horizontalAlignment = when (preferences.homeTextAlignment) {
         HomeTextAlignment.LEFT -> Alignment.Start
@@ -79,66 +88,65 @@ fun HomeScreen(
 
     Box(
         modifier = modifier.fillMaxSize().pointerInput(Unit) {
+            // Swipe up pulls the drawer with the finger; swipe down opens the notification shade.
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
-                var delta = 0f
-                var consumedByChild = false
-                var pressed = true
-                do {
+                val tracker = VelocityTracker().apply { addPosition(down.uptimeMillis, down.position) }
+                var total = 0f
+                var dragging = false
+                var claimedByChild = false
+                while (true) {
                     val event = awaitPointerEvent()
                     val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    delta = change.position.y - down.position.y
-                    consumedByChild = consumedByChild || change.isConsumed
-                    pressed = change.pressed
-                } while (pressed)
-                if (!consumedByChild) when {
-                    delta < -100f -> onOpenAppDrawer()
-                    delta > 100f -> onExpandNotifications()
+                    if (!change.pressed) break
+                    if (change.isConsumed && !dragging) claimedByChild = true
+                    val dy = change.position.y - change.previousPosition.y
+                    total += dy
+                    tracker.addPosition(change.uptimeMillis, change.position)
+                    if (!claimedByChild && !dragging && total < -viewConfiguration.touchSlop) {
+                        dragging = true
+                        onDrawerDrag(total)
+                    } else if (dragging) onDrawerDrag(dy)
+                    if (dragging) change.consume()
                 }
+                if (dragging) onDrawerRelease(tracker.calculateVelocity().y)
+                else if (!claimedByChild && total > 120f) onExpandNotifications()
             }
         },
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxSize().padding(start = 28.dp, end = 20.dp, top = 8.dp, bottom = 16.dp),
             horizontalAlignment = horizontalAlignment,
         ) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (profileLabel != null) {
-                    TextButton(onClick = onProfileClick, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text("$profileLabel ▾", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Spacer(Modifier.weight(1f))
-                }
-                TextButton(onClick = onOpenSettings, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text("settings", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                if (profileLabel != null) ProfileChip(profileLabel, onProfileClick)
+                Spacer(Modifier.weight(1f))
+                topActions()
+                HomeIconButton(YogaIcons.Settings, "Settings", onOpenSettings)
             }
             if (preferences.showClock) {
-                Text(
-                    text = DateFormat.getTimeFormat(context).format(Date(now)),
-                    style = MaterialTheme.typography.displayLarge,
-                    modifier = Modifier.combinedClickable(onClick = onOpenClock, onLongClick = onOpenSettings)
-                        .padding(vertical = 4.dp),
-                )
+                BrandClock(now, onClick = onOpenClock, onLongClick = onOpenSettings, modifier = Modifier.padding(top = 28.dp))
             }
             if (preferences.showDate) {
                 Text(
                     text = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(now)),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.bodyLarge.copy(letterSpacing = 0.02.em),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.combinedClickable(onClick = onOpenCalendar, onLongClick = onOpenSettings)
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 6.dp),
                 )
             }
+            Spacer(Modifier.height(12.dp))
             HomeStatusArea(content = statusContent)
             widgets()
-            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.BottomStart) {
                 when {
-                    uiState.isLoading -> CalmHint("Loading apps…")
-                    uiState.favoriteApps.isEmpty() -> CalmHint("Swipe up or search to choose home apps")
+                    uiState.isLoading -> Unit
+                    uiState.favoriteApps.isEmpty() -> CalmHint("Swipe up to choose the apps you want here")
                     else -> LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.SpaceEvenly,
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Bottom),
+                        horizontalAlignment = horizontalAlignment,
                     ) {
                         items(uiState.favoriteApps, key = AppModel::appPackage) { app ->
                             FavoriteAppRow(
@@ -156,17 +164,34 @@ fun HomeScreen(
                     }
                 }
             }
-            quickActions()
-            Spacer(Modifier.size(72.dp))
+            Spacer(Modifier.height(28.dp))
+            dock()
         }
+    }
+}
 
-        FloatingActionButton(
-            onClick = onOpenAppDrawer,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 20.dp).size(56.dp),
-            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        ) {
-            Icon(Icons.Outlined.Search, contentDescription = "Search apps")
+@Composable
+fun HomeIconButton(icon: ImageVector, label: String, onClick: () -> Unit, active: Boolean = false) {
+    IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
+        Icon(icon, contentDescription = label, modifier = Modifier.size(22.dp),
+            tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun ProfileChip(label: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.heightIn(min = 36.dp),
+    ) {
+        Row(Modifier.padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(label.uppercase(Locale.getDefault()), style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(YogaIcons.ChevronDown, contentDescription = "Switch profile", tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp).size(16.dp))
         }
     }
 }
@@ -191,12 +216,13 @@ private fun FavoriteAppRow(
 ) {
     Text(
         text = app.displayLabel,
+        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal, letterSpacing = (-0.01).em),
         fontSize = fontSize.sp,
         textAlign = textAlign,
         color = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(vertical = 8.dp),
+            .padding(vertical = 9.dp),
     )
 }
 

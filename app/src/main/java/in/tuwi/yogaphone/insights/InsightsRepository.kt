@@ -235,7 +235,7 @@ class InsightsRepository(private val context: Context, private val database: Yog
         val open = PendingIntent.getActivity(context, 72, Intent(context, MainActivity::class.java).setAction(ACTION_OPEN_INSIGHTS)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(context, CHANNEL)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Your week with Yoga")
             .setContentText(card.body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(card.body))
