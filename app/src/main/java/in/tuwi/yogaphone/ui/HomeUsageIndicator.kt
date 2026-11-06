@@ -2,10 +2,12 @@ package `in`.tuwi.yogaphone.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import `in`.tuwi.yogaphone.ui.theme.*
 import `in`.tuwi.yogaphone.usage.*
 
 @Composable
@@ -13,15 +15,12 @@ fun HomeUsageIndicator(state: UsageUiState, onOpenUsage: () -> Unit, onDetails: 
     val total = state.rules.firstOrNull { it.scope == "TOTAL" && it.enabled } ?: return
     if (!state.preferences.showHome) return
     if (!state.snapshot.access) {
-        // Home stays calm: one quiet line, not the full explanation card.
         val context = androidx.compose.ui.platform.LocalContext.current
-        TextButton(onClick = { UsageAccess.openSettings(context) }, modifier = Modifier.heightIn(min = 48.dp)) {
-            Text("Allow Usage Access to see today's usage", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        YogaTextButton("Allow Usage Access to see today's usage", { UsageAccess.openSettings(context) }, muted = true)
         return
     }
     if (state.loading || !state.snapshot.available) {
-        TextButton(onClick = onOpenUsage) { Text(if (state.loading) "Reading today's usage…" else "Usage unavailable · view details") }
+        YogaTextButton(if (state.loading) "Reading today's usage…" else "Usage unavailable · view details", onOpenUsage, muted = true)
         return
     }
     val result = state.snapshot.evaluation.overall ?: return
@@ -29,13 +28,9 @@ fun HomeUsageIndicator(state: UsageUiState, onOpenUsage: () -> Unit, onDetails: 
     val value = over && state.preferences.timeValueEnabled && state.preferences.valueOnHome
     Column(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onOpenUsage).padding(vertical = 8.dp)) {
         Text(if (over) "${result.excessMinutes} min past today's limit" else "${result.used} min of ${total.dailyAllowanceMinutes} today",
-            color = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium)
-        LinearProgressIndicator(progress = { (result.used.toFloat() / result.allowance).coerceIn(0f, 1f) },
-            color = if (over) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-            modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(2.dp))
+            color = if (over) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "lnum, tnum"))
+        YogaProgress(result.used.toFloat() / result.allowance.coerceAtLeast(1), Modifier.padding(top = 6.dp), over)
     }
-    if (value) TextButton(onClick = onDetails, contentPadding = PaddingValues(0.dp)) {
-        Text("· ${TimeValueCalculator().format(result.excessMinutes, state.preferences.hourlyAmount(), state.preferences.currency)} time value")
-    }
+    if (value) YogaTextButton("· ${TimeValueCalculator().format(result.excessMinutes, state.preferences.hourlyAmount(), state.preferences.currency)} time value", onDetails, muted = true)
 }

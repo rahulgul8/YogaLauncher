@@ -31,6 +31,12 @@ object UsageAccess {
 data class DayUsage(val totals: Map<String, Long>, val hours: Map<Int, Map<String, Long>>, val unlocks: Int)
 
 class AndroidUsageReader(private val context: Context) {
+    private fun excludedPackages(): Set<String> {
+        val homes = context.packageManager.queryIntentActivities(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
+        ).map { it.activityInfo.packageName }
+        return homes.toSet() + context.packageName
+    }
     /** Null means access/data unavailable; it must never be represented as zero usage. */
     fun read(date: LocalDate, now: Long = System.currentTimeMillis()): Map<String, Long>? =
         readDay(date, now)?.totals
@@ -65,13 +71,18 @@ class AndroidUsageReader(private val context: Context) {
             // An empty event feed can mean a locked user or expired retention. Preserve prior aggregates.
             if (events.isEmpty()) return null
             val calculator = UsageCalculator(context.packageName)
+            val excluded = excludedPackages()
             val hours = (0..23).associateWith { hour ->
                 // Each hour is computed from the same events so sessions crossing hour boundaries split correctly.
                 val hourStart = date.atStartOfDay(zone).plusHours(hour.toLong()).toInstant().toEpochMilli()
                 val hourEnd = date.atStartOfDay(zone).plusHours(hour + 1L).toInstant().toEpochMilli()
-                if (hourStart >= end) emptyMap() else calculator.calculate(events, hourStart, minOf(hourEnd, end), now)
+                if (hourStart >= end) emptyMap() else excludeUsagePackages(
+                    calculator.calculate(events, hourStart, minOf(hourEnd, end), now), excluded)
             }
-            DayUsage(calculator.calculate(events, start, end, now), hours, unlocks)
+            DayUsage(excludeUsagePackages(calculator.calculate(events, start, end, now), excluded), hours, unlocks)
         }.getOrNull()
     }
 }
+
+internal fun <T> excludeUsagePackages(values: Map<String, T>, excluded: Set<String>): Map<String, T> =
+    values.filterKeys { it.isNotBlank() && it !in excluded }

@@ -531,3 +531,14 @@ OEM event feeds, notification permission, DST/timezone and midnight rollover) re
 - [ ] Run Android build outside the restricted sandbox (direct compile blocked by SDK jar access); validate on actual devices and updated YouTube/Instagram releases before shipping.
 
 ADR 8: `docs/adr/0008-yoga-guard.md`. No new dependencies or Room schema changes. Screen structure is processed transiently and never logged, stored or transmitted.
+
+## Piece 9 — Premium design system (6 November 2026)
+
+- [x] Three selectable looks with independent light/dark/follow-phone/greyscale modes and paired display/text faces.
+- [x] Shared screen, row, choice, chip, card, field, action, slider, sheet, dialog and progress kit.
+- [x] Usage dashboard centred on eligible time, allowance progress, time value, categories and labelled apps.
+- [x] Usage totals exclude Yoga and every installed home-screen app; package-name fallbacks are hidden.
+- [x] Guard overlays follow the selected look's dark raised/text/accent/ember tokens.
+- [x] Premium-system ADR and screen coverage checklist added.
+
+ADR 9: `docs/adr/0009-premium-design-system.md`.

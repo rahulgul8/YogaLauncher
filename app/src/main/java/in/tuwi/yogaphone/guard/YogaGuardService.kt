@@ -5,7 +5,6 @@ import android.animation.ValueAnimator
 import android.app.KeyguardManager
 import android.content.*
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.media.AudioManager
@@ -23,14 +22,22 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import androidx.compose.ui.graphics.toArgb
 import `in`.tuwi.yogaphone.YogaApplication
+import `in`.tuwi.yogaphone.data.Prefs
 import `in`.tuwi.yogaphone.profiles.Categories
+import `in`.tuwi.yogaphone.ui.theme.Tokens
+import `in`.tuwi.yogaphone.ui.theme.specOf
 import `in`.tuwi.yogaphone.usage.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.util.Currency
 import kotlin.math.abs
@@ -70,6 +77,7 @@ class YogaGuardService : AccessibilityService() {
     private var collapsed = false
     private var pillY = 80
     private var registered = false
+    private var overlayTokens: Tokens = specOf(`in`.tuwi.yogaphone.data.Palette.OBSIDIAN_BRASS).dark
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (!preferences.active) return
@@ -97,6 +105,13 @@ class YogaGuardService : AccessibilityService() {
                 yoga.guardPrefs.daily.distinctUntilChanged().collect { stored ->
                     // A delete/reset/import is authoritative, including while the service is connected.
                     if (canonical(stored) != savedDaily) { gate = ShortsGate(stored); savedDaily = canonical(stored); detected = null; inspect = true }
+                }
+            }
+            launch {
+                Prefs(this@YogaGuardService).userPreferences.map { it.palette }.distinctUntilChanged().collect { palette ->
+                    overlayTokens = specOf(palette).dark
+                    pill?.let(::styleOverlay)
+                    card?.let(::styleOverlay)
                 }
             }
             launch {
@@ -256,10 +271,19 @@ class YogaGuardService : AccessibilityService() {
         WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
         PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL; this.y = y }
+    private fun styleOverlay(view: TextView) {
+        view.setTextColor(overlayTokens.text.toArgb())
+        view.background = GradientDrawable().apply {
+            setColor(overlayTokens.raised.toArgb())
+            setStroke(1, overlayTokens.accent.toArgb())
+            cornerRadius = dp(999).toFloat()
+        }
+        view.elevation = 0f
+    }
     private fun label() = TextView(this).apply {
-        textSize = 14f; setTextColor(Color.rgb(64, 31, 16)); setPadding(dp(14), dp(9), dp(14), dp(9))
-        background = GradientDrawable().apply { setColor(Color.rgb(255, 224, 180)); cornerRadius = dp(24).toFloat() }
-        elevation = dp(6).toFloat(); maxWidth = resources.displayMetrics.widthPixels - dp(32)
+        textSize = 14f; setPadding(dp(14), dp(9), dp(14), dp(9))
+        maxWidth = resources.displayMetrics.widthPixels - dp(32)
+        styleOverlay(this)
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
     private fun showPill(text: String, description: String) {
@@ -282,7 +306,13 @@ class YogaGuardService : AccessibilityService() {
             }
             windows.addView(v, params(pillY))
         }
-        view.text = if (collapsed) "🔥" else text
+        view.text = if (collapsed) "🔥" else if (preferences.style == GuardStyle.BURNING) {
+            SpannableString(text).apply {
+                val start = text.indexOf(' ').let { if (it < 0) 0 else it + 1 }
+                val end = text.lastIndexOf(" burning").let { if (it < start) text.length else it }
+                setSpan(ForegroundColorSpan(overlayTokens.ember.toArgb()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+        } else text
         view.contentDescription = description + if (collapsed) " Tap to expand." else " Tap to collapse. Drag to move."
         val animate = preferences.style == GuardStyle.BURNING && Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
         if (animate && flame == null) {

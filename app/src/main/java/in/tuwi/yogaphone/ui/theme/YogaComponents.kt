@@ -29,12 +29,17 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -363,5 +368,91 @@ fun YogaCheckRow(label: String, checked: Boolean, enabled: Boolean = true, onTog
         Spacer(Modifier.width(16.dp))
         Text(label, style = MaterialTheme.typography.bodyLarge,
             color = if (enabled) c.onBackground else c.onSurfaceVariant)
+    }
+}
+
+/** A restrained value control: brass for the chosen amount and a hairline for the remainder. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun YogaSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    steps: Int = 0,
+    enabled: Boolean = true,
+    onValueChangeFinished: (() -> Unit)? = null,
+) {
+    val c = MaterialTheme.colorScheme
+    Slider(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        enabled = enabled,
+        valueRange = valueRange,
+        steps = steps,
+        onValueChangeFinished = onValueChangeFinished,
+        colors = SliderDefaults.colors(
+            thumbColor = c.primary,
+            activeTrackColor = c.primary,
+            inactiveTrackColor = c.outlineVariant,
+            activeTickColor = Color.Transparent,
+            inactiveTickColor = Color.Transparent,
+        ),
+        track = { state -> SliderDefaults.Track(state, modifier = Modifier.height(2.dp), colors = SliderDefaults.colors(
+            activeTrackColor = c.primary, inactiveTrackColor = c.outlineVariant,
+            activeTickColor = Color.Transparent, inactiveTickColor = Color.Transparent)) },
+    )
+}
+
+/** Branded modal surface shared by every bottom sheet. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun YogaSheet(onDismissRequest: () -> Unit, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        dragHandle = {
+            Box(Modifier.padding(vertical = 12.dp).size(width = 36.dp, height = 2.dp)
+                .background(MaterialTheme.colorScheme.outlineVariant, CircleShape))
+        },
+        content = content,
+    )
+}
+
+/** Branded confirmation dialog with one clear primary action. */
+@Composable
+fun YogaDialog(
+    title: String,
+    confirmText: String,
+    onConfirm: () -> Unit,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissText: String = "Cancel",
+    onDismissAction: () -> Unit = onDismissRequest,
+    text: (@Composable () -> Unit)? = null,
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(26.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        title = { Text(title, style = MaterialTheme.typography.headlineSmall) },
+        text = text,
+        confirmButton = { YogaPrimaryButton(confirmText, onConfirm) },
+        dismissButton = { YogaTextButton(dismissText, onDismissAction, muted = true) },
+    )
+}
+
+/** Two-pixel usage hairline. Ember is reserved for values beyond the allowance. */
+@Composable
+fun YogaProgress(progress: Float, modifier: Modifier = Modifier, overLimit: Boolean = false) {
+    val c = MaterialTheme.colorScheme
+    Box(modifier.fillMaxWidth().height(2.dp).background(c.outlineVariant, CircleShape)) {
+        Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(2.dp)
+            .background(if (overLimit) c.tertiary else c.primary, CircleShape))
     }
 }

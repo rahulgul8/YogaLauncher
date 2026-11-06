@@ -2,14 +2,18 @@ package `in`.tuwi.yogaphone.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import `in`.tuwi.yogaphone.data.AppModel
+import `in`.tuwi.yogaphone.ui.theme.*
 import `in`.tuwi.yogaphone.usage.*
+
+private fun minutesLabel(minutes: Long): String = if (minutes >= 60) "${minutes / 60} h ${minutes % 60} m" else "$minutes min"
 
 @Composable
 fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: () -> Unit, onSettings: () -> Unit,
@@ -19,79 +23,98 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
     var details by remember(openDetails) { mutableStateOf(openDetails) }
     val s = state.snapshot
     val p = state.preferences
-    val total = state.rules.firstOrNull { it.scope == "TOTAL" && it.enabled }
+    val allowance = state.rules.firstOrNull { it.scope == "TOTAL" && it.enabled }
     val rows = if (weekly) s.week else s.today
+    val eligible = rows.filter { it.eligible }.sumOf { it.foregroundMinutes }
     val byApp = rows.groupBy { it.packageName }.mapValues { (_, values) -> values.sumOf { it.foregroundMinutes } }.entries.sortedByDescending { it.value }
-    val dailyEligible = s.week.filter { it.eligible }.groupBy { it.date }.mapValues { (_, values) -> values.sumOf { it.foregroundMinutes } }
-    val overDays = if (total == null) 0 else s.knownDays.count { (dailyEligible[it] ?: 0) > total.dailyAllowanceMinutes }
-    val excessWeek = if (total == null) 0 else s.knownDays.sumOf { ((dailyEligible[it] ?: 0) - total.dailyAllowanceMinutes).coerceAtLeast(0) }
-    LazyColumn {
-        item { SettingsHeader("Usage", onBack) }
-        item { Text("Shorts and Reels blocked today: $blockedToday", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
+    val maximum = byApp.firstOrNull()?.value?.coerceAtLeast(1) ?: 1
+    val excessWeek = allowance?.let { rule -> s.knownDays.sumOf { day ->
+        (s.week.filter { it.date == day && it.eligible }.sumOf { it.foregroundMinutes } - rule.dailyAllowanceMinutes).coerceAtLeast(0)
+    } } ?: 0
+
+    YogaScreen("Usage", onBack) {
         item {
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(!weekly, { weekly = false }, label = { Text("Today") })
-                FilterChip(weekly, { weekly = true }, label = { Text("Last 7 days") })
-            }
-        }
-        item { TextButton(onClick = onSettings, modifier = Modifier.padding(horizontal = 16.dp)) { Text("Edit usage rules") } }
-        when {
-            state.loading -> item { Text("Reading usage…", modifier = Modifier.padding(16.dp)) }
-            !s.access -> item { UsageAccessCard() }
-            !weekly && !s.available -> item {
-                Text(s.error ?: "Usage data is unavailable.", modifier = Modifier.padding(16.dp))
-                TextButton(onClick = viewModel::refresh) { Text("Try again") }
-            }
-            weekly && s.knownDays.isEmpty() -> item { Text("No saved days yet. Usage history will build as Yoga measures your days.", modifier = Modifier.padding(16.dp)) }
-            else -> {
-                item {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val eligible = rows.filter { it.eligible }.sumOf { it.foregroundMinutes }
-                        Text("$eligible eligible minutes", style = MaterialTheme.typography.headlineSmall)
-                        Text(if (total == null) "Daily allowance is off" else if (weekly) "${total.dailyAllowanceMinutes} min daily allowance · $overDays over-limit days" else "of ${total.dailyAllowanceMinutes} minutes today")
-                        Text("${rows.sumOf { it.foregroundMinutes }} min all app foreground time")
-                        if (!weekly) s.unlocksToday?.let { Text("$it unlocks today") }
-                        if (!weekly && total != null) {
-                            LinearProgressIndicator(progress = { (eligible.toFloat() / total.dailyAllowanceMinutes).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
-                            val result = s.evaluation.overall
-                            if (result != null && result.state == RuleState.OVER) Text("${result.excessMinutes} min past today's limit", color = MaterialTheme.colorScheme.error)
-                            else if (result?.state == RuleState.NEAR) Text("Approaching today's allowance · ${result.remaining} min remaining")
+            Column(Modifier.fillMaxWidth().padding(horizontal = ScreenMargin, vertical = 12.dp)) {
+                YogaEyebrow(if (weekly) "Last 7 days" else "Today")
+                Text(minutesLabel(eligible), style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "lnum, tnum"),
+                    color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(top = 8.dp))
+                val muted = MaterialTheme.colorScheme.onSurfaceVariant
+                val body = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "lnum, tnum")
+                when {
+                    allowance == null -> Text("Daily allowance is off", style = body, color = muted)
+                    weekly -> {
+                        // A week's total is never compared against a daily allowance: count the days that went over instead.
+                        val overDays = s.knownDays.count { day ->
+                            s.week.filter { it.date == day && it.eligible }.sumOf { it.foregroundMinutes } > allowance.dailyAllowanceMinutes
                         }
-                        if (weekly) {
-                            Text("${s.date.minusDays(6)} to ${s.date} · ${s.knownDays.size} of 7 days recorded.")
-                            Text("Missing days are not treated as zero. Historical eligibility is saved when sampled; comparisons use your current daily allowance.", style = MaterialTheme.typography.bodySmall)
-                            if (p.timeValueEnabled && total != null) Text("Weekly time value ≈ ${TimeValueCalculator().format(excessWeek, p.hourlyAmount(), p.currency)}")
-                        }
-                        if (p.timeValueEnabled) {
-                            Text(TIME_VALUE_EXPLANATION, style = MaterialTheme.typography.bodySmall)
-                            TextButton(onClick = { details = true }) { Text("Time value details for today") }
-                        }
+                        Text("${minutesLabel(allowance.dailyAllowanceMinutes.toLong())} daily allowance · $overDays over-limit ${if (overDays == 1) "day" else "days"}",
+                            style = body, color = muted)
+                    }
+                    else -> {
+                        Text("of ${minutesLabel(allowance.dailyAllowanceMinutes.toLong())} allowance", style = body, color = muted)
+                        YogaProgress(eligible.toFloat() / allowance.dailyAllowanceMinutes.coerceAtLeast(1),
+                            Modifier.padding(top = 16.dp), overLimit = eligible > allowance.dailyAllowanceMinutes)
+                        val result = s.evaluation.overall
+                        if (result?.state == RuleState.OVER) Text("${minutesLabel(result.excessMinutes)} past today's limit",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "lnum, tnum"),
+                            color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.padding(top = 10.dp))
+                        else if (result?.state == RuleState.NEAR) Text("${minutesLabel(result.remaining)} left today",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "lnum, tnum"), color = muted,
+                            modifier = Modifier.padding(top = 10.dp))
                     }
                 }
-                val byCategory = rows.groupBy { s.categoryOf[it.packageName] }
+                if (!weekly) s.unlocksToday?.let {
+                    Text("$it ${if (it == 1) "unlock" else "unlocks"} today", style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "lnum, tnum"),
+                        color = muted, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+        }
+        item { YogaChipRow { YogaChip("Today", !weekly, onClick = { weekly = false }); YogaChip("Last 7 days", weekly, onClick = { weekly = true }) } }
+        item { YogaTextButton("Edit usage rules", onSettings, Modifier.padding(horizontal = ScreenMargin)) }
+        if (blockedToday > 0) item { YogaNote("Shorts and Reels blocked $blockedToday ${if (blockedToday == 1) "time" else "times"} today.") }
+        when {
+            state.loading -> item { YogaNote("Reading usage…") }
+            !s.access -> item { UsageAccessCard() }
+            !weekly && !s.available -> item { YogaNote(s.error ?: "Usage data is unavailable."); YogaTextButton("Try again", viewModel::refresh, Modifier.padding(horizontal = ScreenMargin)) }
+            weekly && s.knownDays.isEmpty() -> item { YogaNote("No saved days yet. Your history will build as Yoga measures your days.") }
+            else -> {
+                if (p.timeValueEnabled && allowance != null) item {
+                    val minutes = if (weekly) excessWeek else s.evaluation.overall?.excessMinutes ?: 0
+                    Text("Time value · ${TimeValueCalculator().format(minutes, p.hourlyAmount(), p.currency)}",
+                        style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "lnum, tnum"), color = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.padding(horizontal = ScreenMargin, vertical = 18.dp))
+                    YogaNote(TIME_VALUE_EXPLANATION)
+                    YogaTextButton("How this is calculated", { details = true }, Modifier.padding(horizontal = ScreenMargin), muted = true)
+                }
+                val categories = rows.groupBy { s.categoryOf[it.packageName] }
                     .map { (id, values) -> (categoryNames[id] ?: "Other") to values.sumOf { it.foregroundMinutes } }
                     .filter { it.second > 0 }.sortedByDescending { it.second }
-                if (byCategory.isNotEmpty()) item {
-                    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                        Text("By category", style = MaterialTheme.typography.titleSmall)
-                        byCategory.forEach { (name, minutes) -> Text("$name · $minutes min", modifier = Modifier.padding(vertical = 4.dp)) }
-                    }
+                if (categories.isNotEmpty()) {
+                    item { YogaSection("Categories") }
+                    items(categories, key = { it.first }) { (name, minutes) -> YogaRow(name,
+                        trailing = { Text(minutesLabel(minutes), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }) }
                 }
-                if (byApp.isEmpty()) item { Text("No foreground app time recorded in this period.", modifier = Modifier.padding(16.dp)) }
+                item { YogaSection("Apps") }
+                if (byApp.isEmpty()) item { YogaNote("No foreground app time was recorded in this period.") }
                 items(byApp, key = { it.key }) { row ->
                     val app = state.apps.firstOrNull { it.appPackage == row.key }
-                    val essential = row.key in s.essentialPackages
-                    Column(Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(enabled = app != null) { selected = app }.padding(16.dp)) {
-                        Text("${app?.displayLabel ?: row.key} · ${row.value} min")
-                        Text(when { essential -> "Essential"; app?.isDistracting == true -> "Distracting"; else -> "Other" }, style = MaterialTheme.typography.bodySmall)
-                        LinearProgressIndicator(progress = { (row.value.toFloat() / (byApp.firstOrNull()?.value ?: 1).coerceAtLeast(1)).coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(2.dp))
+                    Column(Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(enabled = app != null) { selected = app }
+                        .padding(horizontal = ScreenMargin, vertical = 12.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(Modifier.weight(1f, fill = false).padding(end = 12.dp)) {
+                                Text(app?.displayLabel ?: s.appLabels[row.key] ?: "App", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                                Text(when { row.key in s.essentialPackages -> "Essential"; app?.isDistracting == true -> "Distracting"; else -> "Other" },
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(minutesLabel(row.value), style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "lnum, tnum"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        YogaProgress(row.value.toFloat() / maximum, Modifier.padding(top = 10.dp))
                     }
                 }
+                if (weekly) item { YogaNote("${s.knownDays.size} of 7 days recorded. Missing days are not treated as zero. Historical eligibility is saved when sampled; comparisons use your current daily allowance.") }
             }
         }
-        item { Text("App foreground time is time apps report being in the foreground. It differs from screen-on time: lock screen and Yoga are excluded, and multi-window apps can overlap. Android may delay or omit events; sessions are reconstructed with a 24-hour lookback.",
-            modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall) }
+        item { YogaNote("App foreground time differs from screen-on time. Lock screen, Yoga and home apps are excluded; multi-window apps can overlap. Android may delay or omit events.") }
     }
     selected?.let { UsageAppSheet(it, state, viewModel) { selected = null } }
     if (details) TimeValueDetailsSheet(state, { details = false }, viewModel::snooze)

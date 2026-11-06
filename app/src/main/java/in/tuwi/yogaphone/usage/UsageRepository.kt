@@ -21,6 +21,7 @@ data class UsageSnapshot(
     val essentialPackages: Set<String> = emptySet(),
     val evaluation: RuleEvaluation = RuleEvaluation(emptyList(), null),
     val categoryOf: Map<String, String> = emptyMap(),
+    val appLabels: Map<String, String> = emptyMap(),
     val unlocksToday: Int? = null,
     val error: String? = null,
 )
@@ -32,6 +33,14 @@ class UsageRepository(private val context: Context, private val database: YogaDa
     // Shared by UI, workers and snooze receiver: no duplicate check/post race.
     private val mutex = Mutex()
     val rules = dao.observeRules()
+
+    private fun excludedPackages(): Set<String> = context.packageManager.queryIntentActivities(
+        android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME), 0
+    ).map { it.activityInfo.packageName }.toSet() + context.packageName
+
+    private fun labelOf(pkg: String): String = runCatching {
+        context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(pkg, 0)).toString()
+    }.getOrElse { "App" }
 
     private suspend fun collect(date: LocalDate, p: UsagePreferences): List<UsageAggregateEntity>? {
         val day = reader.readDay(date) ?: return null
@@ -72,7 +81,9 @@ class UsageRepository(private val context: Context, private val database: YogaDa
             if (archiveYesterday) { collect(today.minusDays(1), p); runCatching { app.insightsRepository.prune() } }
             val rows = collect(today, p)
             val weekStart = today.minusDays(6).toString()
-            val week = dao.aggregates(weekStart, today.toString())
+            val excluded = excludedPackages()
+            val week = dao.aggregates(weekStart, today.toString()).filterNot { it.packageName in excluded }
+            val visibleRows = rows.orEmpty().filterNot { it.packageName in excluded }
             val known = dao.days(weekStart, today.toString()).map { it.date }.toSet()
             val essential = (week.map { it.packageName }.toSet() + classifier.mandatoryEssential()).filter {
                 classifier.classify(it, database.appEntryDao().get(it)).essential
@@ -82,8 +93,8 @@ class UsageRepository(private val context: Context, private val database: YogaDa
                 organize.categoryOf(pkg, "", database.appEntryDao().get(pkg))
             }
             val evaluation = RuleEvaluator().evaluate(dao.rules().map { it.toRule() },
-                rows.orEmpty().filter { it.eligible }.associate { it.packageName to it.foregroundMinutes },
-                rows.orEmpty().filterNot { it.packageName in essential }.associate { it.packageName to it.foregroundMinutes },
+                visibleRows.filter { it.eligible }.associate { it.packageName to it.foregroundMinutes },
+                visibleRows.filterNot { it.packageName in essential }.associate { it.packageName to it.foregroundMinutes },
                 categoryOf)
             if (rows != null) {
                 val quiet = (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).quietRepository
@@ -95,7 +106,8 @@ class UsageRepository(private val context: Context, private val database: YogaDa
             if (rows != null) UsageNotifications(context).check(today.toString(), evaluation, p, prefs)
             else UsageNotifications(context).cancelOngoing()
             val unlocksToday = dao.days(today.toString(), today.toString()).firstOrNull()?.unlocks
-            UsageSnapshot(today, true, rows != null, rows.orEmpty(), week, known, essential, evaluation, categoryOf, unlocksToday,
+            val labels = week.map { it.packageName }.toSet().associateWith(::labelOf)
+            UsageSnapshot(today, true, rows != null, visibleRows, week, known, essential, evaluation, categoryOf, labels, unlocksToday,
                 if (rows == null) "Android usage data is not available yet. Try again after using an app." else null)
         }
     }

@@ -10,6 +10,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import `in`.tuwi.yogaphone.usage.UsageAccess
+import `in`.tuwi.yogaphone.ui.theme.*
 
 @Composable
 fun UsageAccessCard() {
@@ -21,14 +22,12 @@ fun UsageAccessCard() {
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
-    OutlinedCard(Modifier.fillMaxWidth().padding(16.dp)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    YogaCard {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(if (granted) "Usage Access is on" else "Enable usage awareness", style = MaterialTheme.typography.titleMedium)
             Text("Yoga reads which apps were in the foreground and for how long. This stays on your phone.")
             if (!granted) Text("Allow Usage Access in Android settings to see your usage and allowance progress.")
-            TextButton(onClick = { UsageAccess.openSettings(context) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text(if (granted) "Manage Usage Access" else "Open Usage Access settings")
-            }
+            YogaSecondaryButton(if (granted) "Manage Usage Access" else "Open Usage Access settings", { UsageAccess.openSettings(context) })
         }
     }
 }
