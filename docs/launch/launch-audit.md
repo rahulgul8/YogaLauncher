@@ -20,7 +20,21 @@ Working list for spec section 13 "Launch" items. Tick as they are verified on re
 - [ ] Data safety form matches `play-listing.md`; privacy policy published at a public URL.
 - [ ] Value-of-time copy always says "illustrative" and never implies money lost.
 
-## Data safety before the first public build
+## Yoga guard (Piece 8)
+
+- [ ] Verify prominent disclosure before every accessibility-settings handoff, including entry through Value of time and Privacy and data; Not now must not open system settings.
+- [ ] Submit Accessibility API declaration and demonstration video; verify listing and privacy policy match the shipped service. Do not mark as an accessibility tool.
+- [ ] Pixel, Samsung One UI and Motorola: enable, revoke, kill/reconnect service, reboot, sideload restricted-settings flow on Android 13+, and TalkBack coexistence.
+- [ ] Live pill: no focus theft or outside-touch interception; tap collapse, vertical drag and restored position; animator scale 0; small screens, rotation and large fonts.
+- [ ] Verify essential apps, every installed camera, Finance/payment categories, dialer, cellular/VoIP calls, lock screen and screen-off never display the pill.
+- [ ] Check both counting modes, no TOTAL rule, crossing the limit without leaving an app, snooze, measuring off, permission revocation, midnight/timezone changes and fresh snapshots at most once per 60 seconds.
+- [ ] Re-check YouTube Shorts and Instagram Reels view ids after every supported app update; test regular video screens as negative cases. Record app versions with results.
+- [ ] Test browser address bars in Chrome, Samsung Internet and Firefox: valid Shorts/Reels URLs, ordinary videos, spoofed domains and hidden address bars; browser blocking defaults off.
+- [ ] Test 5/10/15/30-minute allowances across surface switches, service restarts, midnight and screen-off; verify BACK debounce, two-BACK escalation to HOME and today's counts.
+- [ ] Inspect logs and exported backups: no node content, text, URLs or content descriptions retained; bounded tree walks and pre-33 node recycling; no polling when all guard features are off.
+- [ ] Run guard JUnit tests and Android build; then perform battery/long-session checks on actual devices. Implementation-time sandbox did not allow Gradle.
+
+## Database migrations
 
 - [ ] Replace Room `fallbackToDestructiveMigration()` with real migrations (and export the schema) — today every schema change wipes local data, which is fine only before release.
 

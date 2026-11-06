@@ -28,6 +28,9 @@ import `in`.tuwi.yogaphone.usage.UsageNotifications
 import `in`.tuwi.yogaphone.ui.UsageDashboardScreen
 import `in`.tuwi.yogaphone.ui.UsageSettingsScreen
 import `in`.tuwi.yogaphone.ui.ValueOfTimeSettingsScreen
+import `in`.tuwi.yogaphone.ui.GuardSettingsScreen
+import `in`.tuwi.yogaphone.ui.rememberGuardDate
+import `in`.tuwi.yogaphone.guard.GuardDaily
 import `in`.tuwi.yogaphone.ui.HomeUsageIndicator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -110,6 +113,7 @@ import `in`.tuwi.yogaphone.ui.theme.themeUsesDarkIcons
 
 private const val HOME = "home"
 private const val SETTINGS = "settings"
+private const val GUARD = "settings/guard"
 private const val HIDDEN_APPS = "settings/hidden_apps"
 private const val APPEARANCE = "settings/appearance"
 private const val FOCUS_SETTINGS = "settings/focus"
@@ -430,6 +434,7 @@ private fun LauncherNavigation(
                 onUsage = { navController.navigate("usage") },
                 onUsageRules = { navController.navigate("settings/usage") },
                 onValueOfTime = { navController.navigate("settings/value") },
+                onGuard = { navController.navigate(GUARD) },
                 onFocus = { navController.navigate(FOCUS_SETTINGS) },
                 onProfiles = { navController.navigate(PROFILES) },
                 onCategories = { navController.navigate(CATEGORIES) },
@@ -442,16 +447,24 @@ private fun LauncherNavigation(
             )
         }
         composable("usage?details={details}", arguments = listOf(androidx.navigation.navArgument("details") { defaultValue = "false" })) { entry ->
+            val guardDaily by yoga.guardPrefs.daily.collectAsState(initial = GuardDaily())
+            val guardDate = rememberGuardDate()
+            val blockedToday = if (guardDaily.date == guardDate) guardDaily.blocks.values.sum() else 0
             UsageDashboardScreen(usageState, usageViewModel, { navController.popBackStack() },
                 { navController.navigate("settings/usage") }, entry.arguments?.getString("details") == "true",
-                uiState.categories.associate { it.id to it.name })
+                uiState.categories.associate { it.id to it.name }, blockedToday)
         }
         composable("settings/usage") {
             UsageSettingsScreen(usageState, usageViewModel, { navController.popBackStack() },
                 { navController.navigate("usage") }, { navController.navigate("settings/value") }, uiState.categories)
         }
         composable("settings/value") {
-            ValueOfTimeSettingsScreen(usageState, usageViewModel, { navController.popBackStack() })
+            ValueOfTimeSettingsScreen(usageState, usageViewModel, yoga.guardPrefs,
+                { navController.navigate(GUARD) }, { navController.popBackStack() })
+        }
+        composable(GUARD) {
+            GuardSettingsScreen(yoga.guardPrefs, usageState.preferences.timeValueEnabled,
+                { navController.navigate("settings/value") }, { navController.popBackStack() })
         }
         composable(APPEARANCE) {
             AppearanceSettingsScreen(
@@ -488,7 +501,7 @@ private fun LauncherNavigation(
             insightsPrefs?.let { prefs ->
                 PrivacyScreen(prefs, insights, yoga.backupManager, onReset = {
                     scope.launch { navController.returnHome(); navController.navigate(ONBOARDING) }
-                }) { navController.popBackStack() }
+                }, onGuard = { navController.navigate(GUARD) }) { navController.popBackStack() }
             }
         }
         composable(HELP) {

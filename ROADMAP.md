@@ -92,8 +92,8 @@ Focus on getting things working quickly, then iterate and improve.
 
 ### Tasks
 - [x] Request PACKAGE_USAGE_STATS permission
-- [ ] Request AccessibilityService permission (not used: Yoga pauses launches it starts itself, no Accessibility service)
-- [ ] Create AccessibilityService to detect app launches (deferred, see above)
+- [x] Optional Yoga guard accessibility access with disclosure (Piece 8); launcher mindful pauses remain separate.
+- [x] Yoga guard detects foreground apps for live time value and selected Shorts/Reels controls (Piece 8).
 - [x] Build simple FocusMode entity in database (enabled, blockedApps list)
 - [x] Add Focus Mode toggle in settings
 - [x] Select apps to block (multi-select list)
@@ -518,3 +518,16 @@ OEM event feeds, notification permission, DST/timezone and midnight rollover) re
 ## Piece 7 — Phone-habits check-in (6 November 2026)
 
 - [x] Static, private, non-clinical questionnaire in `web/questionnaire/`: 12 original questions in four themes, three bands, suggestions linked to Yoga features; no network, no cookies; Node tests for scoring.
+
+## Piece 8 — Yoga guard (6 November 2026)
+
+- [x] Optional accessibility service with explicit disclosure, settings status, restricted-settings help and per-feature opt-in.
+- [x] Live time-value accessibility pill: Burning/Gentle, after TOTAL limit/from first eligible minute, minor-unit precision for low rates, collapse/drag, saved position and reduced-motion support.
+- [x] Essential, dialer/call, camera, Finance/payment, lock-screen and screen-off exclusions; usage-measuring and snooze controls respected.
+- [x] Table-driven Shorts/Reels detection with bounded trees; native YouTube/Instagram and opt-in browser URL surfaces; Back debounce and Home escalation.
+- [x] Per-surface Block or 5/10/15/30-minute daily allowances; local block counts on guard settings and Usage dashboard. Shared DataStore preferences include counts in manual backup without a codec/schema change.
+- [x] Pure JUnit cases for BurnMeter, OverlayPolicy, ShortsDetector and ShortsGate; privacy policy, listing declaration and launch checklist updated.
+- [x] All 15 guard JUnit tests pass via the cached Kotlin compiler and JUnit directly, without Gradle.
+- [ ] Run Android build outside the restricted sandbox (direct compile blocked by SDK jar access); validate on actual devices and updated YouTube/Instagram releases before shipping.
+
+ADR 8: `docs/adr/0008-yoga-guard.md`. No new dependencies or Room schema changes. Screen structure is processed transiently and never logged, stored or transmitted.

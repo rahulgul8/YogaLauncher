@@ -64,6 +64,7 @@ fun PrivacyScreen(
     insights: InsightsRepository,
     backup: BackupManager,
     onReset: () -> Unit,
+    onGuard: () -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -155,6 +156,13 @@ fun PrivacyScreen(
             }
             item { ToggleListItem("Insights", "Weekly summaries and insight cards", prefs.insightsEnabled) { scope.launch { insights.setInsightsEnabled(it) } } }
             item { SectionTitle("Permissions") }
+            item {
+                refresh // Refresh the service status after returning from Android settings.
+                val guardEnabled = `in`.tuwi.yogaphone.guard.YogaGuardService.isEnabled(context)
+                ListItem(headlineContent = { Text("Yoga guard") },
+                    supportingContent = { Text("Optional live time value and Shorts/Reels recognition · " + if (guardEnabled) "allowed" else "not allowed") },
+                    trailingContent = { TextButton(onClick = onGuard) { Text("Manage") } })
+            }
             permissions.forEach { row ->
                 item(key = "perm:${row.name}") {
                     ListItem(

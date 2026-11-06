@@ -45,6 +45,7 @@ fun SettingsScreen(
     onUsage: () -> Unit,
     onUsageRules: () -> Unit,
     onValueOfTime: () -> Unit,
+    onGuard: () -> Unit,
     onFocus: () -> Unit,
     onProfiles: () -> Unit,
     onCategories: () -> Unit,
@@ -97,6 +98,7 @@ fun SettingsScreen(
         item { SettingsRow("Insights", "Trends, late nights, goals and encouragement", onInsights) }
         item { SettingsRow("Usage rules", "Allowances, essential apps and reminders", onUsageRules) }
         item { SettingsRow("Value of time", "Optional illustrative hourly value", onValueOfTime) }
+        item { SettingsRow("Shorts and live time value", "Yoga guard · optional accessibility service", onGuard) }
         item { SectionTitle("Focus") }
         item { SettingsRow("Focus and timebox", "Mindful pause, focus schedules, Do Not Disturb", onFocus) }
         item { SettingsRow("Visual interventions", "Greyscale when over the limit, in focus or at bedtime", onVisual) }

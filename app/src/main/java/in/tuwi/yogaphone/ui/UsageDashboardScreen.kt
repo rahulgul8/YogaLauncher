@@ -13,7 +13,7 @@ import `in`.tuwi.yogaphone.usage.*
 
 @Composable
 fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: () -> Unit, onSettings: () -> Unit,
-    openDetails: Boolean = false, categoryNames: Map<String, String> = emptyMap()) {
+    openDetails: Boolean = false, categoryNames: Map<String, String> = emptyMap(), blockedToday: Int = 0) {
     var weekly by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<AppModel?>(null) }
     var details by remember(openDetails) { mutableStateOf(openDetails) }
@@ -27,6 +27,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
     val excessWeek = if (total == null) 0 else s.knownDays.sumOf { ((dailyEligible[it] ?: 0) - total.dailyAllowanceMinutes).coerceAtLeast(0) }
     LazyColumn {
         item { SettingsHeader("Usage", onBack) }
+        item { Text("Shorts and Reels blocked today: $blockedToday", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
         item {
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(!weekly, { weekly = false }, label = { Text("Today") })

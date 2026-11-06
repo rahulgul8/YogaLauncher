@@ -29,6 +29,7 @@ Yoga replaces a busy home screen with a quiet, text-first launcher and gives you
 • Neutral reminders when you're close to or past your limit
 • A usage dashboard and weekly insights — late nights, longest breaks, unlocks
 • Optional "value of time": see the illustrative value of time past your limit
+• Optional live time-value pill with Burning and Gentle styles; illustrative, not money lost
 
 **Use your phone on purpose**
 • A short, mindful pause before distracting apps
@@ -36,11 +37,14 @@ Yoga replaces a busy home screen with a quiet, text-first launcher and gives you
 • Focus sessions and schedules that tuck distracting apps away
 • Greyscale on your terms — over the limit, during focus or at bedtime
 • Quiet notifications: hold chosen apps' notifications and read them in a digest
+• Yoga guard: turn off YouTube Shorts and Instagram Reels, or give each a daily allowance
 
 **Private by design**
 Everything stays on your phone. No account, no server, no ads, no tracking. You choose each permission when you turn a feature on, and you can delete everything at any time.
 
 Yoga measures app foreground time from Android's usage data; it can differ from other screen-time tools. Apps opened from notifications or other apps skip the mindful pause.
+
+Yoga guard optionally uses Android's Accessibility API to identify the open app for the live time-value indicator and recognise Shorts/Reels from screen structure in YouTube, Instagram and supported browsers you enable. It goes Back (or Home if needed) when a selected surface is blocked. Screen content is never stored or sent. You choose whether to enable it after an in-app disclosure and can turn it off at any time.
 
 ## Category and tags
 
@@ -61,7 +65,17 @@ Category: Personalization (alternative: Productivity). Tags: launcher, minimalis
 | `RECEIVE_BOOT_COMPLETED` | Restore timebox and schedule alarms after restart. |
 | `POST_NOTIFICATIONS` | Reminders, timebox endings, digests and weekly summary; requested in context. |
 
-**Not used:** Accessibility services, device admin, overlays (draw over other apps), location, contacts.
+**Not used:** Device admin, `SYSTEM_ALERT_WINDOW` (draw-over-apps permission), location, contacts. Yoga guard uses `TYPE_ACCESSIBILITY_OVERLAY` instead.
+
+### Accessibility API declaration — Piece 8
+
+Service: `in.tuwi.yogaphone.guard.YogaGuardService`, protected by `BIND_ACCESSIBILITY_SERVICE`, with `isAccessibilityTool=false`.
+
+**Core-functionality justification:** Yoga is a launcher and digital-wellbeing app. The optional guard implements user-selected limits on short-form feeds while leaving regular video use available, and provides live feedback on the illustrative value of eligible app time. Usage Access alone cannot recognise a Shorts/Reels screen or navigate away from that screen. Accessibility window events identify the open app; bounded node inspection runs only for enabled surfaces in YouTube, Instagram, Chrome, Samsung Internet and Firefox. Deterministic user-configured rules issue Back and, after two unsuccessful attempts, Home. The service does not change settings, prevent disabling/uninstalling, or collect screen content.
+
+**Disclosure and consent:** A dedicated in-app dialog explains the open-app and screen-structure access, both purposes, on-device processing, non-retention/non-transmission of screen content and how to disable the service. Only **Agree and open settings** opens Android accessibility settings; **Not now** cancels. Feature toggles default off. Daily block counts and allowance usage are local aggregates, separate from transient screen content.
+
+Submit the permission declaration and a demonstration video showing disclosure, consent, Android activation, both guard features and disabling before release. Store approval remains a release task. Review against [Google Play's AccessibilityService API policy](https://support.google.com/googleplay/android-developer/answer/10964491?hl=en) and [prominent disclosure guidance](https://support.google.com/googleplay/android-developer/answer/11150561?hl=en).
 
 ## Data safety form (answers)
 

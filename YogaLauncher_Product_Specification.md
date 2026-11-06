@@ -147,6 +147,8 @@ The priorities below capture the discussion where explicit: **app grouping and p
 
 **Design considerations:** Delays should be configurable and modest, not forced repeatedly for urgent access. Launcher-only friction can be bypassed when an app opens from another entry point; stronger intervention mechanisms require feasibility and policy evaluation.
 
+**Piece 8 — Yoga guard:** Optional accessibility-based YouTube Shorts and Instagram Reels controls offer Block or a daily 5/10/15/30-minute allowance per surface. Supported browser URL detection is separately opt-in. Only enabled surfaces are inspected; screen content is never stored or sent. A prominent disclosure precedes Android activation.
+
 ### 4.5 Notification filtering and quieting — Priority 1 feasibility, staged delivery
 
 **Purpose:** Reduce interruptions that trigger habitual checking.
@@ -182,7 +184,7 @@ The priorities below capture the discussion where explicit: **app grouping and p
 - Daily and weekly equivalent-value summaries.
 - Explain assumptions, round sensibly, and avoid claims of actual financial loss.
 
-**Floating indicator constraints:** Drawing over other apps requires special overlay permission and may interfere with other applications or accessibility. Offer a launcher-only indicator or notification as a fallback. Define behavior for lock screen, payments, calls, camera, and other sensitive/immersive contexts; avoid overlays where inappropriate.
+**Floating indicator constraints (Piece 8):** Optional Yoga guard uses an accessibility overlay without requesting draw-over-apps permission. A small, collapsible, vertically draggable pill shows Burning or Gentle feedback, after the TOTAL limit by default or from the first eligible minute by choice. It requires value of time and usage measuring to be enabled and respects today's snooze. It never displays in essential, dialer, camera or Finance/payment apps, during calls, on the lock screen or with the screen off. Launcher-only and notification indicators remain available. Device usability and policy review remain launch requirements.
 
 **UX hypothesis to test:** A subtle live number may motivate more effectively than a dramatic burning animation, which may feel shaming or annoying.
 
@@ -473,8 +475,8 @@ Each work item should become a ticket with interaction details, states, permissi
 ### Differentiation and refinement
 
 - [x] Build hourly value setup and cost-equivalent calculation.
-- [ ] Design optional overlay/notification cost indicator and safety exclusions.
-  - Notification and home indicators are built (snoozable); the draw-over-apps overlay waits for usability testing.
+- [x] Design optional overlay/notification cost indicator and safety exclusions.
+  - Piece 8: opt-in Yoga guard accessibility pill, Burning/Gentle styles, after-limit/first-minute modes, snooze and sensitive-context exclusions; device usability checks remain pending.
 - [ ] Test metaphor and copy with prospective users.
 - [x] Add automatic categories and manual recategorization.
 - [x] Add grouping and profile modes in Priority 2.

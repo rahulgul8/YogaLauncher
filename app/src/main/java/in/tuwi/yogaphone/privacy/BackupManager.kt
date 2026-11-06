@@ -131,6 +131,7 @@ class BackupManager(private val context: Context, private val database: YogaData
     suspend fun deleteUsageHistory() = withContext(Dispatchers.IO) {
         val usage = database.usageDao()
         usage.clearHistory(); usage.clearDays(); usage.clearAllHours()
+        (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).guardPrefs.clearHistory()
     }
 
     /** Deletes everything Yoga stores. The app returns to first-run state. */
