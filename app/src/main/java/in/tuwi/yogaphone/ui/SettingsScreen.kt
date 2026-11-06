@@ -67,6 +67,7 @@ fun SettingsScreen(
     onPrivacy: () -> Unit,
     onHelp: () -> Unit,
     onWidgets: () -> Unit,
+    onAdvanced: () -> Unit,
 ) {
     val context = LocalContext.current
     var isDefault by remember { mutableStateOf(isDefaultHome(context)) }
@@ -83,17 +84,15 @@ fun SettingsScreen(
     }
 
     YogaScreen("Settings", onBack, eyebrow = "Yoga Launcher") {
-        item(key = "home-card") {
+        // Only while Yoga isn't the home app. Leaving Yoga lives under Advanced, a few taps away on purpose.
+        if (!isDefault) item(key = "home-card") {
             YogaCard(Modifier.padding(top = 12.dp)) {
                 YogaEyebrow("Home screen")
-                Text(if (isDefault) "Yoga is your home screen" else "Make Yoga your home screen",
-                    style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 8.dp))
-                Text(if (isDefault) "Press Home any time to come back here." else "Android asks once. You can switch back whenever you like.",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
-                if (isDefault) YogaSecondaryButton("Choose another home app", { context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) })
-                else YogaPrimaryButton("Make Yoga home", { runCatching { roleLauncher.launch(defaultHomeIntent(context)) } })
+                Text("Make Yoga your home screen", style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(top = 8.dp))
+                Text("Android asks once.", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
+                YogaPrimaryButton("Make Yoga home", { runCatching { roleLauncher.launch(defaultHomeIntent(context)) } })
             }
         }
         item { YogaSection("Awareness") }
@@ -114,11 +113,10 @@ fun SettingsScreen(
         item { YogaRow("Profiles", summary = "Different homes for work, reading and more", onClick = onProfiles) }
         item { YogaRow("Categories", summary = "Automatic and your own, drawer grouping", onClick = onCategories) }
         item { YogaRow("Hidden apps", summary = "Review and unhide", onClick = onHiddenApps) }
-        item { YogaRow("Reset custom names", summary = "Restore every app's installed name", onClick = onResetNames, trailing = null) }
         item { YogaSection("Privacy and help") }
         item { YogaRow("Privacy and data", summary = "What is stored, permissions, backup, delete", onClick = onPrivacy) }
         item { YogaRow("Help", summary = "Replay setup, questions, battery tips", onClick = onHelp) }
-        item { YogaRow("Android settings", summary = "Open the phone's own settings", onClick = { context.startActivity(Intent(Settings.ACTION_SETTINGS)) }) }
+        item { YogaRow("Advanced", summary = "Android settings, app names, home screen", onClick = onAdvanced) }
         item(key = "about") {
             Column(Modifier.fillMaxWidth().padding(top = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 BrandColon(28.sp)

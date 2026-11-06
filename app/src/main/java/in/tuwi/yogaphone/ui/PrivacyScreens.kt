@@ -252,7 +252,7 @@ fun HelpScreen(onReplaySetup: () -> Unit, onBack: () -> Unit) {
             "Yoga counts the time apps are in the foreground, from Android's usage events, and leaves out essential apps. " +
             "Digital Wellbeing may count screen time differently or include apps Yoga excludes.",
         "How do I stop using Yoga as my home screen?" to
-            "Settings → Leave Yoga Launcher opens Android's home-app setting, where you can pick another launcher.",
+            "Settings → Advanced → Leave Yoga Launcher opens Android's home-app setting, where you can pick another launcher.",
         "Reminders or timebox endings arrive late" to
             "Some phones pause background work to save battery. Letting Yoga run without battery restrictions makes reminders more reliable.",
     )

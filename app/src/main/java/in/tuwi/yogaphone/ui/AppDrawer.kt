@@ -47,6 +47,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -89,11 +90,11 @@ import java.util.Locale
 class DrawerController internal constructor(private val scope: CoroutineScope) {
     var progress by mutableFloatStateOf(1f)
         private set
-    /** True once an open animation has finished; the keyboard waits for this so it never fights the slide. */
+    /** True once an open animation has finished. */
     var settledOpen by mutableStateOf(false)
         private set
-    /** Opened from Search: show the keyboard once settled. A swipe opens the list for browsing instead. */
-    var forSearch by mutableStateOf(false)
+    /** Goes up each time the drawer starts settling open, so the search field takes focus and the keyboard rises with it. */
+    var keyboardRequests by mutableIntStateOf(0)
         private set
     internal var heightPx = 1f
     private var job: Job? = null
@@ -101,7 +102,6 @@ class DrawerController internal constructor(private val scope: CoroutineScope) {
     val isClosed: Boolean get() = progress >= 1f
 
     fun dragBy(deltaPx: Float) {
-        if (progress >= 1f) forSearch = false
         job?.cancel()
         settledOpen = false
         progress = (progress + deltaPx / heightPx).coerceIn(0f, 1f)
@@ -114,17 +114,16 @@ class DrawerController internal constructor(private val scope: CoroutineScope) {
             fractionPerSecond > 0.6f -> false
             else -> progress < 0.55f
         }
-        if (open && progress >= 0.99f) forSearch = false
         settle(if (open) 0f else 1f, fractionPerSecond)
     }
 
-    fun open(search: Boolean = false) { forSearch = search; settle(0f, 0f) }
+    fun open() = settle(0f, 0f)
     fun close() = settle(1f, 0f)
     fun snapClosed() { job?.cancel(); settledOpen = false; progress = 1f }
 
     private fun settle(target: Float, velocity: Float) {
         job?.cancel()
-        if (target != 0f) settledOpen = false
+        if (target != 0f) settledOpen = false else keyboardRequests++
         job = scope.launch {
             animate(progress, target, velocity, spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow)) { value, _ ->
                 progress = value
@@ -173,8 +172,8 @@ fun AppDrawerLayer(
     }
     val closed by remember { derivedStateOf { controller.isClosed } }
 
-    LaunchedEffect(controller.settledOpen) {
-        if (controller.settledOpen && controller.forSearch) { runCatching { focusRequester.requestFocus() }; keyboard?.show() }
+    LaunchedEffect(controller.keyboardRequests) {
+        if (controller.keyboardRequests > 0) { runCatching { focusRequester.requestFocus() }; keyboard?.show() }
     }
     LaunchedEffect(closed) {
         if (closed) {

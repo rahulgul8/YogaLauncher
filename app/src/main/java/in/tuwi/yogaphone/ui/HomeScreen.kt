@@ -11,6 +11,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.unit.em
 import `in`.tuwi.yogaphone.ui.theme.YogaIcons
 import androidx.compose.foundation.combinedClickable
@@ -86,8 +92,29 @@ fun HomeScreen(
         while (true) { now = System.currentTimeMillis(); delay(60_000 - now % 60_000 + 50) }
     }
 
+    // A swipe that starts on the home app list is taken by the list; whatever it can't scroll moves the drawer.
+    val drag by rememberUpdatedState(onDrawerDrag)
+    val release by rememberUpdatedState(onDrawerRelease)
+    val listToDrawer = remember {
+        object : NestedScrollConnection {
+            var pulling = false
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput || (available.y >= 0f && !pulling)) return Offset.Zero
+                pulling = true
+                drag(available.y)
+                return Offset(0f, available.y)
+            }
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (!pulling) return Velocity.Zero
+                pulling = false
+                release(available.y)
+                return available
+            }
+        }
+    }
+
     Box(
-        modifier = modifier.fillMaxSize().pointerInput(Unit) {
+        modifier = modifier.fillMaxSize().nestedScroll(listToDrawer).pointerInput(Unit) {
             // Swipe up pulls the drawer with the finger; swipe down opens the notification shade.
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)

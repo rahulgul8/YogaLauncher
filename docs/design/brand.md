@@ -50,7 +50,7 @@ Rules: one brass element per view at most (the clock's dot, an active icon, a pr
 ## Motion
 
 - The drawer follows the finger and settles with a critically damped spring (no bounce).
-- The keyboard opens only after a slide has settled, and only when the user came from Search.
+- The search field takes focus as the drawer starts settling open, so the keyboard rises together with it.
 - Avoid full-screen alpha fades during gestures; they cost a frame on mid-range phones.
 
 ## Home screen anatomy

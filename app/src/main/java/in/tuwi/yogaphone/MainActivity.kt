@@ -68,6 +68,8 @@ import `in`.tuwi.yogaphone.ui.InsightsScreen
 import `in`.tuwi.yogaphone.ui.OnboardingActions
 import `in`.tuwi.yogaphone.ui.OnboardingScreen
 import `in`.tuwi.yogaphone.ui.OnboardingInitial
+import `in`.tuwi.yogaphone.ui.AdvancedSettingsScreen
+import `in`.tuwi.yogaphone.ui.LeaveYogaScreen
 import `in`.tuwi.yogaphone.ui.ONBOARDING_VERSION
 import `in`.tuwi.yogaphone.ui.PrivacyScreen
 import `in`.tuwi.yogaphone.ui.ReflectionSheet
@@ -140,6 +142,8 @@ private const val PRIVACY = "settings/privacy"
 private const val HELP = "settings/help"
 private const val ONBOARDING = "onboarding"
 private const val WIDGETS = "settings/widgets"
+private const val ADVANCED = "settings/advanced"
+private const val LEAVE = "settings/advanced/leave"
 private const val WIDGET_PICKER = "settings/widgets/add"
 
 private data class PendingPause(val app: AppModel, val query: String, val seconds: Int, val duringFocus: Boolean)
@@ -470,7 +474,7 @@ private fun LauncherNavigation(
                     }
                     HomeDock(
                         slots = slots,
-                        onSearch = { replacingApp = null; pickingDockSlot = null; drawer.open(search = true) },
+                        onSearch = { replacingApp = null; pickingDockSlot = null; drawer.open() },
                         onSlotClick = { slot ->
                             val app = slot.app
                             if (app != null) requestLaunch(app) else { pickingDockSlot = slot.index; drawer.open() }
@@ -511,8 +515,13 @@ private fun LauncherNavigation(
                 onPrivacy = { navController.navigate(PRIVACY) },
                 onHelp = { navController.navigate(HELP) },
                 onWidgets = { navController.navigate(WIDGETS) },
+                onAdvanced = { navController.navigate(ADVANCED) },
             )
         }
+        composable(ADVANCED) {
+            AdvancedSettingsScreen({ navController.popBackStack() }, viewModel::resetCustomLabels) { navController.navigate(LEAVE) }
+        }
+        composable(LEAVE) { LeaveYogaScreen { navController.popBackStack() } }
         composable("usage?details={details}", arguments = listOf(androidx.navigation.navArgument("details") { defaultValue = "false" })) { entry ->
             val guardDaily by yoga.guardPrefs.daily.collectAsState(initial = GuardDaily())
             val guardDate = rememberGuardDate()
