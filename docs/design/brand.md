@@ -1,6 +1,6 @@
 # Yoga brand and design system
 
-Status: all three directions ship as user-selectable **looks** (founder's decision, 6 Nov 2026). People pick one in onboarding or Settings → Home and appearance, from live miniature home screens. Obsidian and Brass is the default. Light/dark/follow-phone/greyscale is a separate choice that applies to every look. The app icon is "Ten past ten" for now.
+Status: all three directions ship as user-selectable **looks** (founder's decision, 6 Nov 2026). People pick one in onboarding or Settings → Home and appearance, from live miniature home screens. Obsidian and Brass is the default. Light/dark/follow-phone/greyscale is a separate choice that applies to every look. Two app icons ship for testing, "Ten past ten" (default) and "The colon"; people switch in Settings → Home and appearance (activity-aliases `.IconTenPastTen` / `.IconColon`, see `ui/AppIcons.kt`). The founder will decide whether to keep both or one.
 
 | Look | Display face | Text face | Dark | Light |
 | --- | --- | --- | --- | --- |

@@ -8,6 +8,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -56,6 +58,13 @@ fun AppearanceSettingsScreen(
             }
         }
         item { YogaNote("Greyscale turns colour off everywhere in Yoga. It also switches on by itself past your limit or at bedtime, if you set that up.") }
+        item { YogaSection("App icon") }
+        item {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            var icon by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(AppIcons.current(context)) }
+            AppIconPicker(icon, { choice -> if (choice != icon) { AppIcons.set(context, choice); icon = choice } })
+        }
+        item { YogaNote("The icon other launchers show for Yoga. Some phones take a few seconds to update it and may remove a shortcut to Yoga from another launcher's home screen. Android's app info page keeps the dial.") }
         item { YogaSection("Text size") }
         item {
             YogaChipRow {

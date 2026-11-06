@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "The colon": the home clock's colon, a brass dot over an ivory one. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#C9A45C" android:pathData="M46.5,42a7.5,7.5 0,1 0,15 0a7.5,7.5 0,1 0,-15 0" />
+    <path android:fillColor="#ECE6DA" android:pathData="M46.5,66a7.5,7.5 0,1 0,15 0a7.5,7.5 0,1 0,-15 0" />
+</vector>
