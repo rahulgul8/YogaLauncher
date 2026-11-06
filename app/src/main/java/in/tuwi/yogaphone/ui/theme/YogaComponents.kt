@@ -206,7 +206,7 @@ fun YogaSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, enabled:
 @Composable
 fun YogaRadioRow(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, summary: String? = null) {
     Row(
-        modifier.fillMaxWidth().heightIn(min = 56.dp)
+        modifier.fillMaxWidth().heightIn(min = 64.dp)
             .selectable(selected, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = ScreenMargin, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -254,6 +254,9 @@ fun YogaSecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = 
         modifier = modifier.heightIn(min = 52.dp),
     ) { Text(text, style = MaterialTheme.typography.labelLarge) }
 }
+
+/** Side padding that lines a standalone YogaTextButton's label up with the 24 dp margin (TextButton adds 12 dp inside). */
+val TextButtonInset = ScreenMargin - 12.dp
 
 /** Quiet text action, in brass. */
 @Composable
@@ -357,7 +360,7 @@ fun YogaStat(value: String, caption: String, modifier: Modifier = Modifier) {
 fun YogaCheckRow(label: String, checked: Boolean, enabled: Boolean = true, onToggle: () -> Unit) {
     val c = MaterialTheme.colorScheme
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(enabled = enabled, role = Role.Checkbox, onClick = onToggle)
+        Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(enabled = enabled, role = Role.Checkbox, onClick = onToggle)
             .padding(horizontal = ScreenMargin, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -433,6 +436,7 @@ fun YogaDialog(
     modifier: Modifier = Modifier,
     dismissText: String = "Cancel",
     onDismissAction: () -> Unit = onDismissRequest,
+    confirmEnabled: Boolean = true,
     text: (@Composable () -> Unit)? = null,
 ) {
     AlertDialog(
@@ -442,7 +446,7 @@ fun YogaDialog(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         title = { Text(title, style = MaterialTheme.typography.headlineSmall) },
         text = text,
-        confirmButton = { YogaPrimaryButton(confirmText, onConfirm) },
+        confirmButton = { YogaPrimaryButton(confirmText, onConfirm, enabled = confirmEnabled) },
         dismissButton = { YogaTextButton(dismissText, onDismissAction, muted = true) },
     )
 }

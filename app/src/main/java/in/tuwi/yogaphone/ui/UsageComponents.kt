@@ -52,7 +52,7 @@ fun UsageAppSheet(app: AppModel, state: UsageUiState, viewModel: UsageViewModel,
             UsageToggle("Distracting", current.isDistracting, { viewModel.classify(app.appPackage, false, it) }, !current.isEssential)
             YogaRow("App allowance", summary = if (current.isEssential) "Essential apps are never counted" else rule?.let { "${it.dailyAllowanceMinutes} min a day" } ?: "Off",
                 enabled = !current.isEssential, onClick = { editLimit = true })
-            if (rule != null) YogaTextButton("Remove app limit", { viewModel.saveRule(app.appPackage, null) }, Modifier.padding(horizontal = ScreenMargin), muted = true)
+            if (rule != null) YogaTextButton("Remove app limit", { viewModel.saveRule(app.appPackage, null) }, Modifier.padding(horizontal = TextButtonInset), muted = true)
         }
     }
     if (editLimit) AllowanceEditor("${current.displayLabel} allowance", rule?.dailyAllowanceMinutes, { editLimit = false }) { viewModel.saveRule(app.appPackage, it) }
@@ -81,7 +81,7 @@ fun TimeValueDetailsSheet(state: UsageUiState, onDismiss: () -> Unit, onSnooze: 
                     YogaNote("The allowance applies to their combined time. The value uses only time past the allowance.")
                 }
             }
-            YogaTextButton("Snooze notification for today", { onSnooze(); onDismiss() }, Modifier.padding(horizontal = ScreenMargin), muted = true)
+            YogaTextButton("Snooze notification for today", { onSnooze(); onDismiss() }, Modifier.padding(horizontal = TextButtonInset), muted = true)
         }
     }
 }

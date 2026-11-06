@@ -57,16 +57,16 @@ Rules: one brass element per view at most (the clock's dot, an active icon, a pr
 
 - [x] Home, dock and app drawer
 - [x] Onboarding, settings and appearance
-- [ ] Focus, timebox and mindful pause
-- [ ] Guard and disclosure
+- [x] Focus, timebox and mindful pause
+- [x] Guard and disclosure
 - [x] Hidden apps, app actions and rename
-- [ ] Insights
+- [x] Insights
 - [x] Usage dashboard, usage access and time value details
-- [ ] Profiles and categories
-- [ ] Privacy and help
-- [ ] Visual interventions, quiet notifications and digest
-- [ ] Usage settings and value-of-time settings
-- [ ] Widgets
+- [x] Profiles and categories
+- [x] Privacy and help
+- [x] Visual interventions, quiet notifications and digest
+- [x] Usage settings and value-of-time settings
+- [x] Widgets
 
 ## Home screen anatomy
 

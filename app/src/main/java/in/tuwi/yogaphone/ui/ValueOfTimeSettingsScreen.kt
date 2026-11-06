@@ -4,19 +4,15 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
-import `in`.tuwi.yogaphone.usage.*
 import `in`.tuwi.yogaphone.guard.*
+import `in`.tuwi.yogaphone.ui.theme.*
+import `in`.tuwi.yogaphone.usage.*
 import kotlinx.coroutines.launch
 import java.util.Currency
 
@@ -32,59 +28,45 @@ fun ValueOfTimeSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, gu
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         denied = !granted; viewModel.preferences { it.copy(ongoingValue = granted) }
     }
-    LazyColumn {
-        item { SettingsHeader("Value of time", onBack) }
-        item { Text(TIME_VALUE_EXPLANATION, modifier = Modifier.padding(16.dp)) }
-        item { UsageToggle("Value of time", p.timeValueEnabled, { enabled -> viewModel.preferences { it.copy(timeValueEnabled = enabled) } }) }
+    YogaScreen("Value of time", onBack) {
+        item { YogaNote(TIME_VALUE_EXPLANATION) }
+        item { YogaSwitchRow("Value of time", p.timeValueEnabled, { enabled -> viewModel.preferences { it.copy(timeValueEnabled = enabled) } }) }
         item {
-            OutlinedTextField(hourly, { hourly = it }, label = { Text("Hourly value (${p.currency})") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true,
-                isError = !valid, supportingText = { Text(if (valid) "Choose a value that is meaningful to you." else "Enter a number from 0 to 1,000,000,000.") },
-                modifier = Modifier.fillMaxWidth().padding(16.dp))
-            TextButton(onClick = { viewModel.preferences { it.copy(hourlyValue = amount!!.toPlainString()) } }, enabled = valid,
-                modifier = Modifier.padding(horizontal = 16.dp)) { Text("Save hourly value") }
+            YogaTextField(hourly, { hourly = it }, "Hourly value (${p.currency})",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+            YogaNote(if (valid) "Choose a value that is meaningful to you." else "Enter a number from 0 to 1,000,000,000.")
+            YogaTextButton("Save hourly value", { viewModel.preferences { it.copy(hourlyValue = amount!!.toPlainString()) } },
+                Modifier.padding(horizontal = TextButtonInset), enabled = valid)
         }
-        item { SectionTitle("Currency") }
+        item { YogaSection("Currency") }
         items((listOf(p.currency, "INR", "USD", "EUR", "GBP", "JPY", "AUD", "CAD") + defaultCurrency()).distinct()) { code ->
-            Row(Modifier.fillMaxWidth().selectable(p.currency == code, role = Role.RadioButton) { viewModel.preferences { it.copy(currency = code) } }
-                .padding(horizontal = 16.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                RadioButton(p.currency == code, null)
-                Text("$code · ${Currency.getInstance(code).symbol}", Modifier.padding(start = 8.dp))
-            }
+            YogaRadioRow("$code · ${Currency.getInstance(code).symbol}", p.currency == code,
+                onClick = { viewModel.preferences { it.copy(currency = code) } })
         }
-        item { Text("20 min past your limit ≈ ${TimeValueCalculator().format(20, if (valid) amount!! else p.hourlyAmount(), p.currency)} of your time",
-            modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleMedium) }
-        item { UsageToggle("Show time value on home", p.valueOnHome, { enabled -> viewModel.preferences { it.copy(valueOnHome = enabled) } }) }
-        item { UsageToggle("Ongoing silent notification while over", p.ongoingValue, { enabled ->
+        item { YogaCard { YogaStat(TimeValueCalculator().format(20, if (valid) amount!! else p.hourlyAmount(), p.currency), "20 min past your limit") } }
+        item { YogaSwitchRow("Show time value on home", p.valueOnHome, { enabled -> viewModel.preferences { it.copy(valueOnHome = enabled) } }) }
+        item { YogaSwitchRow("Ongoing silent notification while over", p.ongoingValue, { enabled ->
             if (enabled && Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
             else viewModel.preferences { it.copy(ongoingValue = enabled) }
         }) }
-        if (denied) item { Text("Notifications were not allowed. The home indicator and dashboard are still available.", modifier = Modifier.padding(16.dp)) }
-        item { Text("The notification can be snoozed for today. A daily allowance is needed to calculate excess time. The home indicator and notification use whole currency units.", modifier = Modifier.padding(16.dp)) }
-        item { SectionTitle("Live indicator") }
-        item { UsageToggle("Show live indicator over apps", guard.liveIndicator, { value -> scope.launch { guardPrefs.update { it.copy(liveIndicator = value) } } }) }
+        if (denied) item { YogaNote("Notifications were not allowed. The home indicator and dashboard are still available.") }
+        item { YogaNote("The notification can be snoozed for today. A daily allowance is needed to calculate excess time. The home indicator and notification use whole currency units.") }
+        item { YogaSection("Live indicator") }
+        item { YogaSwitchRow("Show live indicator over apps", guard.liveIndicator, { value -> scope.launch { guardPrefs.update { it.copy(liveIndicator = value) } } }) }
         item {
-            Text("Needs Yoga guard and Value of time. Illustrative, not money lost or spent. You can turn it off any time.", modifier = Modifier.padding(16.dp))
-            TextButton(onClick = onGuard, modifier = Modifier.padding(horizontal = 16.dp)) { Text("Shorts and live time value · Yoga guard") }
+            YogaNote("Needs Yoga guard and Value of time. Illustrative, not money lost or spent. You can turn it off any time.")
+            YogaTextButton("Shorts and live time value · Yoga guard", onGuard, Modifier.padding(horizontal = TextButtonInset))
         }
-        item { SectionTitle("Style") }
-        item {
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GuardStyle.entries.forEach { style ->
-                    FilterChip(guard.style == style, { scope.launch { guardPrefs.update { it.copy(style = style) } } },
-                        label = { Text(if (style == GuardStyle.BURNING) "Burning" else "Gentle") })
-                }
-            }
-        }
-        item { SectionTitle("Start counting") }
+        item { YogaSection("Style") }
+        item { YogaChipRow {
+            GuardStyle.entries.forEach { style -> YogaChip(if (style == GuardStyle.BURNING) "Burning" else "Gentle", guard.style == style,
+                onClick = { scope.launch { guardPrefs.update { it.copy(style = style) } } }) }
+        } }
+        item { YogaSection("Start counting") }
         items(listOf(StartCounting.FROM_FIRST_MINUTE, StartCounting.AFTER_LIMIT)) { start ->
-            Row(Modifier.fillMaxWidth().selectable(guard.startCounting == start, role = Role.RadioButton) {
-                    scope.launch { guardPrefs.update { it.copy(startCounting = start) } } }
-                .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                RadioButton(guard.startCounting == start, null)
-                Text(if (start == StartCounting.AFTER_LIMIT) "After my limit" else "From the first minute", Modifier.padding(start = 8.dp))
-            }
+            YogaRadioRow(if (start == StartCounting.AFTER_LIMIT) "After my limit" else "From the first minute", guard.startCounting == start,
+                onClick = { scope.launch { guardPrefs.update { it.copy(startCounting = start) } } })
         }
-        item { Text("After my limit needs a total daily allowance. From the first minute counts all eligible app time. The live indicator uses currency minor units for rates below one unit per minute. Usage measuring must be on; snoozing today also hides it.", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall) }
+        item { YogaNote("After my limit needs a total daily allowance. From the first minute counts all eligible app time. The live indicator uses currency minor units for rates below one unit per minute. Usage measuring must be on; snoozing today also hides it.") }
     }
 }

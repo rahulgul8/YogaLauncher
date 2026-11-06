@@ -70,12 +70,12 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
             }
         }
         item { YogaChipRow { YogaChip("Today", !weekly, onClick = { weekly = false }); YogaChip("Last 7 days", weekly, onClick = { weekly = true }) } }
-        item { YogaTextButton("Edit usage rules", onSettings, Modifier.padding(horizontal = ScreenMargin)) }
+        item { YogaTextButton("Edit usage rules", onSettings, Modifier.padding(horizontal = TextButtonInset)) }
         if (blockedToday > 0) item { YogaNote("Shorts and Reels blocked $blockedToday ${if (blockedToday == 1) "time" else "times"} today.") }
         when {
             state.loading -> item { YogaNote("Reading usage…") }
             !s.access -> item { UsageAccessCard() }
-            !weekly && !s.available -> item { YogaNote(s.error ?: "Usage data is unavailable."); YogaTextButton("Try again", viewModel::refresh, Modifier.padding(horizontal = ScreenMargin)) }
+            !weekly && !s.available -> item { YogaNote(s.error ?: "Usage data is unavailable."); YogaTextButton("Try again", viewModel::refresh, Modifier.padding(horizontal = TextButtonInset)) }
             weekly && s.knownDays.isEmpty() -> item { YogaNote("No saved days yet. Your history will build as Yoga measures your days.") }
             else -> {
                 if (p.timeValueEnabled && allowance != null) item {
@@ -84,7 +84,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
                         style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "lnum, tnum"), color = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.padding(horizontal = ScreenMargin, vertical = 18.dp))
                     YogaNote(TIME_VALUE_EXPLANATION)
-                    YogaTextButton("How this is calculated", { details = true }, Modifier.padding(horizontal = ScreenMargin), muted = true)
+                    YogaTextButton("How this is calculated", { details = true }, Modifier.padding(horizontal = TextButtonInset), muted = true)
                 }
                 val categories = rows.groupBy { s.categoryOf[it.packageName] }
                     .map { (id, values) -> (categoryNames[id] ?: "Other") to values.sumOf { it.foregroundMinutes } }
