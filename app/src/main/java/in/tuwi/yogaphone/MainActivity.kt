@@ -67,6 +67,8 @@ import `in`.tuwi.yogaphone.ui.HelpScreen
 import `in`.tuwi.yogaphone.ui.InsightsScreen
 import `in`.tuwi.yogaphone.ui.OnboardingActions
 import `in`.tuwi.yogaphone.ui.OnboardingScreen
+import `in`.tuwi.yogaphone.ui.OnboardingInitial
+import `in`.tuwi.yogaphone.ui.ONBOARDING_VERSION
 import `in`.tuwi.yogaphone.ui.PrivacyScreen
 import `in`.tuwi.yogaphone.ui.ReflectionSheet
 import `in`.tuwi.yogaphone.insights.InsightsPreferences
@@ -318,9 +320,9 @@ private fun LauncherNavigation(
     // First run: show setup, unless this is a returning user who already set things up.
     val onboardingVersion = insightsPrefs?.onboardingVersion
     LaunchedEffect(onboardingVersion, uiState.isLoading) {
-        if (onboardingVersion == null || onboardingVersion >= 1 || uiState.isLoading) return@LaunchedEffect
-        val returning = uiState.favoriteApps.isNotEmpty() || usageViewModel.state.value.rules.isNotEmpty()
-        if (returning) insights.setOnboardingVersion(1) else navController.navigate(ONBOARDING) { launchSingleTop = true }
+        if (onboardingVersion == null || onboardingVersion >= ONBOARDING_VERSION || uiState.isLoading) return@LaunchedEffect
+        // Everyone sees the current walkthrough once; it starts from their existing settings.
+        navController.navigate(ONBOARDING) { launchSingleTop = true }
     }
     LaunchedEffect(resumed) {
         if (resumed) reflectionFor = runCatching { insights.pendingReflection() }.getOrNull()
@@ -357,7 +359,7 @@ private fun LauncherNavigation(
     LaunchedEffect(resumed) { if (resumed) isDefault = isDefaultHome(context) }
     // Ask once, after setup, if Yoga isn't the home app yet. The home banner covers later visits.
     LaunchedEffect(resumed, uiState.isLoading, insightsPrefs?.onboardingVersion) {
-        val onboarded = (insightsPrefs?.onboardingVersion ?: 0) >= 1
+        val onboarded = (insightsPrefs?.onboardingVersion ?: 0) >= ONBOARDING_VERSION
         if (resumed && onboarded && !uiState.isLoading && !uiState.preferences.homeRoleAsked && !isDefaultHome(context)) {
             viewModel.markHomeRoleAsked(); askToBeHome(fromButton = false)
         }
@@ -578,6 +580,15 @@ private fun LauncherNavigation(
                 usage = usageState,
                 isDistracting = focusState::isDistracting,
                 isEssential = { focusState.classifications[it]?.essential == true },
+                initial = OnboardingInitial(
+                    allowanceMinutes = usageState.rules.firstOrNull { it.scope == "TOTAL" && it.enabled }?.dailyAllowanceMinutes,
+                    returning = uiState.favoriteApps.isNotEmpty() || usageState.rules.isNotEmpty(),
+                    timeValueOn = usageState.preferences.timeValueEnabled,
+                    hourlyValue = usageState.preferences.hourlyValue,
+                    reminders = usageState.preferences.reminders,
+                    mindfulPause = focusState.preferences.delayEnabled,
+                    greyOverLimit = quietPrefs.greyOverLimit,
+                ),
                 actions = OnboardingActions(
                     setHomeApps = viewModel::setHomeApps,
                     setAllowance = { usageViewModel.saveRule(null, it) },
@@ -587,7 +598,7 @@ private fun LauncherNavigation(
                     setMindfulPause = focusViewModel::setDelayEnabled,
                     setGreyOverLimit = { on -> scope.launch { quiet.setGreyOverLimit(on) } },
                     setTheme = viewModel::setTheme,
-                    finish = { scope.launch { insights.setOnboardingVersion(1) }; navController.returnHome() },
+                    finish = { scope.launch { insights.setOnboardingVersion(ONBOARDING_VERSION) }; navController.returnHome() },
                 ),
             )
         }

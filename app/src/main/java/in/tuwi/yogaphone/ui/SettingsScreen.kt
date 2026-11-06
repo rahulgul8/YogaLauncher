@@ -32,6 +32,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.Alignment
+import `in`.tuwi.yogaphone.ui.theme.YogaCard
+import `in`.tuwi.yogaphone.ui.theme.YogaEyebrow
+import `in`.tuwi.yogaphone.ui.theme.YogaHeader
+import `in`.tuwi.yogaphone.ui.theme.YogaNote
+import `in`.tuwi.yogaphone.ui.theme.YogaPrimaryButton
+import `in`.tuwi.yogaphone.ui.theme.YogaRow
+import `in`.tuwi.yogaphone.ui.theme.YogaScreen
+import `in`.tuwi.yogaphone.ui.theme.YogaSecondaryButton
+import `in`.tuwi.yogaphone.ui.theme.YogaSection
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -70,80 +82,60 @@ fun SettingsScreen(
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
 
-    LazyColumn {
-        item { SettingsHeader("Settings", onBack) }
-        item { SectionTitle("Launcher") }
-        item {
-            ListItem(
-                headlineContent = { Text(if (isDefault) "Yoga is your home app" else "Set as default home app") },
-                supportingContent = { Text(if (isDefault) "Active" else "Choose Yoga Launcher on the Android screen") },
-                trailingContent = {
-                    if (!isDefault) Button(onClick = { roleLauncher.launch(defaultHomeIntent(context)) }) { Text("Set") }
-                },
-            )
-        }
-        item {
-            SettingsRow("Leave Yoga Launcher", "Choose another home app in Android settings") {
-                context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
+    YogaScreen("Settings", onBack, eyebrow = "Yoga Launcher") {
+        item(key = "home-card") {
+            YogaCard(Modifier.padding(top = 12.dp)) {
+                YogaEyebrow("Home screen")
+                Text(if (isDefault) "Yoga is your home screen" else "Make Yoga your home screen",
+                    style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(top = 8.dp))
+                Text(if (isDefault) "Press Home any time to come back here." else "Android asks once. You can switch back whenever you like.",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
+                if (isDefault) YogaSecondaryButton("Choose another home app", { context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) })
+                else YogaPrimaryButton("Make Yoga home", { runCatching { roleLauncher.launch(defaultHomeIntent(context)) } })
             }
         }
-        item {
-            SettingsRow("Android system settings", "Open device settings") {
-                context.startActivity(Intent(Settings.ACTION_SETTINGS))
+        item { YogaSection("Awareness") }
+        item { YogaRow("Usage dashboard", summary = "Today and the last 7 days", onClick = onUsage) }
+        item { YogaRow("Insights", summary = "Trends, late nights, goals", onClick = onInsights) }
+        item { YogaRow("Usage rules", summary = "Allowances, essential apps, reminders", onClick = onUsageRules) }
+        item { YogaRow("Value of time", summary = "Your hour, in your currency", onClick = onValueOfTime) }
+        item { YogaRow("Shorts and live time value", summary = "Yoga guard", onClick = onGuard) }
+        item { YogaSection("Focus") }
+        item { YogaRow("Focus and timebox", summary = "Mindful pause, schedules, Do Not Disturb", onClick = onFocus) }
+        item { YogaRow("Visual interventions", summary = "Greyscale past your limit, in focus, at bedtime", onClick = onVisual) }
+        item { YogaRow("Quiet notifications", summary = "Hold chosen apps for a digest", onClick = onQuiet) }
+        item { YogaSection("Home") }
+        item { YogaRow("Home and appearance", summary = "Theme, type, clock, date, layout", onClick = onAppearance) }
+        item { YogaRow("Widgets", summary = "Add, resize, reorder, remove", onClick = onWidgets) }
+        item { YogaNote("To change a shortcut in the dock, press and hold it on the home screen.") }
+        item { YogaSection("Apps") }
+        item { YogaRow("Profiles", summary = "Different homes for work, reading and more", onClick = onProfiles) }
+        item { YogaRow("Categories", summary = "Automatic and your own, drawer grouping", onClick = onCategories) }
+        item { YogaRow("Hidden apps", summary = "Review and unhide", onClick = onHiddenApps) }
+        item { YogaRow("Reset custom names", summary = "Restore every app's installed name", onClick = onResetNames, trailing = null) }
+        item { YogaSection("Privacy and help") }
+        item { YogaRow("Privacy and data", summary = "What is stored, permissions, backup, delete", onClick = onPrivacy) }
+        item { YogaRow("Help", summary = "Replay setup, questions, battery tips", onClick = onHelp) }
+        item { YogaRow("Android settings", summary = "Open the phone's own settings", onClick = { context.startActivity(Intent(Settings.ACTION_SETTINGS)) }) }
+        item(key = "about") {
+            Column(Modifier.fillMaxWidth().padding(top = 48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                BrandColon(28.sp)
+                Text("Yoga Launcher", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(top = 14.dp))
+                Text("Version ${versionName(context)}", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
             }
         }
-        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
-        item { SectionTitle("Usage awareness") }
-        item { SettingsRow("Usage dashboard", "Today and last 7 days", onUsage) }
-        item { SettingsRow("Insights", "Trends, late nights, goals and encouragement", onInsights) }
-        item { SettingsRow("Usage rules", "Allowances, essential apps and reminders", onUsageRules) }
-        item { SettingsRow("Value of time", "Optional illustrative hourly value", onValueOfTime) }
-        item { SettingsRow("Shorts and live time value", "Yoga guard · optional accessibility service", onGuard) }
-        item { SectionTitle("Focus") }
-        item { SettingsRow("Focus and timebox", "Mindful pause, focus schedules, Do Not Disturb", onFocus) }
-        item { SettingsRow("Visual interventions", "Greyscale when over the limit, in focus or at bedtime", onVisual) }
-        item { SettingsRow("Quiet notifications", "Hold chosen apps' notifications for a digest", onQuiet) }
-        item { SectionTitle("Appearance") }
-        item { SettingsRow("Home and appearance", "Theme, type, clock, date and layout", onAppearance) }
-        item { SettingsRow("Widgets", "Add, resize, reorder and remove home widgets", onWidgets) }
-        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
-        item { SectionTitle("Apps") }
-        item { SettingsRow("Profiles", "Different homes for work, reading and more", onProfiles) }
-        item { SettingsRow("Categories", "Automatic categories, your own, drawer grouping", onCategories) }
-        item { SettingsRow("Hidden apps", "Review and unhide apps", onHiddenApps) }
-        item { SettingsRow("Reset custom names", "Restore every app's installed name", onResetNames) }
-        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
-        item { SectionTitle("Privacy and help") }
-        item { SettingsRow("Privacy and data", "What is stored, permissions, backup, delete", onPrivacy) }
-        item { SettingsRow("Help", "Replay setup, questions, battery tips", onHelp) }
-        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
-        item { SectionTitle("About") }
-        item { ListItem(headlineContent = { Text("Yoga Launcher") }, supportingContent = { Text("Version ${versionName(context)}") }) }
     }
 }
 
 @Composable
-fun SettingsHeader(title: String, onBack: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 12.dp)) {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back") }
-        Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(12.dp))
-    }
-}
+fun SettingsHeader(title: String, onBack: () -> Unit) = YogaHeader(title, onBack)
 
 @Composable
-fun SectionTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp))
-}
-
-@Composable
-private fun SettingsRow(title: String, summary: String, onClick: () -> Unit) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(summary) },
-        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable(onClick = onClick),
-    )
-}
+fun SectionTitle(text: String) = YogaSection(text)
 
 internal fun defaultHomeIntent(context: Context): Intent {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
