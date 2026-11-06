@@ -2,58 +2,55 @@ package `in`.tuwi.yogaphone.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import `in`.tuwi.yogaphone.data.Palette
 import `in`.tuwi.yogaphone.data.ThemeMode
 
-private val DarkScheme = darkColorScheme(
-    primary = Brand.Brass, onPrimary = Color(0xFF1A1408),
-    primaryContainer = Color(0xFF3A2F1A), onPrimaryContainer = Color(0xFFF0DDB2),
-    inversePrimary = Brand.BrassDeep,
-    secondary = Color(0xFFB8AE9C), onSecondary = Color(0xFF1E1B15),
-    secondaryContainer = Brand.ObsidianHigh, onSecondaryContainer = Brand.Ivory,
-    tertiary = Brand.Ember, onTertiary = Color(0xFF231206),
-    tertiaryContainer = Color(0xFF3B2416), onTertiaryContainer = Color(0xFFF6D3BC),
-    background = Brand.Obsidian, onBackground = Brand.Ivory,
-    surface = Brand.Obsidian, onSurface = Brand.Ivory,
-    surfaceVariant = Brand.ObsidianHigh, onSurfaceVariant = Brand.Stone,
-    surfaceTint = Color.Transparent,
-    surfaceContainerLowest = Color(0xFF0A0A09), surfaceContainerLow = Color(0xFF141412),
-    surfaceContainer = Brand.ObsidianRaised, surfaceContainerHigh = Brand.ObsidianHigh,
-    surfaceContainerHighest = Color(0xFF2A2824), surfaceBright = Color(0xFF2E2C28), surfaceDim = Brand.Obsidian,
-    inverseSurface = Brand.Ivory, inverseOnSurface = Brand.Obsidian,
-    outline = Color(0xFF4A473F), outlineVariant = Brand.ObsidianLine,
-    error = Color(0xFFE58C7C), onError = Color(0xFF2A0D07),
-    errorContainer = Color(0xFF4A1F17), onErrorContainer = Color(0xFFFAD6CD),
-    scrim = Color.Black,
-)
-
-private val LightScheme = lightColorScheme(
-    primary = Brand.BrassDeep, onPrimary = Color.White,
-    primaryContainer = Color(0xFFF1E4C6), onPrimaryContainer = Color(0xFF2E2205),
-    inversePrimary = Brand.Brass,
-    secondary = Color(0xFF5E584E), onSecondary = Color.White,
-    secondaryContainer = Brand.PorcelainHigh, onSecondaryContainer = Brand.Ink,
-    tertiary = Color(0xFFB4592A), onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFF8DCCB), onTertiaryContainer = Color(0xFF3A1606),
-    background = Brand.Porcelain, onBackground = Brand.Ink,
-    surface = Brand.Porcelain, onSurface = Brand.Ink,
-    surfaceVariant = Brand.PorcelainHigh, onSurfaceVariant = Brand.InkMuted,
-    surfaceTint = Color.Transparent,
-    surfaceContainerLowest = Color.White, surfaceContainerLow = Brand.PorcelainRaised,
-    surfaceContainer = Color(0xFFF7F6F3), surfaceContainerHigh = Color(0xFFEEECE8),
-    surfaceContainerHighest = Brand.PorcelainHigh, surfaceBright = Brand.PorcelainRaised, surfaceDim = Color(0xFFE2E0DA),
-    inverseSurface = Brand.Ink, inverseOnSurface = Brand.Porcelain,
-    outline = Color(0xFFB5B0A6), outlineVariant = Brand.PorcelainLine,
-    error = Color(0xFFB3402C), onError = Color.White,
-    errorContainer = Color(0xFFF9DAD3), onErrorContainer = Color(0xFF410E05),
-    scrim = Color.Black,
-)
+/** Builds a full Material colour scheme from one palette's tokens. */
+fun schemeOf(t: Tokens, dark: Boolean): ColorScheme {
+    val errorColor = if (dark) Color(0xFFE58C7C) else Color(0xFFB3402C)
+    return if (dark) darkColorScheme(
+        primary = t.accent, onPrimary = t.onAccent,
+        primaryContainer = t.accentContainer, onPrimaryContainer = t.onAccentContainer, inversePrimary = t.accent,
+        secondary = t.muted, onSecondary = t.background,
+        secondaryContainer = t.high, onSecondaryContainer = t.text,
+        tertiary = t.ember, onTertiary = t.background,
+        tertiaryContainer = t.high, onTertiaryContainer = t.ember,
+        background = t.background, onBackground = t.text,
+        surface = t.background, onSurface = t.text,
+        surfaceVariant = t.high, onSurfaceVariant = t.muted, surfaceTint = Color.Transparent,
+        surfaceContainerLowest = t.background, surfaceContainerLow = t.raised, surfaceContainer = t.raised,
+        surfaceContainerHigh = t.high, surfaceContainerHighest = t.highest, surfaceBright = t.highest, surfaceDim = t.background,
+        inverseSurface = t.text, inverseOnSurface = t.background,
+        outline = t.outline, outlineVariant = t.line,
+        error = errorColor, onError = Color.Black, errorContainer = Color(0xFF4A1F17), onErrorContainer = Color(0xFFFAD6CD),
+        scrim = Color.Black,
+    ) else lightColorScheme(
+        primary = t.accent, onPrimary = t.onAccent,
+        primaryContainer = t.accentContainer, onPrimaryContainer = t.onAccentContainer, inversePrimary = t.accent,
+        secondary = t.muted, onSecondary = Color.White,
+        secondaryContainer = t.high, onSecondaryContainer = t.text,
+        tertiary = t.ember, onTertiary = Color.White,
+        tertiaryContainer = t.high, onTertiaryContainer = t.ember,
+        background = t.background, onBackground = t.text,
+        surface = t.background, onSurface = t.text,
+        surfaceVariant = t.high, onSurfaceVariant = t.muted, surfaceTint = Color.Transparent,
+        surfaceContainerLowest = Color.White, surfaceContainerLow = t.raised, surfaceContainer = t.raised,
+        surfaceContainerHigh = t.high, surfaceContainerHighest = t.highest, surfaceBright = t.raised, surfaceDim = t.highest,
+        inverseSurface = t.text, inverseOnSurface = t.background,
+        outline = t.outline, outlineVariant = t.line,
+        error = errorColor, onError = Color.White, errorContainer = Color(0xFFF9DAD3), onErrorContainer = Color(0xFF410E05),
+        scrim = Color.Black,
+    )
+}
 
 private val GreyscaleScheme = lightColorScheme(
     primary = Color(0xFF3F3F3F), onPrimary = Color.White,
@@ -92,12 +89,16 @@ fun themeUsesDarkIcons(mode: ThemeMode): Boolean = when (mode) {
 }
 
 @Composable
-fun YogaPhoneTheme(themeMode: ThemeMode = ThemeMode.FOLLOW_SYSTEM, content: @Composable () -> Unit) {
+fun YogaPhoneTheme(
+    themeMode: ThemeMode = ThemeMode.FOLLOW_SYSTEM,
+    palette: Palette = Palette.OBSIDIAN_BRASS,
+    content: @Composable () -> Unit,
+) {
     val dark = themeMode == ThemeMode.DARK || (themeMode == ThemeMode.FOLLOW_SYSTEM && isSystemInDarkTheme())
-    val scheme = when {
-        themeMode == ThemeMode.GREYSCALE -> GreyscaleScheme
-        dark -> DarkScheme
-        else -> LightScheme
+    val spec = specOf(palette)
+    val scheme = remember(themeMode, palette, dark) {
+        if (themeMode == ThemeMode.GREYSCALE) GreyscaleScheme else schemeOf(if (dark) spec.dark else spec.light, dark)
     }
-    MaterialTheme(colorScheme = scheme, typography = Typography, shapes = YogaShapes, content = content)
+    val typography = remember(palette) { typographyFor(palette) }
+    MaterialTheme(colorScheme = scheme, typography = typography, shapes = YogaShapes, content = content)
 }

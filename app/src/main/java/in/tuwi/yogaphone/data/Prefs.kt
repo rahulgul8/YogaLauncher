@@ -19,8 +19,12 @@ enum class ThemeMode { FOLLOW_SYSTEM, LIGHT, DARK, GREYSCALE }
 enum class FontSizeOption { SMALL, MEDIUM, LARGE, EXTRA_LARGE }
 enum class HomeTextAlignment { LEFT, CENTER, RIGHT }
 
+/** The three brand looks; each has its own colours and typefaces, in light and dark. */
+enum class Palette { OBSIDIAN_BRASS, STONE_SAFFRON, MIDNIGHT_SAGE }
+
 data class UserPreferences(
     val themeMode: ThemeMode = ThemeMode.FOLLOW_SYSTEM,
+    val palette: Palette = Palette.OBSIDIAN_BRASS,
     val fontSize: FontSizeOption = FontSizeOption.MEDIUM,
     val showClock: Boolean = true,
     val showDate: Boolean = true,
@@ -41,6 +45,7 @@ const val DOCK_EMPTY = "@empty"
 class Prefs(private val context: Context) {
     private object Keys {
         val theme = stringPreferencesKey("theme_mode_v2")
+        val palette = stringPreferencesKey("palette")
         val legacyTheme = intPreferencesKey("theme")
         val fontSize = stringPreferencesKey("font_size_v2")
         val legacyFontSize = intPreferencesKey("font_size")
@@ -62,6 +67,7 @@ class Prefs(private val context: Context) {
                 2 -> ThemeMode.GREYSCALE
                 else -> ThemeMode.FOLLOW_SYSTEM
             },
+            palette = values[Keys.palette].enumOrNull<Palette>() ?: Palette.OBSIDIAN_BRASS,
             fontSize = values[Keys.fontSize].enumOrNull<FontSizeOption>() ?: when (values[Keys.legacyFontSize]) {
                 0 -> FontSizeOption.SMALL
                 2 -> FontSizeOption.LARGE
@@ -81,6 +87,7 @@ class Prefs(private val context: Context) {
     }
 
     suspend fun setThemeMode(value: ThemeMode) = setString(Keys.theme, value.name)
+    suspend fun setPalette(value: Palette) = setString(Keys.palette, value.name)
     suspend fun setFontSize(value: FontSizeOption) = setString(Keys.fontSize, value.name)
     suspend fun setShowClock(value: Boolean) = setBoolean(Keys.showClock, value)
     suspend fun setShowDate(value: Boolean) = setBoolean(Keys.showDate, value)

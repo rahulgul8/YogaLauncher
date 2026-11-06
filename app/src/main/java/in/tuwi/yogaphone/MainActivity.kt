@@ -235,7 +235,7 @@ private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewM
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { !darkIcons },
         )
     }
-    YogaPhoneTheme(themeMode) {
+    YogaPhoneTheme(themeMode, uiState.preferences.palette) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, usageRequest, digestRequest, greyReason, quietPrefs, quiet, insightsRequest)
         }
@@ -538,6 +538,7 @@ private fun LauncherNavigation(
                 preferences = uiState.preferences,
                 onBack = { navController.popBackStack() },
                 onTheme = viewModel::setTheme,
+                onPalette = viewModel::setPalette,
                 onFontSize = viewModel::setFontSize,
                 onShowClock = viewModel::setShowClock,
                 onShowDate = viewModel::setShowDate,
@@ -598,6 +599,7 @@ private fun LauncherNavigation(
                     setMindfulPause = focusViewModel::setDelayEnabled,
                     setGreyOverLimit = { on -> scope.launch { quiet.setGreyOverLimit(on) } },
                     setTheme = viewModel::setTheme,
+                    setPalette = viewModel::setPalette,
                     finish = { scope.launch { insights.setOnboardingVersion(ONBOARDING_VERSION) }; navController.returnHome() },
                 ),
             )

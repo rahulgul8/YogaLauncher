@@ -5,13 +5,13 @@ ADR / piece number: **9**.
 ## Read first
 - `docs/design/brand.md`: the design system. Follow it exactly.
 - `app/src/main/java/in/tuwi/yogaphone/ui/theme/`: `Theme.kt`, `Type.kt`, `Color.kt`, `YogaIcons.kt`, `YogaComponents.kt` (the kit).
-- These are already done and are the reference for the look: `ui/SettingsScreen.kt`, `ui/OnboardingScreen.kt`, `ui/HomeScreen.kt`, `ui/AppDrawer.kt`, `ui/HomeDock.kt`.
+- These are already done and are the reference for the look: `ui/SettingsScreen.kt`, `ui/OnboardingScreen.kt`, `ui/AppearanceSettingsScreen.kt`, `ui/HomeScreen.kt`, `ui/AppDrawer.kt`, `ui/HomeDock.kt`.
+- **The app has three user-selectable looks** (`Palette`: Obsidian and Brass, Stone and Saffron, Midnight Sage), each with its own colours and fonts, in light and dark. Never hard-code a colour, hex value or font family in a screen: use `MaterialTheme.colorScheme` and `MaterialTheme.typography` only, so every screen follows the chosen look. Check each screen reads correctly in all three looks and in light and dark.
 
 ## Goal
 Restyle every remaining screen, sheet and dialog with the kit so the whole app reads as one object. **Keep behaviour identical.** This is a visual pass, plus the one bug fix listed below.
 
 ## Files to restyle
-- `ui/AppearanceSettingsScreen.kt`
 - `ui/FocusSettingsScreen.kt`
 - `ui/FocusComponents.kt`: the timebox and focus start/control sheets and the status lines. `HomeQuickActions` is already done.
 - `ui/GuardSettingsScreen.kt`, including the disclosure dialog
@@ -30,7 +30,8 @@ Restyle every remaining screen, sheet and dialog with the kit so the whole app r
 - `ui/AppActionMenus.kt`: the long-press action sheet and the rename dialog
 - `ui/HomeUsageIndicator.kt`
 - `guard/YogaGuardService.kt`: **only** the overlay colours and shapes.
-  - Pill: obsidian `#181715` background, ivory text, a 1 px brass hairline border, fully rounded. In the Burning style the amount is ember `#D9824A`.
+  - The overlay follows the user's look: read `Prefs(context).userPreferences` (palette) and take colours from `specOf(palette).dark` (`Tokens`), refreshing when the palette changes.
+  - Pill: `raised` background, `text` colour, a 1 px `accent` hairline border, fully rounded. In the Burning style the amount uses `ember`.
   - Block card: the same surface.
   - Keep its plain-View implementation.
 
@@ -49,8 +50,8 @@ Restyle every remaining screen, sheet and dialog with the kit so the whole app r
    - Rows at least 64 dp tall.
    - Separate groups with `YogaSection` labels and space, not dividers. Use a hairline only where two lists touch.
 5. **Colour:**
-   - Brass only for the one primary or "on" thing in view.
-   - Ember only for time value and over-limit states.
+   - The accent (`colorScheme.primary`) only for the one primary or "on" thing in view.
+   - Ember (`colorScheme.tertiary`) only for time value and over-limit states.
    - No other accent colours, no gradients, no shadows.
 6. **Type:**
    - Screen titles and hero numbers use the display face (`headline*`/`display*`). Everything else uses the text face.
@@ -79,7 +80,7 @@ Restyle every remaining screen, sheet and dialog with the kit so the whole app r
 - UTF-8 without a BOM. Real characters, never mojibake.
 - Your sandbox cannot run Gradle or write the git index. Don't run git commands that write. Write code that compiles; list anything you're unsure of.
 - **Docs:**
-  - Add `docs/adr/0009-premium-design-system.md`, covering the kit, the brand tokens and the founder's pending pick between directions A, B and C.
+  - Add `docs/adr/0009-premium-design-system.md`, covering the kit, the three user-selectable looks and their tokens.
   - Update `ROADMAP.md` with piece 9.
   - Add a "Screens done" checklist to `docs/design/brand.md`.
 

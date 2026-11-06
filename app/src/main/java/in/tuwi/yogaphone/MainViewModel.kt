@@ -159,6 +159,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setHidden(app: AppModel, hidden: Boolean) = launch { repository.setHidden(app.appPackage, hidden) }
     fun resetCustomLabels() = launch { repository.resetCustomLabels() }
     fun setTheme(value: ThemeMode) = launch { prefs.setThemeMode(value) }
+    fun setPalette(value: `in`.tuwi.yogaphone.data.Palette) = launch { prefs.setPalette(value) }
     fun setFontSize(value: FontSizeOption) = launch { prefs.setFontSize(value) }
     fun setShowClock(value: Boolean) = launch { prefs.setShowClock(value) }
     fun setShowDate(value: Boolean) = launch { prefs.setShowDate(value) }

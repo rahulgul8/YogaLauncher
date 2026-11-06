@@ -1,6 +1,16 @@
 # Yoga brand and design system
 
-Status: direction A ("Obsidian and Brass") and the "Ten past ten" icon are built in as the working default. The founder will make the final pick from the review board; swapping is a token change in `ui/theme/Color.kt`, the two fonts in `res/font`, and the three icon drawables.
+Status: all three directions ship as user-selectable **looks** (founder's decision, 6 Nov 2026). People pick one in onboarding or Settings → Home and appearance, from live miniature home screens. Obsidian and Brass is the default. Light/dark/follow-phone/greyscale is a separate choice that applies to every look. The app icon is "Ten past ten" for now.
+
+| Look | Display face | Text face | Dark | Light |
+| --- | --- | --- | --- | --- |
+| Obsidian and Brass (default) | Cormorant Garamond 300 | Manrope | Obsidian, ivory, brass | Porcelain, ink, deep brass |
+| Stone and Saffron | Urbanist 200 | Urbanist | Graphite, ivory, saffron | Stone, ink, deep saffron |
+| Midnight Sage | Jost 200 | Jost | Forest black, mist, sage | Mist, ink, deep sage |
+
+Code: tokens per look and brightness live in `ui/theme/Color.kt` (`Palettes`, `Tokens`); type in `ui/theme/Type.kt` (`typographyFor`); `YogaPhoneTheme(themeMode, palette)` builds the scheme. **Never hard-code a colour or font in a screen**: read `MaterialTheme`, so every screen follows the chosen look. Code drawn outside Compose (the guard overlay) reads `Prefs.userPreferences.palette` and uses `specOf(palette).dark`.
+
+The token table below describes the default look.
 
 ## Idea
 
@@ -26,7 +36,7 @@ Rules: one brass element per view at most (the clock's dot, an active icon, a pr
 - **Display:** Cormorant Garamond, light (300). Clock, large numbers, screen titles (`displayLarge` … `headlineSmall`). Always lining figures for numbers.
 - **Text:** Manrope (400/500/600) for everything else.
 - Labels and section headings: `labelSmall`, uppercase, 0.12em tracking, muted or brass.
-- Both fonts are SIL Open Font License, bundled in `res/font` (see `docs/design/fonts-license.md`).
+- All four fonts (Cormorant Garamond, Manrope, Urbanist, Jost) are SIL Open Font License, bundled in `res/font` (see `docs/design/fonts-license.md`).
 
 ## Shape and spacing
 

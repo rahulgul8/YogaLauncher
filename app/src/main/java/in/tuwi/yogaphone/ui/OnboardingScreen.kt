@@ -85,6 +85,7 @@ class OnboardingActions(
     val setMindfulPause: (Boolean) -> Unit,
     val setGreyOverLimit: (Boolean) -> Unit,
     val setTheme: (ThemeMode) -> Unit,
+    val setPalette: (`in`.tuwi.yogaphone.data.Palette) -> Unit,
     val finish: () -> Unit,
 )
 
@@ -351,10 +352,11 @@ private fun ColumnScope.InterventionsStep(initial: OnboardingInitial, actions: O
 @Composable
 private fun ColumnScope.LookStep(ui: MainUiState, actions: OnboardingActions) {
     var theme by remember { mutableStateOf(ui.preferences.themeMode) }
-    StepTitle("Look", "Choose your light", "Obsidian at night, porcelain by day, or follow the phone.")
-    YogaChipRow {
-        listOf(ThemeMode.FOLLOW_SYSTEM to "Follow phone", ThemeMode.DARK to "Obsidian", ThemeMode.LIGHT to "Porcelain", ThemeMode.GREYSCALE to "Greyscale")
-            .forEach { (mode, label) -> YogaChip(label, theme == mode, { theme = mode; actions.setTheme(mode) }) }
+    var palette by remember { mutableStateOf(ui.preferences.palette) }
+    StepTitle("Look", "Choose your look", "Three looks, each with its own colours and type. You can change it any time.")
+    `in`.tuwi.yogaphone.ui.theme.PalettePicker(palette, theme, { palette = it; actions.setPalette(it) })
+    YogaChipRow(Modifier.padding(top = 8.dp)) {
+        ThemeModeChoices.forEach { (mode, label) -> YogaChip(label, theme == mode, { theme = mode; actions.setTheme(mode) }) }
     }
 }
 
