@@ -48,4 +48,15 @@ class BackupCodecTest {
         val decoded = BackupCodec.decode(BackupCodec.encode(payload))
         assertEquals(emptyList<PrefEntry>(), decoded.prefs.filter { it.key.startsWith("pro_") })
     }
+
+    @Test fun learningChannelsAndTotalsRoundTripWithoutTitles() {
+        val learning = listOf(
+            PrefEntry("learning_channels", "s", "[\"Khan Academy\"]"),
+            PrefEntry("learning_recent", "s", "[\"Khan Academy\"]"),
+            PrefEntry("learning_totals", "s", "{\"2026-11-08|com.google.android.youtube\":600}"),
+        )
+        val decoded = BackupCodec.decode(BackupCodec.encode(payload.copy(includesHistory = true, prefs = learning)))
+        assertEquals(learning, decoded.prefs)
+        assertEquals(emptyList<PrefEntry>(), decoded.prefs.filter { it.key.contains("title") })
+    }
 }

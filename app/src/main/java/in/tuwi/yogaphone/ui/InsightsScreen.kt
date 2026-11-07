@@ -20,7 +20,8 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
-fun InsightsScreen(repository: InsightsRepository, prefs: InsightsPreferences, onAcceptSuggestion: (Int) -> Unit, onBack: () -> Unit) {
+fun InsightsScreen(repository: InsightsRepository, prefs: InsightsPreferences, learningSecondsToday: Long = 0,
+    onAcceptSuggestion: (Int) -> Unit, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var data by remember { mutableStateOf<InsightsData?>(null) }
     var reload by remember { mutableStateOf(0) }
@@ -48,6 +49,7 @@ fun InsightsScreen(repository: InsightsRepository, prefs: InsightsPreferences, o
         item { YogaSection("When you use distracting apps (4 weeks)") }
         item { Heatmap(d) }
         item { YogaSection("Goals") }
+        item { YogaCard { YogaStat("${learningSecondsToday / 60} min", "Learning today") } }
         item {
             YogaCard {
                 YogaStat("${d.focusMinutesToday} / ${prefs.focusGoalMinutes} min", "Focus today")

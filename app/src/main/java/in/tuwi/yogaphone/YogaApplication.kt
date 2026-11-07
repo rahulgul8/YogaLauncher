@@ -14,6 +14,7 @@ import `in`.tuwi.yogaphone.focus.FocusRepository
 class YogaApplication : Application() {
     val proRepository by lazy { `in`.tuwi.yogaphone.pro.ProRepository(this) }
     val guardPrefs by lazy { `in`.tuwi.yogaphone.guard.GuardPrefs(this) }
+    val learningPrefs by lazy { `in`.tuwi.yogaphone.guard.LearningPrefs(this) }
     val usagePrefs by lazy { UsagePrefs(this) }
     val usageRepository by lazy { UsageRepository(this, database, usagePrefs) }
     override fun onCreate() { super.onCreate(); proRepository; UsageWorker.schedule(this) }

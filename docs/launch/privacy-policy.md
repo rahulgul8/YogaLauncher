@@ -20,6 +20,7 @@ Yoga Phone ("Yoga", "the app", package `com.tuwi.yogaphone`) is a home-screen ap
 | Do Not Disturb state | To turn on priority-only mode during focus and restore it afterwards | Do Not Disturb access | Yes |
 | Android's colour-correction setting | Device-wide greyscale on your chosen triggers | Granted only by you from a computer (adb) | Yes |
 | The open app and, for enabled Shorts/Reels surfaces only, screen structure | Optional live time value and Shorts/Reels blocking | Yoga guard accessibility service | Yes |
+| YouTube channel name and video title while a watch page is open | Match channels you add, measure learning time and offer an optional title hint | Yoga guard accessibility service | Yes |
 
 Apart from the optional notification and Yoga guard uses described here, Yoga does **not** read app content. It does not access your contacts, location, photos, microphone or camera.
 
@@ -27,11 +28,11 @@ Apart from the optional notification and Yoga guard uses described here, Yoga do
 
 Yoga guard is off by default. Before opening Android's accessibility settings, Yoga explains its access and asks you to choose **Agree and open settings** or **Not now**. It is a digital-wellbeing feature, not a tool designed specifically for disability support.
 
-When enabled, it identifies which app is open to show your optional live, illustrative time value. If you enable Shorts or Reels controls, it inspects screen structure only in YouTube, Instagram and selected supported browsers (Chrome, Samsung Internet and Firefox), to recognise those surfaces. Browser detection uses the address bar and is off by default. Screen structure, text, URLs and content descriptions are processed transiently on this phone: none of that content is stored, logged or sent anywhere.
+When enabled, it identifies which app is open to show your optional live, illustrative time value. If you enable Shorts or Reels controls, it inspects screen structure only in YouTube, Instagram and selected supported browsers (Chrome, Samsung Internet and Firefox), to recognise those surfaces. Learning videos reads the channel name and video title shown on a YouTube watch page. The title is used only in memory for the current decision and is never stored. Browser detection uses the address bar and is off by default. Screen structure, text, URLs and content descriptions are processed transiently on this phone: none of that content is logged or sent anywhere.
 
-The service can go Back, or Home if Back fails twice, when a selected surface is blocked or its daily allowance runs out. Regular videos remain available. The live pill uses an accessibility overlay; Yoga does not request draw-over-apps permission. It hides on the lock screen, when the screen is off, during calls, and in essential, camera and Finance/payment apps. Its value is illustrative, not money spent or lost.
+The service can go Back, or Home if Back fails twice, when a selected surface is blocked or its daily allowance runs out. Regular videos remain available outside focus; during focus, Learning videos allows only channels the user added and blocks YouTube home by default. The live pill uses an accessibility overlay; Yoga does not request draw-over-apps permission. It hides on the lock screen, when the screen is off, during calls, and in essential, camera and Finance/payment apps. Its value is illustrative, not money spent or lost.
 
-Only guard settings, daily per-surface block counts and allowance time are retained locally. These preferences are included in a manual backup export. You can switch off either feature in **Settings → Shorts and live time value**, disable Yoga guard in Android accessibility settings at any time, or remove its local data with **Reset everything**.
+Only guard settings, channels you add, daily learning totals, per-surface block counts and allowance time are retained locally. These preferences are included in a manual backup export. You can switch off either feature in **Settings → Shorts and live time value**, disable Yoga guard in Android accessibility settings at any time, or remove its local data with **Reset everything**.
 
 ## What Yoga stores, and for how long
 

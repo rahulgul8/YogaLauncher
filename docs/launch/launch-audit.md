@@ -55,3 +55,7 @@ Devices: Pixel (Android 14/15/16), Samsung One UI, Motorola, a low-RAM Android 8
 - [ ] Closed testing track with 10–20 people for 2 weeks.
 - [ ] Questions: does the pause help or annoy? Is the money indicator motivating or stressful? Do they keep Yoga as home?
 - [ ] Revise defaults (pause length, reminder thresholds) from feedback.
+## Learning videos checks
+
+- [ ] Record the tested YouTube version and verify watch page, autoplay, mini-player, picture-in-picture, rotation and TalkBack before release.
+- [ ] Recheck channel/title resource ids and content descriptions after each audited YouTube update.

@@ -67,6 +67,7 @@ fun SettingsScreen(
     onHelp: () -> Unit,
     onWidgets: () -> Unit,
     onAdvanced: () -> Unit,
+    onLearning: () -> Unit,
 ) {
     val context = LocalContext.current
     var isDefault by remember { mutableStateOf(isDefaultHome(context)) }
@@ -100,6 +101,7 @@ fun SettingsScreen(
         item { ProRow("Insights", ProFeature.INSIGHTS, summary = "Trends, late nights, goals", onClick = onInsights) }
         item { YogaRow("Usage rules", summary = "Allowances, essential apps, reminders", onClick = onUsageRules) }
         item { ProRow("Value of time", ProFeature.VALUE_OF_TIME, summary = "Your hour, in your currency", onClick = onValueOfTime) }
+        if (`in`.tuwi.yogaphone.BuildConfig.GUARD) item { ProRow("Learning videos", ProFeature.LEARNING_VIDEOS, "YouTube channels that do not count against allowances", onClick = onLearning) }
         if (`in`.tuwi.yogaphone.BuildConfig.GUARD) item { YogaRow("Shorts and live time value", summary = "Yoga guard", onClick = onGuard) }
         item { YogaSection("Focus") }
         item { YogaRow("Focus and timebox", summary = "Mindful pause, schedules, Do Not Disturb", onClick = onFocus) }
@@ -113,7 +115,6 @@ fun SettingsScreen(
         item { ProRow("Profiles", ProFeature.PROFILES, summary = "Different homes for work, reading and more", onClick = onProfiles) }
         item { YogaRow("Categories", summary = "Automatic and your own, drawer grouping", onClick = onCategories) }
         item { YogaRow("Hidden apps", summary = "Review and unhide", onClick = onHiddenApps) }
-        item { ProRow("Learning videos", ProFeature.LEARNING_VIDEOS, "Coming later") { } }
         item { YogaSection("Privacy and help") }
         item { YogaRow("Privacy and data", summary = "What is stored, permissions, backup, delete", onClick = onPrivacy) }
         item { YogaRow("Help", summary = "Replay setup, questions, battery tips", onClick = onHelp) }

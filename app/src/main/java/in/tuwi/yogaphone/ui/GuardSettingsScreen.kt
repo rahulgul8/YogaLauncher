@@ -34,7 +34,8 @@ internal fun rememberGuardDate(): String {
 }
 
 @Composable
-fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfTime: () -> Unit, onBack: () -> Unit) {
+fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfTime: () -> Unit,
+    onLearning: () -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val p by prefs.preferences.collectAsState(initial = GuardPreferences())
@@ -69,6 +70,7 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
             ProRow("Value, style and start counting", ProFeature.VALUE_OF_TIME, onClick = onValueOfTime)
         }
         item { YogaSection("Shorts and Reels") }
+        item { ProRow("Learning videos", ProFeature.LEARNING_VIDEOS, "Allow chosen YouTube channels without using allowance", onClick = onLearning) }
         item { YogaNote("Turn on only the surfaces you want Yoga to recognise. Regular videos still work. Browser detection is optional and off by default.") }
         GuardSurface.entries.forEach { surface ->
             val setting = p.surface(surface)
@@ -110,6 +112,6 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
                 .onFailure { error = "Couldn't open accessibility settings. Open Android Settings → Accessibility → Yoga guard." }
         },
         onDismissRequest = { disclosure = false }, dismissText = "Not now",
-        text = { Text("Yoga guard reads which app is open to show the optional live time-value indicator. For the surfaces you enable, it reads the screen structure of YouTube, Instagram and the selected browsers (Chrome, Samsung Internet and Firefox), only to recognise Shorts and Reels. It can go back or home to block those surfaces.\n\nScreen content is never stored, logged or sent anywhere. Only your settings, daily allowance time and block counts are saved on this phone. You can turn Yoga guard off any time in Android accessibility settings.", modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) },
+        text = { Text("Yoga guard reads which app is open to show the optional live time-value indicator. For the surfaces you enable, it reads the screen structure of YouTube, Instagram and the selected browsers (Chrome, Samsung Internet and Firefox) to recognise Shorts and Reels. For Learning videos, it reads the YouTube channel name and video title in memory so it can match channels you added and offer an optional title hint. It can go back or home to block those surfaces during focus.\n\nTitles are never stored. Screen content is never logged or sent anywhere. Only your settings, channels you add, daily learning totals, daily allowance time and block counts are saved on this phone. You can turn Yoga guard off any time in Android accessibility settings.", modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) },
     )
 }

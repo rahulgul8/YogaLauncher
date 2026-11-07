@@ -36,6 +36,7 @@ class BackupManager(private val context: Context, private val database: YogaData
     suspend fun export(uri: Uri, includeHistory: Boolean): String = withContext(Dispatchers.IO) {
         val prefs = context.dataStore.data.first().asMap().mapNotNull { (key, value) ->
             if (key.name in skippedPrefs) return@mapNotNull null
+            if (!includeHistory && key.name == `in`.tuwi.yogaphone.guard.LearningPrefs.TOTALS_KEY) return@mapNotNull null
             val type = when (value) {
                 is String -> "s"; is Boolean -> "b"; is Int -> "i"; is Long -> "l"; is Float -> "f"; is Double -> "d"
                 is Set<*> -> "ss"; else -> return@mapNotNull null
@@ -140,6 +141,7 @@ class BackupManager(private val context: Context, private val database: YogaData
         val usage = database.usageDao()
         usage.clearHistory(); usage.clearDays(); usage.clearAllHours()
         (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).guardPrefs.clearHistory()
+        (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).learningPrefs.clearHistory()
     }
 
     /** Deletes everything Yoga stores. The app returns to first-run state. */
