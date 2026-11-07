@@ -52,9 +52,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val organizeState = combine(organizeRepo.preferences, organizeRepo.profiles, organizeRepo.categories,
         organizeRepo.categoryMap(repository.apps)) { o, p, c, m -> OrganizeSnapshot(o, p, c, m) }
 
-    val uiState: StateFlow<MainUiState> = combine(repository.apps, prefs.userPreferences, loading, organizeState) { apps, preferences, busy, org ->
+    val uiState: StateFlow<MainUiState> = combine(repository.apps, prefs.userPreferences, loading, organizeState, app.proRepository.state) { apps, preferences, busy, org, pro ->
         val visible = apps.filterNot(AppModel::isHidden).sorted()
         val active = org.profiles.firstOrNull { it.id == org.preferences.activeProfileId }
+            ?.takeIf { `in`.tuwi.yogaphone.pro.ProGate.allows(`in`.tuwi.yogaphone.pro.ProFeature.PROFILES, pro) }
         val favorites = if (active == null) {
             apps.filter(AppModel::isFavorite).sortedBy(AppModel::favoriteOrder).take(preferences.homeAppCount)
         } else {

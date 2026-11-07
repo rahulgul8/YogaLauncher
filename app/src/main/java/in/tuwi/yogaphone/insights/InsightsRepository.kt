@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.insights
 
+import `in`.tuwi.yogaphone.pro.*
 import android.Manifest
 import android.app.AlarmManager
 import android.app.NotificationChannel
@@ -118,6 +119,7 @@ class InsightsRepository(private val context: Context, private val database: Yog
 
     /** The id of a completed focus session still waiting for a reflection, if prompts are on. */
     suspend fun pendingReflection(): Long? = withContext(Dispatchers.IO) {
+        if (!(context.applicationContext as YogaApplication).proRepository.allows(ProFeature.INSIGHTS)) return@withContext null
         val prefs = preferences.first()
         if (!prefs.reflections) return@withContext null
         val latest = database.focusDao().latestCompletedFocus() ?: return@withContext null
@@ -135,6 +137,7 @@ class InsightsRepository(private val context: Context, private val database: Yog
 
     suspend fun load(): InsightsData = withContext(Dispatchers.IO) {
         val app = context.applicationContext as YogaApplication
+        if (!app.proRepository.allows(ProFeature.INSIGHTS)) return@withContext InsightsData()
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
         val usage = database.usageDao()
@@ -216,7 +219,7 @@ class InsightsRepository(private val context: Context, private val database: Yog
         val pending = PendingIntent.getBroadcast(context, 71, Intent(context, InsightsReceiver::class.java).setAction(ACTION_WEEKLY),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val prefs = preferences.first()
-        if (!prefs.weeklySummary || !prefs.insightsEnabled) { alarms.cancel(pending); return }
+        if (!(context.applicationContext as YogaApplication).proRepository.allows(ProFeature.WEEKLY_REPORTS) || !prefs.weeklySummary || !prefs.insightsEnabled) { alarms.cancel(pending); return }
         val zone = ZoneId.systemDefault()
         val now = ZonedDateTime.now(zone)
         var next = now.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).with(LocalTime.of(19, 0))
@@ -226,7 +229,7 @@ class InsightsRepository(private val context: Context, private val database: Yog
 
     suspend fun postWeeklySummary() {
         val prefs = preferences.first()
-        if (!prefs.weeklySummary || !prefs.insightsEnabled) return
+        if (!(context.applicationContext as YogaApplication).proRepository.allows(ProFeature.WEEKLY_REPORTS) || !prefs.weeklySummary || !prefs.insightsEnabled) return
         if (Build.VERSION.SDK_INT >= 33 &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val card = load().cards.firstOrNull() ?: return

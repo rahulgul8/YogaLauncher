@@ -12,10 +12,11 @@ import `in`.tuwi.yogaphone.focus.FocusPrefs
 import `in`.tuwi.yogaphone.focus.FocusRepository
 
 class YogaApplication : Application() {
+    val proRepository by lazy { `in`.tuwi.yogaphone.pro.ProRepository(this) }
     val guardPrefs by lazy { `in`.tuwi.yogaphone.guard.GuardPrefs(this) }
     val usagePrefs by lazy { UsagePrefs(this) }
     val usageRepository by lazy { UsageRepository(this, database, usagePrefs) }
-    override fun onCreate() { super.onCreate(); UsageWorker.schedule(this) }
+    override fun onCreate() { super.onCreate(); proRepository; UsageWorker.schedule(this) }
     val prefs by lazy { Prefs(this) }
     val database by lazy { YogaDatabase.create(this) }
     val appRepository by lazy { AppRepository(this, database, prefs) }

@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.usage
 
+import `in`.tuwi.yogaphone.pro.*
 import android.content.Context
 import androidx.room.withTransaction
 import `in`.tuwi.yogaphone.data.db.*
@@ -77,7 +78,9 @@ class UsageRepository(private val context: Context, private val database: YogaDa
                 UsageNotifications(context).cancelAll()
                 return@withLock UsageSnapshot(date = today, access = true, error = "Usage measuring is off in Privacy and data.")
             }
-            val p = prefs.preferences.first()
+            val pro = app.proRepository.current()
+            val saved = prefs.preferences.first()
+            val p = if (ProGate.allows(ProFeature.REMINDERS, pro)) saved else saved.copy(reminders = false, timeValueEnabled = false)
             if (archiveYesterday) { collect(today.minusDays(1), p); runCatching { app.insightsRepository.prune() } }
             val rows = collect(today, p)
             val weekStart = today.minusDays(6).toString()
@@ -92,7 +95,10 @@ class UsageRepository(private val context: Context, private val database: YogaDa
             val categoryOf = week.map { it.packageName }.toSet().associateWith { pkg ->
                 organize.categoryOf(pkg, "", database.appEntryDao().get(pkg))
             }
-            val evaluation = RuleEvaluator().evaluate(dao.rules().map { it.toRule() },
+            val savedRules = dao.rules()
+            val freeIds = freeQuota(savedRules.filter { it.enabled }.map { it.id }, 1)
+            val activeRules = if (ProGate.allows(ProFeature.EXTRA_ALLOWANCES, pro)) savedRules else savedRules.filter { it.id in freeIds }
+            val evaluation = RuleEvaluator().evaluate(activeRules.map { it.toRule() },
                 visibleRows.filter { it.eligible }.associate { it.packageName to it.foregroundMinutes },
                 visibleRows.filterNot { it.packageName in essential }.associate { it.packageName to it.foregroundMinutes },
                 categoryOf)
@@ -103,7 +109,8 @@ class UsageRepository(private val context: Context, private val database: YogaDa
                     quiet.reconcileGreyscale()
                 }
             }
-            if (rows != null) UsageNotifications(context).check(today.toString(), evaluation, p, prefs)
+            if (!ProGate.allows(ProFeature.REMINDERS, pro)) UsageNotifications(context).cancelAll()
+            else if (rows != null) UsageNotifications(context).check(today.toString(), evaluation, p, prefs)
             else UsageNotifications(context).cancelOngoing()
             val unlocksToday = dao.days(today.toString(), today.toString()).firstOrNull()?.unlocks
             val labels = week.map { it.packageName }.toSet().associateWith(::labelOf)

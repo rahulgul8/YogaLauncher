@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.quiet
 
+import `in`.tuwi.yogaphone.pro.*
 import android.Manifest
 import android.app.AlarmManager
 import android.app.NotificationChannel
@@ -127,6 +128,7 @@ class QuietRepository(private val context: Context, private val database: YogaDa
 
     /** Posts one summary notification when anything is being held. */
     suspend fun deliverDigest() = withContext(Dispatchers.IO) {
+        if (!(context.applicationContext as YogaApplication).proRepository.allows(ProFeature.QUIET_NOTIFICATIONS)) return@withContext
         prune()
         val groups = Digest.group(dao.held().map { HeldItem(it.key, it.packageName, it.title, it.text, it.postedAt) }, System.currentTimeMillis())
         if (groups.isEmpty()) return@withContext
@@ -153,7 +155,7 @@ class QuietRepository(private val context: Context, private val database: YogaDa
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val nowMinute = LocalTime.now().let { it.hour * 60 + it.minute }
         val minutes = Digest.minutesUntilNext(prefs.digestTimes, nowMinute)
-        if (!prefs.quietEnabled || minutes == null) { alarms.cancel(pending); return }
+        if (!(context.applicationContext as YogaApplication).proRepository.allows(ProFeature.QUIET_NOTIFICATIONS) || !prefs.quietEnabled || minutes == null) { alarms.cancel(pending); return }
         val at = (System.currentTimeMillis() / 60_000 + minutes) * 60_000
         runCatching { alarms.setWindow(AlarmManager.RTC_WAKEUP, at, 5 * 60_000L, pending) }
     }
@@ -167,12 +169,13 @@ class QuietRepository(private val context: Context, private val database: YogaDa
     suspend fun currentGreyReason(focusActive: Boolean, overLimitNow: Boolean? = null, greyDuringFocus: Boolean): GreyReason? {
         val prefs = preferences.first()
         val today = LocalDate.now(ZoneId.systemDefault()).toString()
-        val bedtimeActive = prefs.greyBedtimeScheduleId?.let { id ->
+        val proFocus = (context.applicationContext as YogaApplication).proRepository.allows(ProFeature.FOCUS)
+        val bedtimeActive = prefs.greyBedtimeScheduleId?.takeIf { proFocus }?.let { id ->
             val window = database.focusDao().schedules().firstOrNull { it.id == id }?.toWindow() ?: return@let false
             ScheduleEvaluator.activeAt(listOf(window), Instant.now(), ZoneId.systemDefault()) != null
         } ?: false
         return GreyscalePolicy.reason(
-            GreyTriggers(prefs.greyOverLimit, greyDuringFocus, prefs.greyBedtimeScheduleId != null),
+            GreyTriggers(prefs.greyOverLimit, greyDuringFocus && proFocus, prefs.greyBedtimeScheduleId != null && proFocus),
             focusActive, bedtimeActive, overLimitNow ?: (prefs.overLimitDate == today),
             prefs.greySnoozedUntil, System.currentTimeMillis(),
         )

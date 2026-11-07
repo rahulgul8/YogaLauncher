@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.guard
 
+import `in`.tuwi.yogaphone.pro.*
 import android.accessibilityservice.AccessibilityService
 import android.animation.ValueAnimator
 import android.app.KeyguardManager
@@ -99,6 +100,8 @@ class YogaGuardService : AccessibilityService() {
         else @Suppress("DEPRECATION") registerReceiver(screenReceiver, filter)
         registered = true
         scope.launch {
+            yoga.proRepository.current()
+            launch { yoga.proRepository.state.collect { if (!ProGate.allows(ProFeature.VALUE_OF_TIME, it)) hidePill() } }
             gate = ShortsGate(yoga.guardPrefs.daily.first())
             savedDaily = canonical(gate.daily)
             launch {
@@ -108,7 +111,9 @@ class YogaGuardService : AccessibilityService() {
                 }
             }
             launch {
-                Prefs(this@YogaGuardService).userPreferences.map { it.palette }.distinctUntilChanged().collect { palette ->
+                kotlinx.coroutines.flow.combine(Prefs(this@YogaGuardService).userPreferences, yoga.proRepository.state) { preferences, pro ->
+                    if (ProGate.allows(ProFeature.LOOKS, pro)) preferences.palette else `in`.tuwi.yogaphone.data.Palette.OBSIDIAN_BRASS
+                }.distinctUntilChanged().collect { palette ->
                     overlayTokens = specOf(palette).dark
                     pill?.let(::styleOverlay)
                     card?.let(::styleOverlay)
@@ -221,7 +226,7 @@ class YogaGuardService : AccessibilityService() {
             // Verify the destination before the next decision (including first-screen/deep-link fallback).
             inspect = true
         }
-        if (!preferences.liveIndicator) { hidePill(); return }
+        if (!preferences.liveIndicator || !yoga.proRepository.allows(ProFeature.VALUE_OF_TIME)) { hidePill(); return }
         val usage = yoga.usagePrefs.preferences.first()
         if (!usage.timeValueEnabled || !yoga.insightsRepository.preferences.first().usageTracking ||
             yoga.usagePrefs.isSnoozed(today())) { hidePill(); return }

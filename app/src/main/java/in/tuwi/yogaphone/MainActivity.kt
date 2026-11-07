@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone
 
+import `in`.tuwi.yogaphone.pro.*
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -127,6 +128,7 @@ import `in`.tuwi.yogaphone.ui.theme.YogaPhoneTheme
 import `in`.tuwi.yogaphone.ui.theme.themeUsesDarkIcons
 
 private const val HOME = "home"
+private const val PRO = "settings/pro"
 private const val SETTINGS = "settings"
 private const val GUARD = "settings/guard"
 private const val HIDDEN_APPS = "settings/hidden_apps"
@@ -195,6 +197,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        (application as YogaApplication).proRepository.onResume()
+    }
+
     override fun onStart() {
         super.onStart()
         (application as YogaApplication).widgetRepository.startListening()
@@ -214,6 +221,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, focusViewModel: FocusViewModel, homeRequest: Int, usageRequest: Int, digestRequest: Int, insightsRequest: Int) {
     val uiState by viewModel.uiState.collectAsState()
+    val pro by (androidx.compose.ui.platform.LocalContext.current.applicationContext as YogaApplication).proRepository.state.collectAsState()
     val focusState by focusViewModel.state.collectAsState()
     // Greyscale during focus is an override; the chosen theme is never rewritten.
     val profileTheme = uiState.activeProfile?.themeOverride?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
@@ -221,13 +229,13 @@ private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewM
     val quietPrefs by quiet.preferences.collectAsState(initial = QuietPreferences())
     val usageForGrey by usageViewModel.state.collectAsState()
     val greyReason = run {
-        val bedtime = quietPrefs.greyBedtimeScheduleId?.let { id ->
+        val bedtime = quietPrefs.greyBedtimeScheduleId?.takeIf { ProGate.allows(ProFeature.FOCUS, pro) }?.let { id ->
             focusState.schedules.firstOrNull { it.id == id }?.let {
                 ScheduleEvaluator.activeAt(listOf(it.toWindow()), java.time.Instant.ofEpochMilli(focusState.now), java.time.ZoneId.systemDefault()) != null
             }
         } ?: false
         val over = usageForGrey.snapshot.evaluation.overall?.state == RuleState.OVER
-        GreyscalePolicy.reason(GreyTriggers(quietPrefs.greyOverLimit, focusState.preferences.focusGreyscale, quietPrefs.greyBedtimeScheduleId != null),
+        GreyscalePolicy.reason(GreyTriggers(quietPrefs.greyOverLimit, focusState.preferences.focusGreyscale, quietPrefs.greyBedtimeScheduleId != null && ProGate.allows(ProFeature.FOCUS, pro)),
             focusState.focusActive, bedtime, over, quietPrefs.greySnoozedUntil, focusState.now)
     }
     val themeMode = if (greyReason != null) ThemeMode.GREYSCALE else profileTheme ?: uiState.preferences.themeMode
@@ -239,7 +247,7 @@ private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewM
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT) { !darkIcons },
         )
     }
-    YogaPhoneTheme(themeMode, uiState.preferences.palette) {
+    YogaPhoneTheme(themeMode, if (ProGate.allows(ProFeature.LOOKS, pro)) uiState.preferences.palette else `in`.tuwi.yogaphone.data.Palette.OBSIDIAN_BRASS) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, usageRequest, digestRequest, greyReason, quietPrefs, quiet, insightsRequest)
         }
@@ -268,6 +276,10 @@ private fun LauncherNavigation(
     var reflectionFor by remember { mutableStateOf<Long?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
+    val pro by yoga.proRepository.state.collectAsState()
+    val access = ProAccess(pro) { navController.navigate(PRO) { launchSingleTop = true } }
+    fun openProFeature(feature: ProFeature, route: String) = access.run(feature) { navController.navigate(route) }
+    LaunchedEffect(pro.entitlement) { usageViewModel.refresh(); focusViewModel.refresh() }
     val widgetRepo = yoga.widgetRepository
     val widgets by widgetRepo.widgets.collectAsState(initial = emptyList())
     val activity = androidx.compose.ui.platform.LocalContext.current as MainActivity
@@ -316,7 +328,7 @@ private fun LauncherNavigation(
         if (resumed) while (true) { usageViewModel.refresh(); delay(30_000) }
     }
     LaunchedEffect(insightsRequest) {
-        if (insightsRequest > 0) navController.navigate(INSIGHTS) { launchSingleTop = true }
+        if (insightsRequest > 0) openProFeature(ProFeature.INSIGHTS, INSIGHTS)
     }
     LaunchedEffect(Unit) {
         runCatching { insights.scheduleWeekly(); quiet.scheduleDigest() }
@@ -333,7 +345,7 @@ private fun LauncherNavigation(
         if (resumed) runCatching { widgetRepo.cleanup() }
     }
     LaunchedEffect(digestRequest) {
-        if (digestRequest > 0) navController.navigate(DIGEST) { launchSingleTop = true }
+        if (digestRequest > 0) openProFeature(ProFeature.QUIET_NOTIFICATIONS, DIGEST)
     }
     LaunchedEffect(usageRequest) {
         if (usageRequest > 0) navController.navigate("usage?details=true") { launchSingleTop = true }
@@ -419,11 +431,13 @@ private fun LauncherNavigation(
     }
     BackHandler(enabled = route == HOME && drawerClosed) { /* A HOME activity stays home. */ }
 
+    androidx.compose.runtime.CompositionLocalProvider(LocalProAccess provides access) {
     NavHost(
         navController = navController,
         startDestination = HOME,
         modifier = Modifier.statusBarsPadding().navigationBarsPadding(),
     ) {
+        composable(PRO) { ProScreen(yoga.proRepository) { navController.popBackStack() } }
         composable(HOME) {
             val homeState = if (focusState.focusActive)
                 uiState.copy(favoriteApps = uiState.favoriteApps.filterNot { focusState.pausedByFocus(it.appPackage) })
@@ -441,6 +455,9 @@ private fun LauncherNavigation(
                 statusContent = {
                     Column {
                         if (!isDefault) DefaultHomePrompt { askToBeHome() }
+                        val guardDay by yoga.guardPrefs.daily.collectAsState(initial = GuardDaily())
+                        TrialEndingCard(if (guardDay.date == rememberGuardDate()) guardDay.blocks.values.sum() else 0,
+                            if (usageState.preferences.timeValueEnabled) `in`.tuwi.yogaphone.usage.TimeValueCalculator().format(60, usageState.preferences.hourlyAmount(), usageState.preferences.currency) else null)
                         HomeGreyIndicator(greyReason) { scope.launch { quiet.snoozeGrey(30) } }
                         val prefsNow = insightsPrefs
                         if (prefsNow != null && prefsNow.onboardingVersion >= 1 && "swipe_up" !in prefsNow.tipsSeen) {
@@ -459,11 +476,11 @@ private fun LauncherNavigation(
                 },
                 topActions = {
                     HomeQuickActions(
-                        onTimebox = {
+                        onTimebox = { access.run(ProFeature.TIMEBOX) {
                             if (focusState.timeboxRemainingMs != null) showTimeboxControl = true
                             else { timeboxStartFor = null; showTimeboxStart = true }
-                        },
-                        onFocus = { if (focusState.focusActive) showFocusControl = true else showFocusStart = true },
+                        } },
+                        onFocus = { access.run(ProFeature.FOCUS) { if (focusState.focusActive) showFocusControl = true else showFocusStart = true } },
                         focusActive = focusState.focusActive,
                         timeboxActive = focusState.timeboxRemainingMs != null,
                     )
@@ -484,15 +501,15 @@ private fun LauncherNavigation(
                         },
                     )
                 },
-                profileLabel = if (uiState.profiles.isNotEmpty()) uiState.activeProfileName else null,
+                profileLabel = if (uiState.profiles.isNotEmpty()) uiState.activeProfileName + if (access.allows(ProFeature.PROFILES)) "" else " \u00b7 Pro" else null,
                 widgets = {
-                    HomeWidgets(widgets, widgetRepo, when {
+                    if (access.allows(ProFeature.WIDGETS)) HomeWidgets(widgets, widgetRepo, when {
                         focusState.focusActive -> "during focus"
                         uiState.activeProfile?.hideOtherApps == true -> "in this profile"
                         else -> null
                     })
                 },
-                onProfileClick = { showProfiles = true },
+                onProfileClick = { access.run(ProFeature.PROFILES) { showProfiles = true } },
                 modifier = Modifier,
             )
         }
@@ -535,6 +552,7 @@ private fun LauncherNavigation(
                 { navController.navigate("usage") }, { navController.navigate("settings/value") }, uiState.categories)
         }
         composable("settings/value") {
+            if (!access.allows(ProFeature.VALUE_OF_TIME)) { ProScreen(yoga.proRepository) { navController.popBackStack() }; return@composable }
             ValueOfTimeSettingsScreen(usageState, usageViewModel, yoga.guardPrefs,
                 { navController.navigate(GUARD) }, { navController.popBackStack() })
         }
@@ -556,20 +574,25 @@ private fun LauncherNavigation(
             )
         }
         composable(PROFILES) {
+            if (!access.allows(ProFeature.PROFILES)) { ProScreen(yoga.proRepository) { navController.popBackStack() }; return@composable }
             ProfilesScreen(uiState, viewModel, { navController.popBackStack() }) { navController.navigate("$PROFILES/$it") }
         }
         composable("$PROFILES/{id}") { entry ->
+            if (!access.allows(ProFeature.PROFILES)) { ProScreen(yoga.proRepository) { navController.popBackStack() }; return@composable }
             val id = entry.arguments?.getString("id")?.toLongOrNull()
             val profile = uiState.profiles.firstOrNull { it.id == id }
             if (profile != null) ProfileEditScreen(profile, uiState, focusState.schedules, viewModel) { navController.popBackStack() }
         }
         composable(WIDGETS) {
+            if (!access.allows(ProFeature.WIDGETS)) { ProScreen(yoga.proRepository) { navController.popBackStack() }; return@composable }
             WidgetsSettingsScreen(widgets, widgetRepo, onAdd = { navController.navigate(WIDGET_PICKER) }) { navController.popBackStack() }
         }
         composable(WIDGET_PICKER) {
+            if (!access.allows(ProFeature.WIDGETS)) { ProScreen(yoga.proRepository) { navController.popBackStack() }; return@composable }
             WidgetPickerScreen(widgetRepo, onPick = ::pickWidget) { navController.popBackStack() }
         }
         composable(INSIGHTS) {
+            if (!access.allows(ProFeature.INSIGHTS)) { ProScreen(yoga.proRepository) { navController.popBackStack() }; return@composable }
             insightsPrefs?.let { prefs ->
                 InsightsScreen(insights, prefs, onAcceptSuggestion = { usageViewModel.saveRule(null, it) }) { navController.popBackStack() }
             }
@@ -618,6 +641,7 @@ private fun LauncherNavigation(
                 focusViewModel::setFocusGreyscale) { navController.popBackStack() }
         }
         composable(QUIET) {
+            if (!access.allows(ProFeature.QUIET_NOTIFICATIONS)) { ProScreen(yoga.proRepository) { navController.popBackStack() }; return@composable }
             val heldRules by quiet.rules.collectAsState(initial = emptyList())
             QuietNotificationsScreen(quietPrefs, uiState.drawerApps + uiState.otherApps, heldRules,
                 isDistracting = focusState::isDistracting,
@@ -625,6 +649,7 @@ private fun LauncherNavigation(
                 repository = quiet, onOpenDigest = { navController.navigate(DIGEST) }) { navController.popBackStack() }
         }
         composable(DIGEST) {
+            if (!access.allows(ProFeature.QUIET_NOTIFICATIONS)) { ProScreen(yoga.proRepository) { navController.popBackStack() }; return@composable }
             val held by quiet.held.collectAsState(initial = emptyList())
             val labels = uiState.allApps.associate { it.appPackage to it.displayLabel }
             DigestScreen(held, { labels[it] ?: it }, onOpenApp = { pkg ->
@@ -705,9 +730,9 @@ private fun LauncherNavigation(
                 AppMenuAction(if (viewModel.isOnHome(app)) "Remove from home" else "Add to home") {
                     viewModel.setFavorite(app, !viewModel.isOnHome(app))
                 },
-                AppMenuAction("Category…") { categoryFor = app },
+                AppMenuAction("CategoryÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’…Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒ…Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒ…Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’…Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢…ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’…Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒ…Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒ…Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™…ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’…Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒ…Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦") { categoryFor = app },
                 AppMenuAction("Rename") { renameApp = app },
-                AppMenuAction("Timebox this app") { timeboxStartFor = app; showTimeboxStart = true },
+                AppMenuAction(if (access.allows(ProFeature.TIMEBOX)) "Timebox this app" else "Timebox this app \u00b7 Pro") { access.run(ProFeature.TIMEBOX) { timeboxStartFor = app; showTimeboxStart = true } },
                 AppMenuAction("Hide") { viewModel.setHidden(app, true) },
                 AppMenuAction("App info") { context.openAppInfo(app.appPackage) },
                 AppMenuAction("Uninstall") { context.uninstall(app.appPackage) },
@@ -716,7 +741,7 @@ private fun LauncherNavigation(
     }
     renameApp?.let { app -> RenameAppDialog(app, { renameApp = null }) { viewModel.renameApp(app, it) } }
 
-    if (showProfiles) {
+    if (showProfiles && access.allows(ProFeature.PROFILES)) {
         ProfileSwitcherSheet(uiState, ::switchProfile, onManage = { navController.navigate(PROFILES) }) { showProfiles = false }
     }
     categoryFor?.let { app ->
@@ -724,7 +749,7 @@ private fun LauncherNavigation(
             onPick = { viewModel.setAppCategory(app, it) }, onAdd = { viewModel.addCategory(it, app) }, onDismiss = { categoryFor = null })
     }
 
-    if (showTimeboxStart) {
+    if (showTimeboxStart && access.allows(ProFeature.TIMEBOX)) {
         val bound = timeboxStartFor
         TimeboxStartSheet(
             lastMinutes = focusState.preferences.lastTimeboxMinutes,
@@ -760,7 +785,7 @@ private fun LauncherNavigation(
             onStartFocus = { showFocusStart = true },
         )
     }
-    if (showFocusStart) {
+    if (showFocusStart && access.allows(ProFeature.FOCUS)) {
         FocusStartSheet(focusState.preferences.lastFocusMinutes, focusViewModel::startFocus) { showFocusStart = false }
     }
     if (showFocusControl && focusState.focusActive) {
@@ -768,11 +793,13 @@ private fun LauncherNavigation(
     }
 
     reflectionFor?.let { focusId ->
-        if (route == HOME) ReflectionSheet { feeling ->
+        if (route == HOME && access.allows(ProFeature.INSIGHTS)) ReflectionSheet { feeling ->
             scope.launch { insights.recordReflection(focusId, feeling) }
             reflectionFor = null
         }
     }
+
+    } // LocalProAccess
 
     pendingPause?.let { pause ->
         val overall = usageState.snapshot.evaluation.overall

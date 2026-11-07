@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,7 @@ fun AdvancedSettingsScreen(onBack: () -> Unit, onResetNames: () -> Unit, onLeave
     val context = LocalContext.current
     var namesReset by remember { mutableStateOf(false) }
     YogaScreen("Advanced", onBack) {
+        if (`in`.tuwi.yogaphone.BuildConfig.DEBUG) item { DebugProControls() }
         item { YogaSection("Phone") }
         item { YogaRow("Android settings", summary = "Open the phone's own settings",
             onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS)) } }) }

@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.quiet
 
+import `in`.tuwi.yogaphone.pro.*
 import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -31,6 +32,7 @@ class YogaNotificationListener : NotificationListenerService() {
             groupSummary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
         )
         scope.launch {
+            if (!app.proRepository.allows(ProFeature.QUIET_NOTIFICATIONS)) return@launch
             val repository = app.quietRepository
             if (!repository.preferences.first().quietEnabled) return@launch
             val focusActive = app.database.focusDao().activeFocus() != null

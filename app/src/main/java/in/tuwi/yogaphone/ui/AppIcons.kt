@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
@@ -66,19 +67,21 @@ object AppIcons {
 fun AppIconPicker(selected: AppIcon, onSelect: (AppIcon) -> Unit, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth().padding(horizontal = ScreenMargin, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         AppIcon.entries.forEach { icon ->
+            val access = LocalProAccess.current
             val isSelected = icon == selected
             val c = MaterialTheme.colorScheme
             Column(
                 Modifier.weight(1f)
                     .border(if (isSelected) BorderStroke(2.dp, c.primary) else BorderStroke(1.dp, c.outlineVariant), RoundedCornerShape(22.dp))
                     .clip(RoundedCornerShape(22.dp))
-                    .selectable(isSelected, role = Role.RadioButton) { onSelect(icon) }
+                    .selectable(isSelected, role = Role.RadioButton) { if (icon == AppIcon.TEN_PAST_TEN) onSelect(icon) else access.run(ProFeature.COLON_ICON) { onSelect(icon) } }
                     .padding(16.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     IconPreview(icon, 60.dp, CircleShape)
                     IconPreview(icon, 44.dp, RoundedCornerShape(13.dp))
                 }
+                if (icon == AppIcon.COLON && !access.allows(ProFeature.COLON_ICON)) ProTag()
                 Text(icon.label, style = MaterialTheme.typography.labelLarge, color = c.onBackground, modifier = Modifier.padding(top = 14.dp))
                 Text(icon.note, style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
             }

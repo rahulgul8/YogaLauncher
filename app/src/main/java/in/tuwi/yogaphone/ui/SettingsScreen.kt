@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
@@ -82,6 +83,7 @@ fun SettingsScreen(
     }
 
     YogaScreen("Settings", onBack, eyebrow = "Yoga Launcher") {
+        item { val access = LocalProAccess.current; YogaRow("Yoga Pro", summary = access.state.summary(), onClick = access.open) }
         // Only while Yoga isn't the home app. Leaving Yoga lives under Advanced, a few taps away on purpose.
         if (!isDefault) item(key = "home-card") {
             YogaCard(Modifier.padding(top = 12.dp)) {
@@ -95,22 +97,23 @@ fun SettingsScreen(
         }
         item { YogaSection("Awareness") }
         item { YogaRow("Usage dashboard", summary = "Today and the last 7 days", onClick = onUsage) }
-        item { YogaRow("Insights", summary = "Trends, late nights, goals", onClick = onInsights) }
+        item { ProRow("Insights", ProFeature.INSIGHTS, summary = "Trends, late nights, goals", onClick = onInsights) }
         item { YogaRow("Usage rules", summary = "Allowances, essential apps, reminders", onClick = onUsageRules) }
-        item { YogaRow("Value of time", summary = "Your hour, in your currency", onClick = onValueOfTime) }
+        item { ProRow("Value of time", ProFeature.VALUE_OF_TIME, summary = "Your hour, in your currency", onClick = onValueOfTime) }
         if (`in`.tuwi.yogaphone.BuildConfig.GUARD) item { YogaRow("Shorts and live time value", summary = "Yoga guard", onClick = onGuard) }
         item { YogaSection("Focus") }
         item { YogaRow("Focus and timebox", summary = "Mindful pause, schedules, Do Not Disturb", onClick = onFocus) }
         item { YogaRow("Visual interventions", summary = "Greyscale past your limit, in focus, at bedtime", onClick = onVisual) }
-        item { YogaRow("Quiet notifications", summary = "Hold chosen apps for a digest", onClick = onQuiet) }
+        item { ProRow("Quiet notifications", ProFeature.QUIET_NOTIFICATIONS, summary = "Hold chosen apps for a digest", onClick = onQuiet) }
         item { YogaSection("Home") }
         item { YogaRow("Home and appearance", summary = "Theme, type, clock, date, layout", onClick = onAppearance) }
-        item { YogaRow("Widgets", summary = "Add, resize, reorder, remove", onClick = onWidgets) }
+        item { ProRow("Widgets", ProFeature.WIDGETS, summary = "Add, resize, reorder, remove", onClick = onWidgets) }
         item { YogaNote("To change a shortcut in the dock, press and hold it on the home screen.") }
         item { YogaSection("Apps") }
-        item { YogaRow("Profiles", summary = "Different homes for work, reading and more", onClick = onProfiles) }
+        item { ProRow("Profiles", ProFeature.PROFILES, summary = "Different homes for work, reading and more", onClick = onProfiles) }
         item { YogaRow("Categories", summary = "Automatic and your own, drawer grouping", onClick = onCategories) }
         item { YogaRow("Hidden apps", summary = "Review and unhide", onClick = onHiddenApps) }
+        item { ProRow("Learning videos", ProFeature.LEARNING_VIDEOS, "Coming later") { } }
         item { YogaSection("Privacy and help") }
         item { YogaRow("Privacy and data", summary = "What is stored, permissions, backup, delete", onClick = onPrivacy) }
         item { YogaRow("Help", summary = "Replay setup, questions, battery tips", onClick = onHelp) }

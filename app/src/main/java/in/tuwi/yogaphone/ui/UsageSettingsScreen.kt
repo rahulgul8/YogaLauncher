@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import android.Manifest
 import android.content.Intent
 import android.os.Build
@@ -29,6 +30,8 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
     var query by remember { mutableStateOf("") }
     var denied by remember { mutableStateOf(false) }
     var clearHistory by remember { mutableStateOf(false) }
+    val access = LocalProAccess.current
+    fun canEdit(id: String) = access.allows(ProFeature.EXTRA_ALLOWANCES) || state.rules.none { it.enabled } || id in freeQuota(state.rules.filter { it.enabled }.map { it.id }, 1)
     val context = LocalContext.current
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         denied = !granted; viewModel.preferences { it.copy(reminders = granted) }
@@ -37,7 +40,7 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
     YogaScreen("Usage rules", onBack) {
         item { UsageAccessCard() }
         item { YogaTextButton("Open usage dashboard", onDashboard, Modifier.padding(horizontal = TextButtonInset)) }
-        item { YogaRow("Daily allowance", summary = total?.let { "${it.dailyAllowanceMinutes} min a day" } ?: "Off · suggested 90 minutes", onClick = { editTotal = true }) }
+        item { YogaRow("Daily allowance", summary = total?.let { "${it.dailyAllowanceMinutes} min a day" } ?: "Off · suggested 90 minutes", onClick = { if (canEdit("total")) editTotal = true else access.open() }) }
         item { YogaSection("Allowance counts") }
         items(AllowanceCounts.entries) { option ->
             YogaRadioRow(if (option == AllowanceCounts.DISTRACTING) "Distracting apps" else "All apps except essential",
@@ -49,7 +52,7 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
             YogaRadioRow(if (percent == 0) "Off (over-limit reminders only)" else "$percent%",
                 state.preferences.warnAtPercent == percent, onClick = { viewModel.threshold(percent) })
         }
-        item { YogaSwitchRow("Usage reminders", state.preferences.reminders, { enabled ->
+        item { ProSwitchRow("Usage reminders", ProFeature.REMINDERS, state.preferences.reminders, { enabled ->
             if (enabled && Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
             else viewModel.preferences { it.copy(reminders = enabled) }
         }) }
@@ -59,8 +62,9 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
         }
         item { YogaNote("Checks run when Yoga resumes and about every 15 minutes. Android may delay background work.") }
         item { YogaSwitchRow("Show usage on home", state.preferences.showHome, { enabled -> viewModel.preferences { it.copy(showHome = enabled) } }) }
-        item { YogaTextButton("Value of time settings", onValue, Modifier.padding(horizontal = TextButtonInset)) }
+        item { ProRow("Value of time settings", ProFeature.VALUE_OF_TIME, onClick = onValue) }
         item { YogaSection("Per-app limits") }
+        if (!access.allows(ProFeature.EXTRA_ALLOWANCES)) item { YogaNote("One allowance stays active on Free. Additional saved allowances resume with Pro.") }
         if (state.rules.none { it.scope == "APP" }) item { YogaNote("No app limits yet. Choose an app below to add one.") }
         items(state.rules.filter { it.scope == "APP" }, key = { it.id }) { rule ->
             val app = state.apps.firstOrNull { it.appPackage == rule.targetPackage }
@@ -71,9 +75,10 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
         items(state.rules.filter { it.scope == "CATEGORY" }, key = { it.id }) { rule ->
             val category = categories.firstOrNull { it.id == rule.targetPackage }
             YogaRow(category?.name ?: rule.targetPackage.orEmpty(), summary = "${rule.dailyAllowanceMinutes} min a day", enabled = category != null,
-                onClick = { editCategory = category }, trailing = { YogaTextButton("Remove", { viewModel.saveCategoryRule(rule.targetPackage.orEmpty(), null) }, muted = true) })
+                onClick = { if (canEdit(rule.id)) editCategory = category else access.open() }, trailing = { YogaTextButton("Remove", { viewModel.saveCategoryRule(rule.targetPackage.orEmpty(), null) }, muted = true) })
         }
-        item { YogaTextButton("Add a category limit", { pickCategory = true }, Modifier.padding(horizontal = TextButtonInset)) }
+        item { if (canEdit("category:new")) YogaTextButton("Add a category limit", { pickCategory = true }, Modifier.padding(horizontal = TextButtonInset))
+            else ProRow("Add a category limit", ProFeature.EXTRA_ALLOWANCES, onClick = access.open) }
         item { YogaSection("Apps · classification and limits") }
         item { YogaTextField(query, { query = it }, "Find an app") }
         items(state.apps.distinctBy { it.appPackage }.filter { it.displayLabel.contains(query, true) }, key = { it.appPackage }) { app ->

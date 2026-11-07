@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.profiles
 
+import `in`.tuwi.yogaphone.pro.*
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -143,6 +144,7 @@ class OrganizeRepository(private val context: Context, private val database: Yog
      * wrapped so callers can tell "switched to default" (Switched(null)) from "no change" (null).
      */
     suspend fun reconcileSchedules(): Switched? = withContext(Dispatchers.IO) {
+        if (!(context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).proRepository.allows(ProFeature.PROFILES)) return@withContext null
         mutex.withLock {
             val profiles = dao.profiles().filter { it.scheduleId != null }
             val windows = database.focusDao().schedules().map { it.toWindow() }

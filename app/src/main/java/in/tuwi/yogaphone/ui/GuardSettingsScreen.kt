@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
@@ -61,11 +62,11 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
         if (Build.VERSION.SDK_INT >= 33) item { YogaNote("If Yoga was not installed from Play, you may first need App info → ⋮ → Allow restricted settings.") }
         error?.let { message -> item { YogaNote(message) } }
         item { YogaSection("Live time value") }
-        item { YogaSwitchRow("Show live indicator over apps", p.liveIndicator, { value -> scope.launch { prefs.update { it.copy(liveIndicator = value) } } }) }
+        item { ProSwitchRow("Show live indicator over apps", ProFeature.VALUE_OF_TIME, p.liveIndicator, { value -> scope.launch { prefs.update { it.copy(liveIndicator = value) } } }) }
         item {
             YogaNote("Needs Yoga guard and Value of time. Illustrative, not money lost or spent. Hidden in sensitive apps, on calls, and while locked.")
             if (!timeValueEnabled) YogaNote("Value of time is currently off.")
-            YogaTextButton("Value, style and start counting", onValueOfTime, Modifier.padding(horizontal = TextButtonInset))
+            ProRow("Value, style and start counting", ProFeature.VALUE_OF_TIME, onClick = onValueOfTime)
         }
         item { YogaSection("Shorts and Reels") }
         item { YogaNote("Turn on only the surfaces you want Yoga to recognise. Regular videos still work. Browser detection is optional and off by default.") }

@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui.theme
 
+import `in`.tuwi.yogaphone.pro.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,13 +41,14 @@ import `in`.tuwi.yogaphone.data.ThemeMode
  */
 @Composable
 fun PalettePicker(selected: Palette, themeMode: ThemeMode, onSelect: (Palette) -> Unit, modifier: Modifier = Modifier) {
+    val access = LocalProAccess.current
     val dark = themeMode == ThemeMode.DARK || (themeMode != ThemeMode.LIGHT && themeMode != ThemeMode.GREYSCALE && isSystemInDarkTheme())
     Row(
         modifier.fillMaxWidth().padding(horizontal = ScreenMargin, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Palettes.forEach { spec ->
-            PaletteCard(spec, if (dark) spec.dark else spec.light, spec.palette == selected, Modifier.weight(1f)) { onSelect(spec.palette) }
+            PaletteCard(spec, if (dark) spec.dark else spec.light, spec.palette == selected, Modifier.weight(1f)) { if (spec.palette == Palette.OBSIDIAN_BRASS) onSelect(spec.palette) else access.run(ProFeature.LOOKS) { onSelect(spec.palette) } }
         }
     }
 }
@@ -73,6 +75,7 @@ private fun PaletteCard(spec: PaletteSpec, t: Tokens, selected: Boolean, modifie
                 contentAlignment = Alignment.Center,
             ) { Icon(YogaIcons.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(12.dp)) }
         }
+        if (spec.palette != Palette.OBSIDIAN_BRASS && !LocalProAccess.current.allows(ProFeature.LOOKS)) ProTag()
         Text(spec.name, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(top = 10.dp))
         Text(spec.line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
