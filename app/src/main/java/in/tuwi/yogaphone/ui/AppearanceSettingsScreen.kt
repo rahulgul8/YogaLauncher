@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -7,6 +8,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -61,8 +63,9 @@ fun AppearanceSettingsScreen(
         item { YogaSection("App icon") }
         item {
             val context = androidx.compose.ui.platform.LocalContext.current
-            var icon by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(AppIcons.current(context)) }
-            AppIconPicker(icon, { choice -> if (choice != icon) { AppIcons.set(context, choice); icon = choice } })
+            val pro = (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).proRepository
+            val icon by pro.selectedIcon.collectAsState(initial = AppIcon.TEN_PAST_TEN)
+            AppIconPicker(icon, pro::selectIcon)
         }
         item { YogaNote("The icon other launchers show for Yoga. Some phones take a few seconds to update it and may remove a shortcut to Yoga from another launcher's home screen. Android's app info page keeps the dial.") }
         item { YogaSection("Text size") }

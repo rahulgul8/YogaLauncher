@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
@@ -25,7 +26,7 @@ fun HomeUsageIndicator(state: UsageUiState, onOpenUsage: () -> Unit, onDetails: 
     }
     val result = state.snapshot.evaluation.overall ?: return
     val over = result.state == RuleState.OVER
-    val value = over && state.preferences.timeValueEnabled && state.preferences.valueOnHome
+    val value = LocalProAccess.current.allows(ProFeature.VALUE_OF_TIME) && over && state.preferences.timeValueEnabled && state.preferences.valueOnHome
     Column(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onOpenUsage).padding(vertical = 8.dp)) {
         Text(if (over) "${result.excessMinutes} min past today's limit" else "${result.used} min of ${total.dailyAllowanceMinutes} today",
             color = if (over) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,

@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.*
@@ -28,6 +29,7 @@ import java.util.Locale
 @Composable
 fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: FocusViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
+    val access = LocalProAccess.current
     val prefs = state.preferences
     val system = viewModel.system()
     var dndAccess by remember { mutableStateOf(system.hasDndAccess()) }
@@ -58,6 +60,9 @@ fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: Fo
             } }
             YogaNote("Apps opened from notifications or other apps skip this pause.")
         }
+        if (!access.allows(ProFeature.FOCUS)) {
+            item { ProRow("Focus schedules, timebox and Do Not Disturb", ProFeature.FOCUS, "Your saved settings resume with Pro", access.open) }
+        } else {
         item { YogaSection("During focus") }
         item { YogaSwitchRow("Greyscale launcher", prefs.focusGreyscale, viewModel::setFocusGreyscale,
             summary = "Switch Yoga to greyscale while focus is on") }
@@ -82,14 +87,19 @@ fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: Fo
             else YogaRow("Precise endings (optional)", summary = "Without exact alarms Android may deliver the ending note up to a minute late.",
                 trailing = { system.exactAlarmSettingsIntent()?.let { intent -> YogaTextButton("Allow", { runCatching { context.startActivity(intent) } }) } })
         }
+        }
         item { YogaSection("Distracting apps") }
         item { YogaNote("Change which apps count as distracting in Usage rules.") }
         items(distracting, key = { "focus:${it.appPackage}" }) { app ->
             YogaSection(app.displayLabel)
-            YogaCheckRow("Pause before opening", app.appPackage !in prefs.delayOptOut) {
+            val activeIds = distracting.filter { it.appPackage !in prefs.delayOptOut }.map { it.appPackage }
+            val freeIds = freeQuota(activeIds, 3)
+            val quota = app.appPackage in freeIds || activeIds.size < 3
+            if (!access.allows(ProFeature.EXTRA_MINDFUL_APPS) && !quota) ProRow("Pause before opening", ProFeature.EXTRA_MINDFUL_APPS, onClick = access.open)
+            else YogaCheckRow("Pause before opening", app.appPackage !in prefs.delayOptOut) {
                 viewModel.setDelayOptOut(app.appPackage, app.appPackage !in prefs.delayOptOut)
             }
-            YogaCheckRow("Allowed during focus", app.appPackage in prefs.focusAllowed) {
+            if (access.allows(ProFeature.FOCUS)) YogaCheckRow("Allowed during focus", app.appPackage in prefs.focusAllowed) {
                 viewModel.setFocusAllowed(app.appPackage, app.appPackage !in prefs.focusAllowed)
             }
         }

@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
@@ -21,6 +22,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
     var weekly by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<AppModel?>(null) }
     var details by remember(openDetails) { mutableStateOf(openDetails) }
+    val access = LocalProAccess.current
     val s = state.snapshot
     val p = state.preferences
     val allowance = state.rules.firstOrNull { it.scope == "TOTAL" && it.enabled }
@@ -78,7 +80,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
             !weekly && !s.available -> item { YogaNote(s.error ?: "Usage data is unavailable."); YogaTextButton("Try again", viewModel::refresh, Modifier.padding(horizontal = TextButtonInset)) }
             weekly && s.knownDays.isEmpty() -> item { YogaNote("No saved days yet. Your history will build as Yoga measures your days.") }
             else -> {
-                if (p.timeValueEnabled && allowance != null) item {
+                if (access.allows(ProFeature.VALUE_OF_TIME) && p.timeValueEnabled && allowance != null) item {
                     val minutes = if (weekly) excessWeek else s.evaluation.overall?.excessMinutes ?: 0
                     Text("Time value · ${TimeValueCalculator().format(minutes, p.hourlyAmount(), p.currency)}",
                         style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "lnum, tnum"), color = MaterialTheme.colorScheme.tertiary,
@@ -117,5 +119,5 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
         item { YogaNote("App foreground time differs from screen-on time. Lock screen, Yoga and home apps are excluded; multi-window apps can overlap. Android may delay or omit events.") }
     }
     selected?.let { UsageAppSheet(it, state, viewModel) { selected = null } }
-    if (details) TimeValueDetailsSheet(state, { details = false }, viewModel::snooze)
+    if (details && access.allows(ProFeature.VALUE_OF_TIME)) TimeValueDetailsSheet(state, { details = false }, viewModel::snooze)
 }

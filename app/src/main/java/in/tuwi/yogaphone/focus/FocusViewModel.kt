@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.focus
 
+import `in`.tuwi.yogaphone.pro.*
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -61,8 +62,11 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
 
     private val sessions = combine(repository.latestTimebox, repository.activeFocus, repository.schedules) { t, f, s -> Triple(t, f, s) }
 
-    val state: StateFlow<FocusUiState> = combine(sessions, repository.prefs.preferences, classifications, ticker, streak) { s, p, c, now, k ->
+    private val rawState = combine(sessions, repository.prefs.preferences, classifications, ticker, streak) { s, p, c, now, k ->
         FocusUiState(s.first, s.second, p, s.third, c, now, k)
+    }
+    val state: StateFlow<FocusUiState> = combine(rawState, app.proRepository.state) { raw, pro ->
+        if (ProGate.allows(ProFeature.FOCUS, pro)) raw else raw.copy(focus = null, timebox = null)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FocusUiState())
 
     init {
@@ -86,8 +90,11 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
         val current = state.value
         val pkg = app.appPackage
         val prefs = repository.prefs.preferences.first()
-        val focusPause = current.pausedByFocus(pkg)
-        val delayPause = prefs.delayEnabled && current.isDistracting(pkg) && pkg !in prefs.delayOptOut
+        val pro = this.app.proRepository.current()
+        val focusPause = ProGate.allows(ProFeature.FOCUS, pro) && current.pausedByFocus(pkg)
+        val eligible = current.classifications.filter { it.value.distracting && it.key !in prefs.delayOptOut }.keys
+        val pauseAllowed = ProGate.allows(ProFeature.EXTRA_MINDFUL_APPS, pro) || pkg in freeQuota(eligible, 3)
+        val delayPause = pauseAllowed && prefs.delayEnabled && current.isDistracting(pkg) && pkg !in prefs.delayOptOut
         if (!focusPause && !delayPause) return LaunchDecision.Open
         if (!DelayGate.shouldPause(repository.prefs.lastContinuedAt(pkg), System.currentTimeMillis(), prefs.dontAskMinutes)) {
             return LaunchDecision.Open

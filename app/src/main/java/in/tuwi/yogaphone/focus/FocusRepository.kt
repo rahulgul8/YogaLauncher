@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.focus
 
+import `in`.tuwi.yogaphone.pro.*
 import android.content.Context
 import `in`.tuwi.yogaphone.data.db.FocusScheduleEntity
 import `in`.tuwi.yogaphone.data.db.FocusSessionEntity
@@ -44,12 +45,15 @@ class FocusRepository(
     val activeFocus = dao.observeActiveFocus()
     val schedules = dao.observeSchedules()
 
+    private suspend fun pro() = (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).proRepository.allows(ProFeature.FOCUS)
+
     private fun now() = System.currentTimeMillis()
     private suspend fun <T> locked(block: suspend () -> T): T = withContext(Dispatchers.IO) { mutex.withLock { block() } }
 
     // ---- Timebox ----
 
     suspend fun startTimebox(minutes: Int, purpose: String?, boundPackage: String?) = locked {
+        if (!pro()) return@locked
         dao.latestTimebox()?.takeIf { it.isLive }?.let { dao.saveTimebox(it.copy(status = TimeboxStatus.CANCELLED, endedAt = now())) }
         val start = now()
         val clean = purpose?.trim()?.takeIf(String::isNotEmpty)
@@ -77,6 +81,7 @@ class FocusRepository(
 
     /** Works on a running, paused or just-finished timebox. */
     suspend fun extendTimebox(minutes: Int) = locked {
+        if (!pro()) return@locked
         val session = dao.latestTimebox() ?: return@locked
         if (session.status == TimeboxStatus.CANCELLED) return@locked
         val clock = session.clock.extend(minutes, now())
@@ -96,6 +101,7 @@ class FocusRepository(
     }
 
     private suspend fun updateLive(transform: (TimeboxSessionEntity) -> TimeboxSessionEntity) = locked {
+        if (!pro()) return@locked
         val session = dao.latestTimebox()?.takeIf { it.isLive } ?: return@locked
         val updated = transform(session)
         dao.saveTimebox(updated)
@@ -124,6 +130,7 @@ class FocusRepository(
 
     /** [minutes] null means "until I stop". */
     suspend fun startFocus(minutes: Int?) = locked {
+        if (!pro()) return@locked
         prefs.setLastFocus(minutes ?: 0)
         val start = now()
         val active = dao.activeFocus()
@@ -165,7 +172,7 @@ class FocusRepository(
     }
 
     private suspend fun applyFocusSideEffects() {
-        if (!prefs.preferences.first().focusDnd) return
+        if (!prefs.preferences.first().focusDnd || prefs.dndState().first) return
         val previous = system.enableDnd() ?: return
         prefs.setDndState(true, previous)
     }
@@ -184,6 +191,14 @@ class FocusRepository(
      * starts or ends scheduled focus, and sets the next alarms.
      */
     suspend fun reconcile() = locked {
+        if (!pro()) {
+            system.cancelAlarm(FocusSystem.ACTION_TIMEBOX_END)
+            system.cancelAlarm(FocusSystem.ACTION_FOCUS_END)
+            system.cancelAlarm(FocusSystem.ACTION_SCHEDULE)
+            system.cancelTimeboxNotifications()
+            restoreFocusSideEffects()
+            return@locked
+        }
         syncTimebox(dao.latestTimebox())
         val now = now()
         val zone = ZoneId.systemDefault()
@@ -206,6 +221,7 @@ class FocusRepository(
                 applyFocusSideEffects()
             }
         }
+        if (dao.activeFocus() != null) applyFocusSideEffects()
         scheduleNext()
     }
 

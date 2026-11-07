@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -29,6 +30,7 @@ import java.util.Date
 
 @Composable
 fun HomeQuickActions(onTimebox: () -> Unit, onFocus: () -> Unit, focusActive: Boolean, timeboxActive: Boolean = false) {
+    if (!LocalProAccess.current.allows(ProFeature.FOCUS)) ProTag()
     HomeIconButton(YogaIcons.Timebox, if (timeboxActive) "Timebox running" else "Start a timebox", onTimebox, active = timeboxActive)
     HomeIconButton(YogaIcons.Focus, if (focusActive) "Focus is on" else "Start focus", onFocus, active = focusActive)
 }

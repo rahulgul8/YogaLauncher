@@ -36,4 +36,16 @@ class BackupCodecTest {
         assertThrows(BackupException::class.java) { BackupCodec.decode("{\"hello\": 1}") }
         assertThrows(BackupException::class.java) { BackupCodec.decode("not json") }
     }
+
+    @Test fun trialMetadataSurvivesBackupWithoutHistory() {
+        val trial = listOf(PrefEntry("pro_trial_started_at", "l", 1_700_000_000_000L),
+            PrefEntry("pro_trial_elapsed_days", "i", 11), PrefEntry("pro_trial_card_dismissed", "b", true))
+        val decoded = BackupCodec.decode(BackupCodec.encode(payload.copy(prefs = trial)))
+        assertEquals(trial, decoded.prefs)
+    }
+
+    @Test fun legacyBackupDoesNotInventTrialMetadata() {
+        val decoded = BackupCodec.decode(BackupCodec.encode(payload))
+        assertEquals(emptyList<PrefEntry>(), decoded.prefs.filter { it.key.startsWith("pro_") })
+    }
 }

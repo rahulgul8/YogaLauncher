@@ -30,7 +30,7 @@ class BackupManager(private val context: Context, private val database: YogaData
         "usage_sent_by_date", "usage_snoozed_date", "delay_continued_at", "focus_dnd_changed", "focus_previous_filter",
         "focus_suppressed_span", "grey_applied_by_yoga", "grey_saved_daltonizer_enabled", "grey_saved_daltonizer_mode",
         "grey_snoozed_until", "grey_over_limit_date", "profile_auto_span", "profile_auto_id", "profile_auto_previous",
-        "profile_overridden_span", "insights_last_reflected_focus",
+        "profile_overridden_span", "insights_last_reflected_focus", "pro_cached_plan", "pro_debug_override",
     )
 
     suspend fun export(uri: Uri, includeHistory: Boolean): String = withContext(Dispatchers.IO) {
@@ -83,7 +83,15 @@ class BackupManager(private val context: Context, private val database: YogaData
         }
         database.invalidationTracker.refreshVersionsAsync()
         context.dataStore.edit { prefs ->
+            val pro = `in`.tuwi.yogaphone.pro.ProRepository
+            val oldStart = prefs[pro.START]
+            val oldElapsed = prefs[pro.ELAPSED] ?: 0
+            val dismissed = prefs[pro.DISMISSED] ?: false
             payload.prefs.filter { it.key !in skippedPrefs }.forEach { entry -> write(prefs, entry) }
+            val importedStart = prefs[pro.START]
+            if (oldStart != null) prefs[pro.START] = minOf(oldStart, importedStart?.takeIf { it > 0 } ?: oldStart)
+            prefs[pro.ELAPSED] = maxOf(oldElapsed, prefs[pro.ELAPSED] ?: 0).coerceIn(0, 14)
+            prefs[pro.DISMISSED] = dismissed || (prefs[pro.DISMISSED] ?: false)
         }
     }
 
@@ -137,7 +145,14 @@ class BackupManager(private val context: Context, private val database: YogaData
     /** Deletes everything Yoga stores. The app returns to first-run state. */
     suspend fun resetEverything() = withContext(Dispatchers.IO) {
         database.clearAllTables()
-        context.dataStore.edit { it.clear() }
+        context.dataStore.edit { p ->
+            val pro = `in`.tuwi.yogaphone.pro.ProRepository
+            val start = p[pro.START]; val elapsed = p[pro.ELAPSED]; val dismissed = p[pro.DISMISSED]
+            val plan = p[pro.PLAN]
+            p.clear()
+            start?.let { p[pro.START] = it }; elapsed?.let { p[pro.ELAPSED] = it }
+            dismissed?.let { p[pro.DISMISSED] = it }; plan?.let { p[pro.PLAN] = it }
+        }
     }
 
     @Suppress("unused")

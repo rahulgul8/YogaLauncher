@@ -363,6 +363,7 @@ private fun ColumnScope.LookStep(ui: MainUiState, actions: OnboardingActions) {
 @Composable
 private fun ColumnScope.DoneStep() {
     StepTitle("Ready", "That's everything.")
+    YogaNote("Everything is unlocked for 14 days.")
     YogaCard(Modifier.padding(top = 8.dp)) {
         listOf(
             YogaIcons.Search to "Swipe up, or tap Search, for every app.",

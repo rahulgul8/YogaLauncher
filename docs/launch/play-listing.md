@@ -12,6 +12,8 @@
 
 > A calm, minimal home screen that helps you use your phone on purpose.
 
+Contains in-app purchases
+
 ## Full description
 
 A calmer phone, without giving up a useful one.
@@ -40,7 +42,7 @@ Yoga replaces a busy home screen with a quiet, text-first launcher and gives you
 • Yoga guard: turn off YouTube Shorts and Instagram Reels, or give each a daily allowance
 
 **Private by design**
-Everything stays on your phone. No account, no server, no ads, no tracking. You choose each permission when you turn a feature on, and you can delete everything at any time.
+Your usage data stays on your phone. No Yoga account, no server, no ads, no tracking. Optional Yoga Pro purchases are processed by Google Play. You choose each permission when you turn a feature on, and you can delete everything at any time.
 
 Yoga measures app foreground time from Android's usage data; it can differ from other screen-time tools. Apps opened from notifications or other apps skip the mindful pause.
 
@@ -79,7 +81,7 @@ Submit the permission declaration and a demonstration video showing disclosure, 
 
 ## Data safety form (answers)
 
-- Data collected: **None** (all processing on device; nothing transmitted).
+- Yoga usage measurements: processed only on device and not transmitted by Yoga. Google Play processes optional Pro purchases; verify the final purchase-data declarations against the shipped Billing integration before submission.
 - Data shared: **None**.
 - Security: data is not transferred off the device; the user can request deletion in the app (Privacy and data → Reset everything) and by uninstalling.
 

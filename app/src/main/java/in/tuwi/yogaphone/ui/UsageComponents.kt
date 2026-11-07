@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -39,6 +40,9 @@ fun AllowanceEditor(title: String, initial: Int?, onDismiss: () -> Unit, onSave:
 
 @Composable
 fun UsageAppSheet(app: AppModel, state: UsageUiState, viewModel: UsageViewModel, onDismiss: () -> Unit) {
+    val access = LocalProAccess.current
+    val freeIds = freeQuota(state.rules.filter { it.enabled }.map { it.id }, 1)
+    val canEdit = access.allows(ProFeature.EXTRA_ALLOWANCES) || freeIds.isEmpty() || "app:${app.appPackage}" in freeIds
     var editLimit by remember { mutableStateOf(false) }
     val current = state.apps.firstOrNull { it.appPackage == app.appPackage } ?: app
     val rule = state.rules.firstOrNull { it.targetPackage == app.appPackage }
@@ -50,7 +54,8 @@ fun UsageAppSheet(app: AppModel, state: UsageUiState, viewModel: UsageViewModel,
             UsageToggle("Essential", current.isEssential, { viewModel.classify(app.appPackage, it, if (it) false else current.isDistracting) }, !mandatory)
             if (mandatory) YogaNote("Phone, SMS, system settings and Yoga are always essential.")
             UsageToggle("Distracting", current.isDistracting, { viewModel.classify(app.appPackage, false, it) }, !current.isEssential)
-            YogaRow("App allowance", summary = if (current.isEssential) "Essential apps are never counted" else rule?.let { "${it.dailyAllowanceMinutes} min a day" } ?: "Off",
+            if (!canEdit) ProRow("App allowance", ProFeature.EXTRA_ALLOWANCES, onClick = access.open)
+            else YogaRow("App allowance", summary = if (current.isEssential) "Essential apps are never counted" else rule?.let { "${it.dailyAllowanceMinutes} min a day" } ?: "Off",
                 enabled = !current.isEssential, onClick = { editLimit = true })
             if (rule != null) YogaTextButton("Remove app limit", { viewModel.saveRule(app.appPackage, null) }, Modifier.padding(horizontal = TextButtonInset), muted = true)
         }

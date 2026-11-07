@@ -1,5 +1,6 @@
 package `in`.tuwi.yogaphone.ui
 
+import `in`.tuwi.yogaphone.pro.*
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
@@ -56,11 +57,14 @@ fun VisualInterventionsScreen(prefs: QuietPreferences, focusGreyscale: Boolean, 
         item { YogaNote("Greyscale takes some of the pull out of bright, rewarding screens. Yoga can always turn its own screens grey; the rest of the phone needs Android's own setting.") }
         item { YogaSection("Turn Yoga grey") }
         item { YogaSwitchRow("When I'm past today's limit", prefs.greyOverLimit, { scope.launch { repository.setGreyOverLimit(it) } }) }
-        item { YogaSwitchRow("During focus", focusGreyscale, onFocusGreyscale) }
+        item { ProSwitchRow("During focus", ProFeature.FOCUS, focusGreyscale, onFocusGreyscale) }
         item { YogaSection("During a bedtime schedule") }
         item { YogaRadioRow("Off", prefs.greyBedtimeScheduleId == null, onClick = { scope.launch { repository.setGreyBedtime(null) } }) }
-        items(schedules, key = { it.id }) { schedule -> YogaRadioRow(schedule.name, prefs.greyBedtimeScheduleId == schedule.id,
-            onClick = { scope.launch { repository.setGreyBedtime(schedule.id) } }) }
+        items(schedules, key = { it.id }) { schedule ->
+            val access = LocalProAccess.current
+            if (!access.allows(ProFeature.FOCUS)) ProRow(schedule.name, ProFeature.FOCUS, onClick = access.open)
+            else YogaRadioRow(schedule.name, prefs.greyBedtimeScheduleId == schedule.id, onClick = { scope.launch { repository.setGreyBedtime(schedule.id) } })
+        }
         if (schedules.isEmpty()) item { YogaNote("Add a schedule (for example Bedtime 22:00–07:00) in Focus and timebox settings.") }
         item { YogaSection("The whole phone") }
         item {
