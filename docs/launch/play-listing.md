@@ -1,6 +1,12 @@
 # Play Store listing and declarations (draft)
 
-> Draft for review. The public name is still open (spec section 12: "Yoga Launcher" vs "Yoga Phone"); the app label in `strings.xml` is currently **Yoga Phone**.
+> Draft for review. Recommended title: **Yoga Phone: Mindful Launcher** (28 of 30 characters); the home-screen label stays **Yoga Phone**.
+>
+> **1.0 ships without Yoga guard** (`BuildConfig.GUARD` is false for release; see `docs/launch/release.md`). The description below leaves it out. When guard ships, add back:
+>
+> - • Optional live time-value pill with Burning and Gentle styles; illustrative, not money lost
+> - • Yoga guard: turn off YouTube Shorts and Instagram Reels, or give each a daily allowance
+> - Paragraph after "Private by design": Yoga guard optionally uses Android's Accessibility API to identify the open app for the live time-value indicator and recognise Shorts/Reels from screen structure in YouTube, Instagram and supported browsers you enable. It goes Back (or Home if needed) when a selected surface is blocked. Screen content is never stored or sent. You choose whether to enable it after an in-app disclosure and can turn it off at any time.
 
 ## Title (≤ 30 characters) — options
 
@@ -29,7 +35,6 @@ Yoga replaces a busy home screen with a quiet, text-first launcher and gives you
 • Neutral reminders when you're close to or past your limit
 • A usage dashboard and weekly insights — late nights, longest breaks, unlocks
 • Optional "value of time": see the illustrative value of time past your limit
-• Optional live time-value pill with Burning and Gentle styles; illustrative, not money lost
 
 **Use your phone on purpose**
 • A short, mindful pause before distracting apps
@@ -37,14 +42,11 @@ Yoga replaces a busy home screen with a quiet, text-first launcher and gives you
 • Focus sessions and schedules that tuck distracting apps away
 • Greyscale on your terms — over the limit, during focus or at bedtime
 • Quiet notifications: hold chosen apps' notifications and read them in a digest
-• Yoga guard: turn off YouTube Shorts and Instagram Reels, or give each a daily allowance
 
 **Private by design**
 Everything stays on your phone. No account, no server, no ads, no tracking. You choose each permission when you turn a feature on, and you can delete everything at any time.
 
 Yoga measures app foreground time from Android's usage data; it can differ from other screen-time tools. Apps opened from notifications or other apps skip the mindful pause.
-
-Yoga guard optionally uses Android's Accessibility API to identify the open app for the live time-value indicator and recognise Shorts/Reels from screen structure in YouTube, Instagram and supported browsers you enable. It goes Back (or Home if needed) when a selected surface is blocked. Screen content is never stored or sent. You choose whether to enable it after an in-app disclosure and can turn it off at any time.
 
 ## Category and tags
 

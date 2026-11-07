@@ -89,7 +89,7 @@ fun PrivacyScreen(prefs: InsightsPreferences, insights: InsightsRepository, back
             item { YogaSwitchRow("Measure usage", prefs.usageTracking, { scope.launch { insights.setUsageTracking(it) } }, summary = "Turn off to stop reading app usage entirely") }
             item { YogaSwitchRow("Insights", prefs.insightsEnabled, { scope.launch { insights.setInsightsEnabled(it) } }, summary = "Weekly summaries and insight cards") }
             item { YogaSection("Permissions") }
-            item {
+            if (`in`.tuwi.yogaphone.BuildConfig.GUARD) item {
                 refresh
                 val allowed = YogaGuardService.isEnabled(context)
                 YogaRow("Yoga guard", summary = "Optional live time value and Shorts/Reels recognition · ${if (allowed) "allowed" else "not allowed"}",

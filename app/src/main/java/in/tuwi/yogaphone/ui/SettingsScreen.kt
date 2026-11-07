@@ -98,7 +98,7 @@ fun SettingsScreen(
         item { YogaRow("Insights", summary = "Trends, late nights, goals", onClick = onInsights) }
         item { YogaRow("Usage rules", summary = "Allowances, essential apps, reminders", onClick = onUsageRules) }
         item { YogaRow("Value of time", summary = "Your hour, in your currency", onClick = onValueOfTime) }
-        item { YogaRow("Shorts and live time value", summary = "Yoga guard", onClick = onGuard) }
+        if (`in`.tuwi.yogaphone.BuildConfig.GUARD) item { YogaRow("Shorts and live time value", summary = "Yoga guard", onClick = onGuard) }
         item { YogaSection("Focus") }
         item { YogaRow("Focus and timebox", summary = "Mindful pause, schedules, Do Not Disturb", onClick = onFocus) }
         item { YogaRow("Visual interventions", summary = "Greyscale past your limit, in focus, at bedtime", onClick = onVisual) }

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -17,11 +19,32 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Yoga guard (accessibility service) is off in Play builds until its Play declaration is approved.
+        // Debug and profile builds keep it, and add the service through src/guard/AndroidManifest.xml.
+        buildConfigField("boolean", "GUARD", "false")
+    }
+
+    // The Play upload key lives outside the repo. Point YOGA_UPLOAD_PROPERTIES elsewhere (e.g. in CI) if needed.
+    val uploadProps = File(System.getenv("YOGA_UPLOAD_PROPERTIES")
+        ?: "${System.getProperty("user.home")}/.secrets/yoga-upload.properties")
+    signingConfigs {
+        if (uploadProps.exists()) create("upload") {
+            val p = Properties().apply { uploadProps.inputStream().use { load(it) } }
+            storeFile = file(p.getProperty("storeFile"))
+            storePassword = p.getProperty("storePassword")
+            keyAlias = p.getProperty("keyAlias")
+            keyPassword = p.getProperty("keyPassword")
+        }
     }
 
     buildTypes {
+        debug {
+            buildConfigField("boolean", "GUARD", "true")
+        }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfigs.findByName("upload")?.let { signingConfig = it }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -33,7 +56,12 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
             isDebuggable = false
+            buildConfigField("boolean", "GUARD", "true")
         }
+    }
+    sourceSets {
+        getByName("debug").manifest.srcFile("src/guard/AndroidManifest.xml")
+        getByName("profile").manifest.srcFile("src/guard/AndroidManifest.xml")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -44,7 +72,12 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {

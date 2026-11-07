@@ -51,22 +51,24 @@ fun ValueOfTimeSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, gu
         }) }
         if (denied) item { YogaNote("Notifications were not allowed. The home indicator and dashboard are still available.") }
         item { YogaNote("The notification can be snoozed for today. A daily allowance is needed to calculate excess time. The home indicator and notification use whole currency units.") }
-        item { YogaSection("Live indicator") }
-        item { YogaSwitchRow("Show live indicator over apps", guard.liveIndicator, { value -> scope.launch { guardPrefs.update { it.copy(liveIndicator = value) } } }) }
-        item {
-            YogaNote("Needs Yoga guard and Value of time. Illustrative, not money lost or spent. You can turn it off any time.")
-            YogaTextButton("Shorts and live time value · Yoga guard", onGuard, Modifier.padding(horizontal = TextButtonInset))
+        if (`in`.tuwi.yogaphone.BuildConfig.GUARD) {
+            item { YogaSection("Live indicator") }
+            item { YogaSwitchRow("Show live indicator over apps", guard.liveIndicator, { value -> scope.launch { guardPrefs.update { it.copy(liveIndicator = value) } } }) }
+            item {
+                YogaNote("Needs Yoga guard and Value of time. Illustrative, not money lost or spent. You can turn it off any time.")
+                YogaTextButton("Shorts and live time value · Yoga guard", onGuard, Modifier.padding(horizontal = TextButtonInset))
+            }
+            item { YogaSection("Style") }
+            item { YogaChipRow {
+                GuardStyle.entries.forEach { style -> YogaChip(if (style == GuardStyle.BURNING) "Burning" else "Gentle", guard.style == style,
+                    onClick = { scope.launch { guardPrefs.update { it.copy(style = style) } } }) }
+            } }
+            item { YogaSection("Start counting") }
+            items(listOf(StartCounting.FROM_FIRST_MINUTE, StartCounting.AFTER_LIMIT)) { start ->
+                YogaRadioRow(if (start == StartCounting.AFTER_LIMIT) "After my limit" else "From the first minute", guard.startCounting == start,
+                    onClick = { scope.launch { guardPrefs.update { it.copy(startCounting = start) } } })
+            }
+            item { YogaNote("After my limit needs a total daily allowance. From the first minute counts all eligible app time. The live indicator uses currency minor units for rates below one unit per minute. Usage measuring must be on; snoozing today also hides it.") }
         }
-        item { YogaSection("Style") }
-        item { YogaChipRow {
-            GuardStyle.entries.forEach { style -> YogaChip(if (style == GuardStyle.BURNING) "Burning" else "Gentle", guard.style == style,
-                onClick = { scope.launch { guardPrefs.update { it.copy(style = style) } } }) }
-        } }
-        item { YogaSection("Start counting") }
-        items(listOf(StartCounting.FROM_FIRST_MINUTE, StartCounting.AFTER_LIMIT)) { start ->
-            YogaRadioRow(if (start == StartCounting.AFTER_LIMIT) "After my limit" else "From the first minute", guard.startCounting == start,
-                onClick = { scope.launch { guardPrefs.update { it.copy(startCounting = start) } } })
-        }
-        item { YogaNote("After my limit needs a total daily allowance. From the first minute counts all eligible app time. The live indicator uses currency minor units for rates below one unit per minute. Usage measuring must be on; snoozing today also hides it.") }
     }
 }

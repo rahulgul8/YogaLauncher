@@ -19,3 +19,5 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# Yoga stores enums by name (DataStore, Room, backups). Keep their constant names stable across releases.
+-keepclassmembers enum in.tuwi.yogaphone.** { <fields>; }
