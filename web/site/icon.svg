@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72" role="img" aria-label="Yoga Phone">
+  <rect x="18" y="18" width="72" height="72" rx="18" fill="#0F0F0E"/>
+  <circle cx="54" cy="54" r="27" fill="none" stroke="#6B665C" stroke-width="2"/>
+  <path d="M54 54L38.5 45M54 54L69.5 45M54 54L54 70" fill="none" stroke="#C9A45C" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="54" cy="54" r="3.2" fill="#ECE6DA"/>
+</svg>

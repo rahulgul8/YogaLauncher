@@ -1,6 +1,6 @@
 # Yoga Phone — Privacy Policy
 
-Last updated: 7 November 2026.
+Last updated: 8 November 2026.
 
 Yoga Phone ("Yoga", "the app", package `com.tuwi.yogaphone`) is a home-screen app from TUWI Technologies Pvt. Ltd. that helps you use your phone more intentionally. This policy explains what the app reads, what it stores and where.
 
@@ -46,7 +46,7 @@ Android's automatic cloud backup is **turned off** for Yoga, so this data is not
 
 ## Yoga Pro purchases
 
-Optional yearly and lifetime purchases are processed by Google Play. Google handles payment details; Yoga does not receive your card or bank details. Yoga queries Play purchase status and acknowledges completed purchases through Play Billing. The app stores the last known purchased plan locally so Pro works offline. No purchase-validation server or third-party billing SDK is used, and Yoga does not send usage measurements to Google for billing.
+Optional monthly, yearly and lifetime purchases are processed by Google Play. Google handles payment details; Yoga does not receive your card or bank details. Yoga queries Play purchase status and acknowledges completed purchases through Play Billing. The app stores the last known purchased plan locally so Pro works offline. No purchase-validation server or third-party billing SDK is used, and Yoga does not send usage measurements to Google for billing.
 
 The original trial start, trial progress and dismissal of the trial-ending card are stored locally and retained in manual backups. A backup does not grant purchased access: purchases are restored from Google Play. Resetting launcher settings and history keeps the original trial record, prompt dismissal and cached purchase status; it does not begin another trial. Uninstalling or clearing Android app storage removes these local records.
 
@@ -55,6 +55,10 @@ The original trial start, trial progress and dismissal of the trial-ending card 
 - Turn usage measuring and insights off entirely (Privacy and data).
 - Revoke any permission in Android settings; the related feature stops and Yoga keeps working.
 - Delete usage history, or reset everything, from Privacy and data. Uninstalling Yoga removes all of its data.
+
+## This website
+
+yogaphone.tuwi.in has no cookies, analytics, advertising or third-party requests. If you choose a look or brightness on the site, your browser remembers it in its own local storage; it never reaches us. The site is hosted on Firebase Hosting (Google), which processes standard request data such as IP addresses to deliver the pages.
 
 ## Children
 
