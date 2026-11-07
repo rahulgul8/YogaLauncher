@@ -1,8 +1,8 @@
-# Yoga Launcher — Privacy Policy (draft)
+# Yoga Phone — Privacy Policy
 
-> **Draft for review.** Fill in the bracketed items and have it checked before publishing. Last updated: [date].
+Last updated: 7 November 2026.
 
-Yoga Launcher ("Yoga", "the app") is a home-screen app from TUWI Technologies that helps you use your phone more intentionally. This policy explains what the app reads, what it stores and where.
+Yoga Phone ("Yoga", "the app", package `in.tuwi.yogaphone`) is a home-screen app from TUWI Technologies Pvt. Ltd. that helps you use your phone more intentionally. This policy explains what the app reads, what it stores and where.
 
 ## The short version
 
@@ -52,7 +52,7 @@ Android's automatic cloud backup is **turned off** for Yoga, so this data is not
 
 ## Children
 
-Yoga is designed for adults and is not directed at children under 13 [or the age required in your region].
+Yoga is designed for adults and is not directed at children under 13.
 
 ## Changes
 
@@ -60,4 +60,4 @@ We will update this page when the app's data practices change and note the date 
 
 ## Contact
 
-[Support email] · TUWI Technologies · [address]
+tuwi.developer@gmail.com · TUWI Technologies Pvt. Ltd., India
