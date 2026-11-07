@@ -12,7 +12,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "in.tuwi.yogaphone"
+        applicationId = "com.tuwi.yogaphone"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

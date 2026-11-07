@@ -2,7 +2,7 @@
 
 Last updated: 7 November 2026.
 
-Yoga Phone ("Yoga", "the app", package `in.tuwi.yogaphone`) is a home-screen app from TUWI Technologies Pvt. Ltd. that helps you use your phone more intentionally. This policy explains what the app reads, what it stores and where.
+Yoga Phone ("Yoga", "the app", package `com.tuwi.yogaphone`) is a home-screen app from TUWI Technologies Pvt. Ltd. that helps you use your phone more intentionally. This policy explains what the app reads, what it stores and where.
 
 ## The short version
 
