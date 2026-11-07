@@ -6,12 +6,12 @@
 | --- | --- | --- | --- |
 | `debug` | debug key | on | development |
 | `profile` | debug key | on | release-speed (R8) checks on a phone; the founder's daily build |
-| `release` | upload key | **off** | Play bundles |
+| `release` | upload key | on while `guardInRelease = true` | Play bundles |
 
-Yoga guard needs Play's Accessibility API declaration, so release builds leave it out: `BuildConfig.GUARD` is false and the
-accessibility service is declared only in `app/src/guard/AndroidManifest.xml`, which debug and profile use as their manifest.
-To ship guard: move the `<service>` back into `src/main/AndroidManifest.xml`, drop the `sourceSets` block and the per-type
-`GUARD` fields (make the default true), restore the guard lines in `play-listing.md`, and submit the declaration and video.
+Yoga guard is in every build today (founder, 2026-11-07). One switch in `app/build.gradle.kts`, `guardInRelease`,
+takes it out of Play bundles if its Accessibility API declaration is ever held up: set it to `false` and the release build
+drops the service (declared only in `app/src/guard/AndroidManifest.xml`) and hides every guard screen (`BuildConfig.GUARD`).
+With guard in, the first Play upload needs the Accessibility API declaration and a demonstration video (see `play-listing.md`).
 
 ## Upload key
 

@@ -20,7 +20,7 @@ Working list for spec section 13 "Launch" items. Tick as they are verified on re
 - [ ] Data safety form matches `play-listing.md`; privacy policy published at a public URL.
 - [ ] Value-of-time copy always says "illustrative" and never implies money lost.
 
-## Yoga guard (Piece 8) — not in 1.0; debug and profile builds only
+## Yoga guard (Piece 8)
 
 - [ ] Verify prominent disclosure before every accessibility-settings handoff, including entry through Value of time and Privacy and data; Not now must not open system settings.
 - [ ] Submit Accessibility API declaration and demonstration video; verify listing and privacy policy match the shipped service. Do not mark as an accessibility tool.

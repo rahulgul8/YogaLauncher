@@ -19,10 +19,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        // Yoga guard (accessibility service) is off in Play builds until its Play declaration is approved.
-        // Debug and profile builds keep it, and add the service through src/guard/AndroidManifest.xml.
         buildConfigField("boolean", "GUARD", "false")
     }
+
+    // Yoga guard (accessibility service). Debug and profile builds always have it. Set this false to leave it
+    // out of Play bundles (e.g. while the Accessibility API declaration is pending); see docs/launch/release.md.
+    val guardInRelease = true
 
     // The Play upload key lives outside the repo. Point YOGA_UPLOAD_PROPERTIES elsewhere (e.g. in CI) if needed.
     val uploadProps = File(System.getenv("YOGA_UPLOAD_PROPERTIES")
@@ -45,6 +47,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfigs.findByName("upload")?.let { signingConfig = it }
+            buildConfigField("boolean", "GUARD", guardInRelease.toString())
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -62,6 +65,7 @@ android {
     sourceSets {
         getByName("debug").manifest.srcFile("src/guard/AndroidManifest.xml")
         getByName("profile").manifest.srcFile("src/guard/AndroidManifest.xml")
+        if (guardInRelease) getByName("release").manifest.srcFile("src/guard/AndroidManifest.xml")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
