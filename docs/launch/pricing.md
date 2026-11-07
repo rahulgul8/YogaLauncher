@@ -1,6 +1,6 @@
 # Pricing: free, paid, or trial
 
-Decision paper, 2026-11-07. Status: **recommendation, waiting for the founder's decision.**
+Decision paper, 2026-11-07. Status: **approved by the founder 2026-11-07** (reverse trial, free/Pro split, prices; monthly added). Products live in Play: `yoga_pro_yearly`, `yoga_pro_monthly`, `yoga_pro_lifetime`. Competitor prices: `docs/research/competitors.md`.
 
 Goal (founder): Yoga is a paid, premium product, and people should be able to try it free first.
 
@@ -27,7 +27,7 @@ When a paid feature expires, the user still has to be able to use their phone. I
 4. **Purchase options (Play Billing, no server):**
    - **Yearly:** the default, pre-selected option.
    - **Lifetime:** a one-time purchase. Premium-segment buyers often prefer it, and some of them dislike subscriptions on principle.
-   - **Monthly:** optional. Leave it out at launch to keep the choice simple.
+   - **Monthly:** ₹149 for people who want to try longer before committing. Yearly stays pre-selected (it saves 44%).
 
 Why not a Play-managed subscription trial that needs a card up front: many Indian users don't have a card, and asking for a UPI mandate on day 0 loses most of them before they've seen the value. A reverse trial shows the value first. Yoga's value is personal (its own numbers about the user), so it sells best after two weeks of use.
 
@@ -51,7 +51,7 @@ Rule: anything the user set up during the trial keeps its settings when Pro paus
 | --- | --- | --- |
 | Yearly | ₹999 | US$24.99 |
 | Lifetime | ₹2,499 | US$59.99 |
-| Monthly (optional) | ₹149 | US$3.99 |
+| Monthly | ₹149 | US$3.99 |
 
 Regain charges ₹199 a month and ₹999 a year, but discounts heavily, as low as ₹84 a month and ₹299 a year. Yoga should **not** run constant fake discounts. One honest launch price for the first months is enough. Play charges a 15% service fee on subscriptions, and on one-time purchases up to the first US$1M of earnings a year.
 

@@ -38,4 +38,4 @@ Options considered, from most to least reliable:
 
 ### Starter chips
 
-India-first, shipped with the app (no remote list): Khan Academy, Physics Wallah, Unacademy, CrashCourse, 3Blue1Brown, MIT OpenCourseWare, freeCodeCamp, TED-Ed, Vedantu, NPTEL. The user taps them; none are on by default.
+Shipped with the app (no remote list), for students and working people alike. Learning: Khan Academy, NPTEL, MIT OpenCourseWare, CrashCourse, 3Blue1Brown, Physics Wallah, TED-Ed. Work and skills: freeCodeCamp, Google for Developers, Harvard Business Review, TED, Ali Abdaal, Y Combinator. The user taps them; none are on by default.

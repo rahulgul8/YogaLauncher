@@ -43,6 +43,8 @@ class ProStateTest {
         assertNull(restoredPlan(listOf(OwnedProduct(listOf("unknown"), true))))
         assertEquals(ProPlan.YEARLY, restoredPlan(listOf(OwnedProduct(listOf("yoga_pro_yearly"), true))))
         assertEquals(ProPlan.LIFETIME, restoredPlan(listOf(OwnedProduct(listOf("yoga_pro_yearly", "yoga_pro_lifetime"), true))))
+        assertEquals(ProPlan.MONTHLY, restoredPlan(listOf(OwnedProduct(listOf("yoga_pro_monthly"), true))))
+        assertEquals(ProPlan.YEARLY, restoredPlan(listOf(OwnedProduct(listOf("yoga_pro_monthly", "yoga_pro_yearly"), true))))
     }
     @Test fun failedRestoreKeepsCacheSuccessfulEmptyRestoreClearsIt() {
         assertEquals(ProState(Entitlement.PRO, 0, ProPlan.YEARLY), resolveProState(0, ProPlan.YEARLY))

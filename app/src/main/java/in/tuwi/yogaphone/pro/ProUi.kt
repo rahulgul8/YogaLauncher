@@ -39,7 +39,7 @@ fun ProSwitchRow(title: String, feature: ProFeature, checked: Boolean, onChecked
 
 fun ProState.summary(): String = when (entitlement) {
     Entitlement.TRIAL -> "Trial · $trialDaysLeft days left"
-    Entitlement.PRO -> if (plan == ProPlan.LIFETIME) "Lifetime" else "Yearly"
+    Entitlement.PRO -> when (plan) { ProPlan.LIFETIME -> "Lifetime"; ProPlan.MONTHLY -> "Monthly"; else -> "Yearly" }
     Entitlement.FREE -> "Free · See what Pro adds"
 }
 
@@ -63,15 +63,16 @@ fun ProScreen(repository: ProRepository, onBack: () -> Unit) {
             else {
                 products.forEach { offer -> item {
                     YogaCard(Modifier.padding(top = 12.dp)) {
-                        YogaRadioRow(if (offer.plan == ProPlan.YEARLY) "Yearly" else "Lifetime", selected == offer.plan, { selected = offer.plan },
-                            summary = offer.price)
-                        Text(if (offer.plan == ProPlan.YEARLY) "Best value" else "Once, forever", style = MaterialTheme.typography.labelMedium,
+                        YogaRadioRow(when (offer.plan) { ProPlan.YEARLY -> "Yearly"; ProPlan.MONTHLY -> "Monthly"; ProPlan.LIFETIME -> "Lifetime" },
+                            selected == offer.plan, { selected = offer.plan }, summary = offer.price)
+                        Text(when (offer.plan) { ProPlan.YEARLY -> "Best value"; ProPlan.MONTHLY -> "Month to month"; ProPlan.LIFETIME -> "Once, forever" },
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } }
                 item { YogaPrimaryButton("Get Yoga Pro", { product?.let { repository.buy(activity, it) } },
                     Modifier.padding(horizontal = ScreenMargin, vertical = 16.dp), enabled = product != null) }
-                if (selected == ProPlan.YEARLY) item { YogaNote("Billed by Google Play. Cancel any time in Play Store → Subscriptions.") }
+                if (selected != ProPlan.LIFETIME) item { YogaNote("Billed by Google Play. Cancel any time in Play Store → Subscriptions.") }
             }
         }
         item { YogaTextButton("Restore purchases", repository::restore, Modifier.padding(horizontal = TextButtonInset)) }

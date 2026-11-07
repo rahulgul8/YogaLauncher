@@ -4,7 +4,9 @@ import java.time.Instant
 import java.time.ZoneId
 
 enum class Entitlement { TRIAL, PRO, FREE }
-enum class ProPlan { YEARLY, LIFETIME }
+enum class ProPlan(val productId: String) {
+    YEARLY("yoga_pro_yearly"), MONTHLY("yoga_pro_monthly"), LIFETIME("yoga_pro_lifetime")
+}
 data class ProState(val entitlement: Entitlement = Entitlement.FREE, val trialDaysLeft: Int = 0, val plan: ProPlan? = null)
 
 enum class ProFeature {
@@ -41,6 +43,7 @@ fun restoredPlan(purchases: List<OwnedProduct>): ProPlan? {
     return when {
         "yoga_pro_lifetime" in ids -> ProPlan.LIFETIME
         "yoga_pro_yearly" in ids -> ProPlan.YEARLY
+        "yoga_pro_monthly" in ids -> ProPlan.MONTHLY
         else -> null
     }
 }

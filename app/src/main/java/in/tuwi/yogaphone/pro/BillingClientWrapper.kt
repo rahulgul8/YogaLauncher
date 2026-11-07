@@ -54,17 +54,21 @@ class BillingClientWrapper(
 
     suspend fun products(): List<ProProduct> {
         if (!connect()) return emptyList()
-        val yearly = queryProduct("yoga_pro_yearly", BillingClient.ProductType.SUBS)?.let { details ->
-            // A base plan has no offerId. Do not select an introductory discount or trial offer.
-            val offer = details.subscriptionOfferDetails?.firstOrNull { it.offerId == null && it.pricingPhases.pricingPhaseList.lastOrNull()?.billingPeriod == "P1Y" }
-            val phase = offer?.pricingPhases?.pricingPhaseList?.lastOrNull()
-            if (offer == null || phase == null) null else ProProduct(ProPlan.YEARLY, details, phase.formattedPrice, offer.offerToken)
-        }
+        val yearly = subscription(ProPlan.YEARLY, "P1Y")
+        val monthly = subscription(ProPlan.MONTHLY, "P1M")
         val lifetime = queryProduct("yoga_pro_lifetime", BillingClient.ProductType.INAPP)?.let { details ->
             details.oneTimePurchaseOfferDetails?.let { ProProduct(ProPlan.LIFETIME, details, it.formattedPrice, null) }
         }
-        return listOfNotNull(yearly, lifetime)
+        return listOfNotNull(yearly, monthly, lifetime)
     }
+
+    /** A subscription's base plan (no offerId). Introductory or trial offers are never selected. */
+    private suspend fun subscription(plan: ProPlan, period: String): ProProduct? =
+        queryProduct(plan.productId, BillingClient.ProductType.SUBS)?.let { details ->
+            val offer = details.subscriptionOfferDetails?.firstOrNull { it.offerId == null && it.pricingPhases.pricingPhaseList.lastOrNull()?.billingPeriod == period }
+            val phase = offer?.pricingPhases?.pricingPhaseList?.lastOrNull()
+            if (offer == null || phase == null) null else ProProduct(plan, details, phase.formattedPrice, offer.offerToken)
+        }
 
     private suspend fun queryProduct(id: String, type: String): ProductDetails? = withTimeoutOrNull(15_000) {
         suspendCancellableCoroutine { continuation ->
