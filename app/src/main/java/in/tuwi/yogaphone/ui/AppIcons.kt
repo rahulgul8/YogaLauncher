@@ -34,13 +34,16 @@ import `in`.tuwi.yogaphone.R
 import `in`.tuwi.yogaphone.ui.theme.ScreenMargin
 
 /** The app-list icons Yoga can show. Each is an activity-alias in the manifest; exactly one is enabled. */
+/** Activity-alias names resolve against the code namespace, which differs from the app id (com.tuwi.yogaphone). */
+private const val CODE_PACKAGE = "in.tuwi.yogaphone"
+
 enum class AppIcon(val alias: String, val label: String, val note: String, val foreground: Int) {
     TEN_PAST_TEN(".IconTenPastTen", "Ten past ten", "A dial whose hands form a Y", R.drawable.ic_launcher_foreground),
     COLON(".IconColon", "The colon", "The clock's colon, a pause", R.drawable.ic_launcher_colon_foreground),
 }
 
 object AppIcons {
-    private fun component(context: Context, icon: AppIcon) = ComponentName(context.packageName, context.packageName + icon.alias)
+    private fun component(context: Context, icon: AppIcon) = ComponentName(context.packageName, CODE_PACKAGE + icon.alias)
 
     fun current(context: Context): AppIcon = AppIcon.entries.firstOrNull { icon ->
         when (context.packageManager.getComponentEnabledSetting(component(context, icon))) {

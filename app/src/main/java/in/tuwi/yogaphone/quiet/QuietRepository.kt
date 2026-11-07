@@ -218,7 +218,7 @@ class QuietRepository(private val context: Context, private val database: YogaDa
         const val ACTION_OPEN_DIGEST = "in.tuwi.yogaphone.OPEN_DIGEST"
         private const val DALTONIZER_ENABLED = "accessibility_display_daltonizer_enabled"
         private const val DALTONIZER = "accessibility_display_daltonizer"
-        const val ADB_GRANT = "adb shell pm grant in.tuwi.yogaphone android.permission.WRITE_SECURE_SETTINGS"
+        const val ADB_GRANT = "adb shell pm grant ${`in`.tuwi.yogaphone.BuildConfig.APPLICATION_ID} android.permission.WRITE_SECURE_SETTINGS"
     }
 }
 

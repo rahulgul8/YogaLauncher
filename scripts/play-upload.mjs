@@ -20,7 +20,7 @@ import {join} from 'node:path';
 import {createSign} from 'node:crypto';
 
 const root = new URL('..', import.meta.url);
-const packageName = 'in.tuwi.yogaphone';
+const packageName = 'com.tuwi.yogaphone';
 const api = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications';
 const uploadApi = 'https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications';
 

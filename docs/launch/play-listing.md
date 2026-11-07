@@ -71,7 +71,7 @@ Category: Personalization (alternative: Productivity). Tags: launcher, minimalis
 
 ### Accessibility API declaration — Piece 8
 
-Service: `in.tuwi.yogaphone.guard.YogaGuardService`, protected by `BIND_ACCESSIBILITY_SERVICE`, with `isAccessibilityTool=false`.
+Service: `com.tuwi.yogaphone/in.tuwi.yogaphone.guard.YogaGuardService` (app id `com.tuwi.yogaphone`; code namespace stays `in.tuwi.yogaphone`), protected by `BIND_ACCESSIBILITY_SERVICE`, with `isAccessibilityTool=false`.
 
 **Core-functionality justification:** Yoga is a launcher and digital-wellbeing app. The optional guard implements user-selected limits on short-form feeds while leaving regular video use available, and provides live feedback on the illustrative value of eligible app time. Usage Access alone cannot recognise a Shorts/Reels screen or navigate away from that screen. Accessibility window events identify the open app; bounded node inspection runs only for enabled surfaces in YouTube, Instagram, Chrome, Samsung Internet and Firefox. Deterministic user-configured rules issue Back and, after two unsuccessful attempts, Home. The service does not change settings, prevent disabling/uninstalling, or collect screen content.
 
