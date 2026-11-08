@@ -6,7 +6,7 @@
 
 ## 2. Introductions
 - [ ] 2.1 I1 Shorts block and I2 Reels block, with time-based evidence from Usage Access.
-- [ ] 2.2 I3 browser surfaces: a block followed by the same surface in a browser within 5 minutes, twice or more.
+- [ ] 2.2 I3 browser surfaces: the app surface is blocked, it was blocked 5 or more times in 7 days, and browsers were used 60 or more minutes in 7 days. Keeps a 7-day ring of block counts (aggregate only).
 - [ ] 2.3 I4 daily allowance at 80% of the average, rounded down to 15 minutes; I5 lower allowance via `suggestedAllowance`.
 - [ ] 2.4 I8 grey past limit.
 
