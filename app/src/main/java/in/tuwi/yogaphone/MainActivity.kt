@@ -142,6 +142,7 @@ private const val DIGEST = "digest"
 private const val INSIGHTS = "insights"
 private const val PRIVACY = "settings/privacy"
 private const val HELP = "settings/help"
+private const val SUGGESTIONS = "settings/suggestions"
 private const val ONBOARDING = "onboarding"
 private const val WIDGETS = "settings/widgets"
 private const val ADVANCED = "settings/advanced"
@@ -249,7 +250,9 @@ private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewM
     }
     YogaPhoneTheme(themeMode, if (ProGate.allows(ProFeature.LOOKS, pro)) uiState.preferences.palette else `in`.tuwi.yogaphone.data.Palette.OBSIDIAN_BRASS) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, usageRequest, digestRequest, greyReason, quietPrefs, quiet, insightsRequest)
+            `in`.tuwi.yogaphone.ui.IntroActionHost {
+                LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, usageRequest, digestRequest, greyReason, quietPrefs, quiet, insightsRequest)
+            }
         }
     }
 }
@@ -455,6 +458,7 @@ private fun LauncherNavigation(
                 statusContent = {
                     Column {
                         if (!isDefault) DefaultHomePrompt { askToBeHome() }
+                        `in`.tuwi.yogaphone.ui.HomeIntroduction()
                         val guardDay by yoga.guardPrefs.daily.collectAsState(initial = GuardDaily())
                         TrialEndingCard(if (guardDay.date == rememberGuardDate()) guardDay.blocks.values.sum() else 0,
                             if (usageState.preferences.timeValueEnabled) `in`.tuwi.yogaphone.usage.TimeValueCalculator().format(60, usageState.preferences.hourlyAmount(), usageState.preferences.currency) else null)
@@ -604,8 +608,9 @@ private fun LauncherNavigation(
                 }, onGuard = { navController.navigate(GUARD) }) { navController.popBackStack() }
             }
         }
+        composable(SUGGESTIONS) { `in`.tuwi.yogaphone.ui.SuggestionsScreen { navController.popBackStack() } }
         composable(HELP) {
-            HelpScreen(onReplaySetup = { navController.navigate(ONBOARDING) }) { navController.popBackStack() }
+            HelpScreen(onReplaySetup = { navController.navigate(ONBOARDING) }, onSuggestions = { navController.navigate(SUGGESTIONS) }) { navController.popBackStack() }
         }
         composable(ONBOARDING) {
             OnboardingScreen(

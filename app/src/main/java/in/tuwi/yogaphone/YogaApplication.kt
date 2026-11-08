@@ -13,6 +13,9 @@ import `in`.tuwi.yogaphone.focus.FocusRepository
 
 class YogaApplication : Application() {
     val proRepository by lazy { `in`.tuwi.yogaphone.pro.ProRepository(this) }
+    val introActions by lazy { `in`.tuwi.yogaphone.intro.IntroActions(this) }
+    val introStore by lazy { `in`.tuwi.yogaphone.intro.IntroStore(this) }
+    val introSignals by lazy { `in`.tuwi.yogaphone.intro.IntroSignalsReader(this) }
     val guardPrefs by lazy { `in`.tuwi.yogaphone.guard.GuardPrefs(this) }
     val usagePrefs by lazy { UsagePrefs(this) }
     val usageRepository by lazy { UsageRepository(this, database, usagePrefs) }

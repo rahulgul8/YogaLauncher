@@ -331,6 +331,11 @@ class YogaGuardService : AccessibilityService() {
         card = label().apply { text = "$name are off · Regular videos still work · Blocked ${(gate.daily.blocks[surface] ?: 0).let { if (it == 1) "once" else "$it times" }} today" }
         windows.addView(card, params(dp(140)))
         cardRemoval = scope.launch { delay(2_500); hideCard() }
+        card?.let { view -> addBlockIntroduction(scope, yoga, view, surface, overlayTokens.accent.toArgb(),
+            isCurrent = { card === view }, keepVisible = {
+                cardRemoval?.cancel()
+                cardRemoval = scope.launch { delay(8_000); hideCard() }
+            }) }
     }
     private fun hidePill() { flame?.cancel(); flame = null; pill?.let { runCatching { windows.removeView(it) } }; pill = null }
     private fun hideCard() { cardRemoval?.cancel(); cardRemoval = null; card?.let { runCatching { windows.removeView(it) } }; card = null }

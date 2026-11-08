@@ -102,14 +102,12 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
         item { YogaNote("Selected browser surfaces use the address bar in Chrome, Samsung Internet and Firefox. Recognition can change after app updates.") }
         item { YogaCard { YogaStat(blocks.values.sum().toString(), "Shorts and Reels blocked today") } }
     }
-    if (disclosure) YogaDialog(
-        title = "Allow Yoga guard accessibility access?", confirmText = "Agree and open settings",
+    if (disclosure) GuardDisclosureDialog(
         onConfirm = {
             disclosure = false
             runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
                 .onFailure { error = "Couldn't open accessibility settings. Open Android Settings → Accessibility → Yoga guard." }
         },
-        onDismissRequest = { disclosure = false }, dismissText = "Not now",
-        text = { Text("Yoga guard reads which app is open to show the optional live time-value indicator. For the surfaces you enable, it reads the screen structure of YouTube, Instagram and the selected browsers (Chrome, Samsung Internet and Firefox), only to recognise Shorts and Reels. It can go back or home to block those surfaces.\n\nScreen content is never stored, logged or sent anywhere. Only your settings, daily allowance time and block counts are saved on this phone. You can turn Yoga guard off any time in Android accessibility settings.", modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) },
+        onDismissRequest = { disclosure = false },
     )
 }

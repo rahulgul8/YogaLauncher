@@ -122,7 +122,7 @@ fun PrivacyScreen(prefs: InsightsPreferences, insights: InsightsRepository, back
 }
 
 @Composable
-fun HelpScreen(onReplaySetup: () -> Unit, onBack: () -> Unit) {
+fun HelpScreen(onReplaySetup: () -> Unit, onSuggestions: () -> Unit = {}, onBack: () -> Unit) {
     val context = LocalContext.current
     val faqs = listOf(
         "Why do some apps open without the pause?" to "Yoga can only pause apps you open from Yoga itself. Apps opened from a notification, another app or the recents screen skip it.",
@@ -131,6 +131,7 @@ fun HelpScreen(onReplaySetup: () -> Unit, onBack: () -> Unit) {
         "Reminders or timebox endings arrive late" to "Some phones pause background work to save battery. Letting Yoga run without battery restrictions makes reminders more reliable.",
     )
     YogaScreen("Help", onBack) {
+        item { YogaRow("Suggestions", summary = "Ideas based on your phone", onClick = onSuggestions) }
         item { YogaRow("Replay setup", summary = "Walk through the first-run steps again", onClick = onReplaySetup) }
         item { YogaRow("Battery optimisation", summary = "Open Android's battery optimisation list", onClick = {
             runCatching { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
