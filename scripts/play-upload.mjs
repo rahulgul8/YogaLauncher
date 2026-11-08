@@ -182,7 +182,8 @@ async function finish() {
 
 // The fenced block under the "## <version> (<code>)" heading, one <lang>…</lang> per language.
 function notesFor(versionCode) {
-  const doc = readFileSync(new URL('docs/play/release-notes.md', root), 'utf8');
+  // Windows checkouts may have CRLF line endings.
+  const doc = readFileSync(new URL('docs/play/release-notes.md', root), 'utf8').replace(/\r\n/g, '\n');
   const section = doc.split(/^## /m).find((s) => s.split('\n')[0].includes(`(${versionCode})`));
   const block = section?.match(/```\n([\s\S]*?)```/)?.[1];
   if (!block) {
