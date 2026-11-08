@@ -17,4 +17,4 @@
 ## 3. Tooling and docs
 - [x] 3.1 `scripts/play-upload.mjs --priority N` (0–5, default 2) on upload and promote.
 - [x] 3.2 ADR 0013, `docs/launch/release.md` (how to pick a priority), `TODO.md` piece A.
-- [x] 3.3 Tests: `UpdatePolicy` unit tests, `WhatsNew` version logic, and the controller against `FakeAppUpdateManager`.
+- [ ] 3.3 Tests (policy and What's-new done; controller with FakeAppUpdateManager still to write): `UpdatePolicy` unit tests, `WhatsNew` version logic, and the controller against `FakeAppUpdateManager`.
