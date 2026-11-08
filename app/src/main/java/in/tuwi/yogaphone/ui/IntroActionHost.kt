@@ -14,25 +14,23 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import `in`.tuwi.yogaphone.YogaApplication
 import `in`.tuwi.yogaphone.ui.theme.*
-import kotlinx.coroutines.launch
 
 @Composable
 fun IntroActionHost(content: @Composable () -> Unit) {
     val context = LocalContext.current
     val app = context.applicationContext as YogaApplication
     val actions = app.introActions
-    val scope = rememberCoroutineScope()
     val disclosure by actions.disclosure.collectAsState()
     val notice by actions.notice.collectAsState()
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) scope.launch { runCatching { actions.resume() }.onFailure { actions.failure() } }
+            if (event == Lifecycle.Event.ON_RESUME) actions.launch { resume() }
         }
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(Unit) { runCatching { actions.resume() }.onFailure { actions.failure() } }
+    LaunchedEffect(Unit) { actions.launch { resume() } }
     // Confirmations clear themselves; Undo stays reachable for a few seconds.
     LaunchedEffect(notice) { val shown = notice ?: return@LaunchedEffect; kotlinx.coroutines.delay(6_000); if (actions.notice.value === shown) actions.clearNotice() }
     Box(Modifier.fillMaxSize()) {
@@ -41,16 +39,18 @@ fun IntroActionHost(content: @Composable () -> Unit) {
             Snackbar(modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(ScreenMargin),
                 action = { YogaTextButton(message.actionLabel ?: "OK", {
                     actions.clearNotice()
-                    scope.launch { runCatching { message.action?.invoke() }.onFailure { actions.failure() } }
-                }) }, dismissAction = { YogaTextButton("Dismiss", actions::clearNotice) }) { Text(message.text) }
+                    message.action?.let { act -> actions.launch { act() } }
+                }) },
+                // A notice without its own action needs only "OK".
+                dismissAction = if (message.actionLabel == null) null else {
+                    { YogaTextButton("Dismiss", actions::clearNotice) }
+                }) { Text(message.text) }
         }
     }
     if (disclosure != null) GuardDisclosureDialog(onConfirm = {
-        scope.launch {
-            runCatching {
-                if (actions.agree()) runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-                    .onFailure { actions.settingsFailure() }
-            }.onFailure { actions.failure() }
+        actions.launch {
+            if (agree()) runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                .onFailure { settingsFailure() }
         }
     }, onDismissRequest = actions::closeDisclosure)
 }

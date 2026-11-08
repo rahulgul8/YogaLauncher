@@ -175,6 +175,7 @@ class MainActivity : ComponentActivity() {
         } else {
             @Suppress("DEPRECATION") registerReceiver(appChangeReceiver, AppChangeReceiver.getIntentFilter())
         }
+        readIntroPreview(intent)
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
         if (intent.action == QuietRepository.ACTION_OPEN_DIGEST) digestRequest++
         if (intent.action == InsightsRepository.ACTION_OPEN_INSIGHTS) insightsRequest++
@@ -184,11 +185,18 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        readIntroPreview(intent)
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
         if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) homeRequest++
         if (intent.action == FocusSystem.ACTION_OPEN_TIMEBOX) homeRequest++
         if (intent.action == QuietRepository.ACTION_OPEN_DIGEST) digestRequest++
         if (intent.action == InsightsRepository.ACTION_OPEN_INSIGHTS) insightsRequest++
+    }
+
+    /** Debug and profile only: `adb shell am start -n <pkg>/.MainActivity --es intro_preview "youtube=400"`. */
+    private fun readIntroPreview(intent: Intent) {
+        if (!BuildConfig.INTRO_PREVIEW) return
+        intent.getStringExtra("intro_preview")?.let { (application as YogaApplication).introSignals.setPreview(it) }
     }
 
     /** Widget configuration activities report back here (AppWidgetHost uses startActivityForResult). */

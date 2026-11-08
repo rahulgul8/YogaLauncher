@@ -16,6 +16,32 @@ class IntroSignalsReader(private val app: YogaApplication) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val refreshes = MutableStateFlow(0L)
     fun refresh() { refreshes.value += 1 }
+
+    /** Debug and profile builds: fake evidence for checking introductions on a phone without real history. */
+    @Volatile private var preview: Map<String, Int> = emptyMap()
+
+    /** `youtube=400,instagram=300,browser=90,days=7,avg=200`, or `off`. Keys left out keep real values. */
+    fun setPreview(spec: String) {
+        if (!BuildConfig.INTRO_PREVIEW) return
+        preview = if (spec == "off") emptyMap() else spec.split(',').mapNotNull { part ->
+            part.split('=').takeIf { it.size == 2 }?.let { (k, v) -> v.trim().toIntOrNull()?.let { k.trim() to it } }
+        }.toMap()
+        refresh()
+    }
+
+    private fun withPreview(real: IntroSignals): IntroSignals {
+        val p = preview
+        if (!BuildConfig.INTRO_PREVIEW || p.isEmpty()) return real
+        return real.copy(
+            youtubeMinutes7d = p["youtube"] ?: real.youtubeMinutes7d,
+            youtubeInstalled = real.youtubeInstalled || "youtube" in p,
+            instagramMinutes7d = p["instagram"] ?: real.instagramMinutes7d,
+            instagramInstalled = real.instagramInstalled || "instagram" in p,
+            browserMinutes7d = p["browser"] ?: real.browserMinutes7d,
+            recordedDays = p["days"] ?: real.recordedDays,
+            avgDistractingPerDay = p["avg"]?.toDouble() ?: real.avgDistractingPerDay,
+        )
+    }
     private val clock = flow { while (true) { emit(System.currentTimeMillis()); delay(30_000) } }
     private val changes = combine(clock, refreshes, app.guardPrefs.preferences,
         app.quietRepository.preferences, app.usageRepository.rules) { _, _, _, _, _ -> Unit }
@@ -58,7 +84,7 @@ class IntroSignalsReader(private val app: YogaApplication) {
         // A free app allowance can occupy the one active rule slot. Do not offer an ineffective TOTAL.
         if (!extra && rules.any { it.enabled && it.id != "total" }) allowed.remove(IntroId.DAILY_ALLOWANCE)
         if (prefs.onboardingVersion < 1) allowed.clear()
-        IntroSignals(
+        withPreview(IntroSignals(
             youtubeMinutes7d = minutes(setOf("com.google.android.youtube")),
             instagramMinutes7d = minutes(setOf("com.instagram.android")),
             browserMinutes7d = minutes(ShortsDetector.browserAddressIds.keys), recordedDays = weekDays.size,
@@ -73,6 +99,6 @@ class IntroSignalsReader(private val app: YogaApplication) {
             daysUnderSuggestedAllowance = if (suggestion == null) 0 else (1L..7L).count { (eligibleByDay[today.minusDays(it)] ?: Long.MAX_VALUE) <= suggestion },
             daysOverLimitThisWeek = if (allowance == null) 0 else weekDays.count { (eligibleByDay[it] ?: 0) > allowance },
             greyOverLimitOn = app.quietRepository.preferences.first().greyOverLimit, allowed = allowed,
-        )
+        ))
     }
 }

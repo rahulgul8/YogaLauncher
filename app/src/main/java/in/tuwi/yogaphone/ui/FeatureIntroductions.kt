@@ -20,7 +20,6 @@ import `in`.tuwi.yogaphone.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 @Composable
@@ -59,17 +58,15 @@ private fun rememberIntroduction(surface: IntroSurface): Intro? {
 fun UsageIntroduction() {
     val intro = rememberIntroduction(IntroSurface.USAGE) ?: return
     val app = LocalContext.current.applicationContext as YogaApplication
-    val scope = rememberCoroutineScope()
-    IntroCard(intro, onAction = { scope.launch { runCatching { app.introActions.request(intro) }.onFailure { app.introActions.failure() } } },
-        onDismiss = { scope.launch { app.introStore.dismiss(intro.id) } })
+    IntroCard(intro, onAction = { app.introActions.launch { request(intro) } },
+        onDismiss = { app.introActions.launch { app.introStore.dismiss(intro.id) } })
 }
 
 @Composable
 fun HomeIntroduction() {
     val intro = rememberIntroduction(IntroSurface.HOME) ?: return
     val app = LocalContext.current.applicationContext as YogaApplication
-    val scope = rememberCoroutineScope()
-    val act = { scope.launch { runCatching { app.introActions.request(intro) }.onFailure { app.introActions.failure() } }; Unit }
+    val act = { app.introActions.launch { request(intro) }; Unit }
     Column {
         Row(Modifier.fillMaxWidth().clickable(onClick = act).padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
@@ -78,6 +75,6 @@ fun HomeIntroduction() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
             YogaTextButton(intro.actionLabel, act)
         }
-        YogaTextButton("Not now", { scope.launch { app.introStore.dismiss(intro.id) } }, muted = true)
+        YogaTextButton("Not now", { app.introActions.launch { app.introStore.dismiss(intro.id) } }, muted = true)
     }
 }

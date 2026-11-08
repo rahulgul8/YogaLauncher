@@ -2,7 +2,12 @@ package `in`.tuwi.yogaphone.intro
 
 import `in`.tuwi.yogaphone.YogaApplication
 import `in`.tuwi.yogaphone.guard.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -15,6 +20,15 @@ class IntroActions(private val app: YogaApplication) {
     val disclosure = mutableDisclosure.asStateFlow()
     private val mutableNotice = MutableStateFlow<IntroNotice?>(null)
     val notice = mutableNotice.asStateFlow()
+    // Actions outlive the card that started them: a card leaves the screen as soon as its action lands.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** Runs [block] in the application scope; a real error shows the failure notice, cancellation never does. */
+    fun launch(block: suspend IntroActions.() -> Unit) {
+        scope.launch {
+            try { block() } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { failure() }
+        }
+    }
     fun closeDisclosure() { mutableDisclosure.value = null }
     fun clearNotice() { mutableNotice.value = null }
     fun failure() { mutableNotice.value = IntroNotice("Couldn't change that setting. Try again.") }

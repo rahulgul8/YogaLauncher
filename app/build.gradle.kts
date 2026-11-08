@@ -20,6 +20,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "GUARD", "false")
+        // Fake introduction evidence from an adb intent extra (IntroSignalsReader.setPreview). Never in release.
+        buildConfigField("boolean", "INTRO_PREVIEW", "false")
     }
 
     // Yoga guard (accessibility service). Debug and profile builds always have it. Set this false to leave it
@@ -42,6 +44,7 @@ android {
     buildTypes {
         debug {
             buildConfigField("boolean", "GUARD", "true")
+            buildConfigField("boolean", "INTRO_PREVIEW", "true")
         }
         release {
             isMinifyEnabled = true
@@ -60,6 +63,7 @@ android {
             matchingFallbacks += listOf("release")
             isDebuggable = false
             buildConfigField("boolean", "GUARD", "true")
+            buildConfigField("boolean", "INTRO_PREVIEW", "true")
         }
     }
     sourceSets {
