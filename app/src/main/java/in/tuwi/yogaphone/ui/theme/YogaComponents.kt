@@ -48,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -305,6 +306,59 @@ fun YogaCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() 
         content = content,
     )
 }
+
+/**
+ * A rounded panel that holds a short list of [YogaGroupRow]s, iOS-settings style but in Yoga's tones:
+ * raised surface, generous corners, hairlines inset past the icon.
+ */
+@Composable
+fun YogaGroup(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = ScreenMargin)
+            .clip(MaterialTheme.shapes.large)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow),
+        content = content,
+    )
+}
+
+/** A soft accent tile behind a line icon: the visual cue that starts every group row. */
+@Composable
+fun YogaIconTile(icon: ImageVector, modifier: Modifier = Modifier, tint: Color = MaterialTheme.colorScheme.primary) {
+    Box(
+        modifier.size(38.dp).background(tint.copy(alpha = 0.13f), MaterialTheme.shapes.small),
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp)) }
+}
+
+/** One row inside a [YogaGroup]: icon tile, title, a few words of summary, then a chevron or custom trailing content. */
+@Composable
+fun YogaGroupRow(
+    title: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    summary: String? = null,
+    divider: Boolean = true,
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = if (onClick != null) { { RowChevron() } } else null,
+) {
+    Column(modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            YogaIconTile(icon)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onBackground)
+                if (summary != null) Text(summary, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 1.dp))
+            }
+            if (trailing != null) { Spacer(Modifier.width(12.dp)); trailing() }
+        }
+        if (divider) HorizontalDivider(Modifier.padding(start = 68.dp), thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+    }
+}
+
 
 /** Small explanatory text under a group. */
 @Composable

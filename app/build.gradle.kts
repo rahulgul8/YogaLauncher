@@ -74,6 +74,9 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -123,6 +126,10 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     // Real org.json for JVM tests (the Android stub throws).
     testImplementation("org.json:json:20240303")
+    // Off-device screenshots of screens (Robolectric native graphics); see ui/ScreenshotTest.kt
+    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
