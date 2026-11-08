@@ -2,14 +2,14 @@
 //   node scripts/play-upload.mjs check
 //   node scripts/play-upload.mjs upload [--track internal] [--aab <path>] [--status completed|draft]
 //   node scripts/play-upload.mjs promote --version <code> --track beta [--status completed|draft]
-//   node scripts/play-upload.mjs listing
+//   node scripts/play-upload.mjs listing [--language en-US]
 // Each change command also takes --dry-run, --no-review and --no-notes.
-// `check` lists every track's releases. `upload` uploads the bundle, points the
+// `check` lists every track's releases and each store listing's text and graphics. `upload` uploads the bundle, points the
 // track at it (replacing the track's current releases), adds the release notes
 // for its version code from docs/play/release-notes.md, and commits. `promote`
 // does the same for a version code that is already uploaded. `listing` pushes
-// docs/play/listing-text.json to every listed language and replaces the en-IN
-// phone screenshots with docs/play/screenshots/*.png in name order. With
+// docs/play/listing-text.json and docs/play/graphics (icon, feature graphic,
+// phone screenshots) to every store listing. With
 // --dry-run the edit is validated and then discarded, so nothing changes.
 // The key is read from PLAY_SERVICE_ACCOUNT_JSON, or
 // ~/.secrets/play-service-account.json. The production track also needs
@@ -44,6 +44,7 @@ let committed = false;
 try {
   if (command === 'check') {
     await printTracks();
+    await printListings();
   } else {
     if (command === 'upload') await upload();
     if (command === 'promote') await setTrack(Number(flags.version));
@@ -97,29 +98,52 @@ async function setTrack(versionCode) {
     + `notes in ${releaseNotes.map((n) => n.language).join(', ') || 'no language'}`);
 }
 
+// Each store listing's text and how many of each graphic it has.
+async function printListings() {
+  const {listings = []} = await call('GET', `${editUrl}/listings`);
+  if (!listings.length) console.log('  listings: none');
+  for (const l of listings) {
+    const counts = [];
+    for (const type of ['icon', 'featureGraphic', 'phoneScreenshots']) {
+      const {images = []} = await call('GET', `${editUrl}/listings/${l.language}/${type}`);
+      counts.push(`${type} ${images.length}`);
+    }
+    console.log(`  listing ${l.language}: title ${l.title?.length ?? 0}/30, short ${l.shortDescription?.length ?? 0}/80, `
+      + `full ${l.fullDescription?.length ?? 0}/4000; ${counts.join(', ')}`);
+  }
+}
+
+// Text from docs/play/listing-text.json goes to every listing (or --language, created if
+// missing). Graphics from docs/play/graphics: icon.png (512x512), feature-graphic.png
+// (1024x500) and screenshots/*.png (2-8 phone screenshots, uploaded in name order).
 async function pushListing() {
   const text = JSON.parse(readFileSync(new URL('docs/play/listing-text.json', root), 'utf8'));
   if (text.shortDescription.length > 80 || text.fullDescription.length > 4000 || text.title.length > 30) {
     throw new Error('listing-text.json is over the Play limits (title 30, short 80, full 4000).');
   }
   const {listings = []} = await call('GET', `${editUrl}/listings`);
-  for (const {language} of listings) {
-    await call('PUT', `${editUrl}/listings/${language}`, JSON.stringify({language, ...text}), 'application/json');
-    console.log(`Listing ${language}: title, short and full description updated`);
-  }
-  const dir = new URL('docs/play/screenshots/', root);
-  const shots = readdirSync(dir).filter((f) => f.endsWith('.png')).sort();
+  const languages = flags.language ? [flags.language] : listings.map((l) => l.language);
+  if (!languages.length) throw new Error('No store listings yet; pass --language en-US.');
+  const dir = new URL('docs/play/graphics/', root);
+  const shotsDir = new URL('screenshots/', dir);
+  const shots = readdirSync(shotsDir).filter((f) => f.endsWith('.png')).sort();
   if (shots.length < 2 || shots.length > 8) throw new Error(`Play takes 2-8 phone screenshots, found ${shots.length}.`);
-  await call('DELETE', `${editUrl}/listings/en-IN/phoneScreenshots`);
-  for (const shot of shots) {
-    await call(
-      'POST',
-      `${uploadApi}/${packageName}/edits/${edit.id}/listings/en-IN/phoneScreenshots?uploadType=media`,
-      readFileSync(new URL(shot, dir)),
-      'image/png',
-    );
+  const upload = (language, type, file) => call(
+    'POST',
+    `${uploadApi}/${packageName}/edits/${edit.id}/listings/${language}/${type}?uploadType=media`,
+    readFileSync(file),
+    'image/png',
+  );
+  for (const language of languages) {
+    await call('PUT', `${editUrl}/listings/${language}`, JSON.stringify({language, ...text}), 'application/json');
+    for (const [type, name] of [['icon', 'icon.png'], ['featureGraphic', 'feature-graphic.png']]) {
+      await call('DELETE', `${editUrl}/listings/${language}/${type}`);
+      await upload(language, type, new URL(name, dir));
+    }
+    await call('DELETE', `${editUrl}/listings/${language}/phoneScreenshots`);
+    for (const shot of shots) await upload(language, 'phoneScreenshots', new URL(shot, shotsDir));
+    console.log(`Listing ${language}: text, icon, feature graphic and ${shots.length} screenshots (${shots.join(', ')})`);
   }
-  console.log(`Screenshots en-IN: ${shots.join(', ')}`);
 }
 
 // Play refuses to send for review while the console holds other unsent
@@ -141,7 +165,7 @@ async function finish() {
   try {
     await call('POST', `${editUrl}:commit${query}`);
   } catch (e) {
-    if (e.message.includes('changesNotSentForReview')) {
+    if (e.message.includes('changesNotSentForReview') && !flags['no-review']) {
       throw new Error('Play Console has unsent changes, so this edit cannot be sent for review. '
         + 'Rerun with --no-review, then press "Send for review" in Publishing overview.');
     }

@@ -15,8 +15,8 @@ android {
         applicationId = "com.tuwi.yogaphone"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "GUARD", "false")
@@ -76,6 +76,8 @@ android {
     }
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        // ScreenshotTest needs the Compose test activity, which only the debug build carries (ui-test-manifest).
+        unitTests.all { test -> if (test.name.contains("Release")) test.exclude("**/ScreenshotTest*") }
     }
     buildFeatures {
         compose = true

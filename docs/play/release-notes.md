@@ -2,6 +2,15 @@
 
 One section per version code. Each language goes in its own tag; 500 characters at most.
 
+## 1.2 (3)
+
+```
+<en-US>
+A calmer Settings screen: grouped sections, clearer summaries and a Yoga Pro card at the top.
+Fixes and polish.
+</en-US>
+```
+
 ## 1.1 (2)
 
 ```

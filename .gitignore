@@ -16,3 +16,6 @@ local.properties
 .idea/
 reference/
 .firebase/
+
+# Play review videos: served from yogaphone.tuwi.in/review, kept out of the public repo
+web/site/review/*.mp4
