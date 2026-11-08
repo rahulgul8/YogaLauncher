@@ -48,7 +48,7 @@ Written 8 November 2026. Tracked in [`TODO.md`](../../TODO.md). Each build piece
 **After Yoga guard is on**, the app can measure Shorts precisely:
 
 - Turning on one surface introduces its sibling. Shorts on → "Also turn off Reels?"
-- Blocks moving to the browser trigger the browser surfaces. If Chrome opens youtube.com/shorts within 5 minutes of a block, show "Shorts blocked, then opened in Chrome 3 times" with the button **Block in browsers too**.
+- Heavy blocking plus browser use triggers the browser surfaces: at least 5 blocks in 7 days and at least 1 h of browser use shows "Shorts blocked 14 times this week" with the button **Block in browsers too**. Yoga keeps only daily block counts for 7 days, never what was opened.
 - **Count or time, whichever lands harder.** Show time when it's at least 1 hour a week, otherwise the count when it's at least 30, otherwise nothing. Example: "**212 Shorts this week**" versus "**3 h 05 m of Shorts this week**".
   - Counting Shorts needs a guard "measure" state: for a surface that is not blocked, record minutes and the number of videos (each scroll to a new reel) without blocking.
   - That changes what the accessibility service does. So it needs updated in-app disclosure text, and possibly an updated Play declaration and video.
@@ -62,7 +62,7 @@ Impact is estimated from the minutes it would save, and sets the order when more
 |---|---|---|---|---|---|
 | I1 | Shorts block | YouTube ≥ 3 h/week, guard off for YouTube | YouTube time this week | Disclosure → Android settings → confirm | Free |
 | I2 | Reels block | Instagram ≥ 3 h/week, guard off for Instagram | Instagram time this week | Same | Free |
-| I3 | Browser Shorts/Reels | Opened in a browser within 5 min of a block, twice or more | Count of browser escapes | Turn on browser surfaces | Free |
+| I3 | Browser Shorts/Reels | App surface blocked ≥ 5 times in 7 days and browsers used ≥ 1 h in 7 days | Block count this week | Turn on browser surfaces | Free |
 | I4 | Daily allowance | No allowance, and ≥ 2 h/day of distracting apps over 3 days | Average per day | Allowance = 80% of their average, rounded to 15 min | Free (one) |
 | I5 | Lower allowance | Already computed by `suggestedAllowance` | "5 of 7 days under 75 min" | Set the new value | Free |
 | I6 | Reminders | Over the allowance on 2 or more days this week, reminders off | Days over | Turn on (+ notification permission) | Pro |

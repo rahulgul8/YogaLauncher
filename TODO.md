@@ -54,7 +54,7 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [ ] Settings → Help → Suggestions: a list of retired introductions.
 - [ ] **I1 Shorts block:** YouTube ≥ 3 h a week → "6 h 40 m on YouTube this week" → **Turn off Shorts** → disclosure → Android settings → confirmation with Undo.
 - [ ] **I2 Reels block:** the same for Instagram.
-- [ ] **I3 Browser surfaces:** after a block, the same content is opened in a browser.
+- [ ] **I3 Browser surfaces:** at least 5 blocks a week and at least 1 h of browser use.
 - [ ] **I4 Daily allowance**, prefilled at 80% of their average.
 - [ ] **I5 Lower allowance**, using `suggestedAllowance`.
 - [ ] **I8 Grey past limit.**
