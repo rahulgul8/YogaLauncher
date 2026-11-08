@@ -20,11 +20,12 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 
 - [~] **First Play review of 1.2 (3):** open testing in 178 countries, store listing, and all 12 declarations, Accessibility included. Sent 8 Nov 2026. *Waiting on Google.*
 - [ ] **Trader status declaration** (founder, Play Console). Due 1 Feb 2027.
+- [ ] **When 1.3 ships:** redeploy yogaphone.tuwi.in, because the privacy policy now says guard block counts are kept for 7 days (`firebase deploy --only hosting`).
 - [ ] **After approval:** replace "Coming soon to Google Play" and the email CTA on yogaphone.tuwi.in with the store link.
 - [ ] **Production release.** Only when the founder asks for production.
 - [ ] **Tink Tonk: Music Puzzle** update is approved and waiting to be published (another app, same account).
 
-## A. Updates: seamless and automatic (ship in 1.3) [~] branch `in-app-updates`
+## A. Updates: seamless and automatic (ship in 1.3) [~] merged in 0a5421e; phone check left
 
 - [x] OpenSpec change `add-in-app-updates`, ADR 0013.
 - [x] Add `app-update-ktx`. Check on home resume, at most once a day.
@@ -34,15 +35,15 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [x] **What's new:** home line, then a one-screen sheet after a version change.
 - [ ] Tests with `FakeAppUpdateManager` (policy and What's-new tests done; controller test not written). Check the real flow through internal app sharing on the phone.
 
-## B. Onboarding images (Codex imagegen) [~] branch `onboarding-images`
+## B. Onboarding images (Codex imagegen) [~] merged in edd1436; Reels still to do
 
-- [ ] Brief Codex with D1, the brand tokens (docs/design/brand.md) and the image list.
-- [ ] Onboarding images (7): welcome, awareness, shorts, reels, allowance, nudges, done.
-- [ ] Spot images (3): shield, hourglass, moon.
-- [ ] Transparent WebP, about 1080 px, each under 80 KB, in `res/drawable-nodpi/`.
-- [ ] Tint test in Obsidian, Stone and Midnight Sage, light and dark.
+- [x] Brief Codex with D1, the brand tokens (docs/design/brand.md) and the image list (brief 13).
+- [~] Onboarding images: welcome, awareness, shorts, allowance, nudges and done are done. **Reels:** the draft reads as a speech bubble, so regenerate it.
+- [x] Spot images (3): shield, hourglass, moon.
+- [x] Transparent WebP in `res/drawable-nodpi/`: heroes 1080 px at 15–37 KB, spots 384 px at 2–4 KB (`scripts/onboarding-images.py`).
+- [x] Tint test in Obsidian, Stone and Midnight Sage, light and dark (`design/onboarding/contact-sheet.png`).
 
-## C. Feature introductions engine [~] branch `feature-intros`
+## C. Feature introductions engine [~] merged in 59da920; phone check left
 
 - [x] OpenSpec change `add-feature-introductions`, ADR 0012.
 - [x] `IntroEngine` (pure, unit-tested) with these rules:
