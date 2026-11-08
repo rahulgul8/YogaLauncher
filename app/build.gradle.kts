@@ -114,6 +114,8 @@ dependencies {
 
     // Room
     implementation(libs.play.billing)
+    // In-app updates (Play Core); talks only to the Play Store app on the phone.
+    implementation(libs.play.app.update.ktx)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
