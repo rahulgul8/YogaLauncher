@@ -129,6 +129,10 @@ class UsageRepository(private val context: Context, private val database: YogaDa
         else dao.saveRule(UsageRuleEntity(id, if (packageName == null) "TOTAL" else "APP", packageName,
             minutes.coerceIn(15, 480) / 15 * 15, prefs.preferences.first().warnAtPercent))
     }
+    /** Restore the complete saved rule for introduction Undo, including disabled state and warning threshold. */
+    suspend fun restoreTotalRule(previous: UsageRuleEntity?) {
+        if (previous == null) dao.removeRule("total") else dao.saveRule(previous)
+    }
     suspend fun saveCategoryRule(categoryId: String, minutes: Int?) {
         val id = "category:$categoryId"
         if (minutes == null) dao.removeRule(id)

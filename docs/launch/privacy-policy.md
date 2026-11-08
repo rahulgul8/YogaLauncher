@@ -31,7 +31,7 @@ When enabled, it identifies which app is open to show your optional live, illust
 
 The service can go Back, or Home if Back fails twice, when a selected surface is blocked or its daily allowance runs out. Regular videos remain available. The live pill uses an accessibility overlay; Yoga does not request draw-over-apps permission. It hides on the lock screen, when the screen is off, during calls, and in essential, camera and Finance/payment apps. Its value is illustrative, not money spent or lost.
 
-Only guard settings, daily per-surface block counts and allowance time are retained locally. These preferences are included in a manual backup export. You can switch off either feature in **Settings → Shorts and live time value**, disable Yoga guard in Android accessibility settings at any time, or remove its local data with **Reset everything**.
+Only guard settings, per-surface block counts for the last 7 days and allowance time are retained locally. These preferences are included in a manual backup export. You can switch off either feature in **Settings → Shorts and live time value**, disable Yoga guard in Android accessibility settings at any time, or remove its local data with **Reset everything**.
 
 ## What Yoga stores, and for how long
 

@@ -3,6 +3,7 @@ package `in`.tuwi.yogaphone.guard
 import android.content.Context
 import androidx.datastore.preferences.core.*
 import `in`.tuwi.yogaphone.data.dataStore
+import java.time.LocalDate
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -12,6 +13,7 @@ class GuardPrefs(private val context: Context) {
     private val style = stringPreferencesKey("guard_style")
     private val start = stringPreferencesKey("guard_start")
     private val y = intPreferencesKey("guard_y")
+    private val history = stringSetPreferencesKey("guard_blocks_7d")
     private val day = stringPreferencesKey("guard_day")
     private fun enabled(s: GuardSurface) = booleanPreferencesKey("guard_${s.name}_enabled")
     private fun allowance(s: GuardSurface) = intPreferencesKey("guard_${s.name}_allowance")
@@ -39,11 +41,32 @@ class GuardPrefs(private val context: Context) {
             }
         }
     }
+    /** Date-keyed ring; seven daily aggregate rows, never screen content. */
+    val weeklyBlocks = context.dataStore.data.map { p ->
+        p[history].orEmpty().mapNotNull { row ->
+            val parts = row.split('|')
+            val date = runCatching { LocalDate.parse(parts[0]) }.getOrNull() ?: return@mapNotNull null
+            date to GuardSurface.entries.associateWith { parts.getOrNull(it.ordinal + 1)?.toIntOrNull() ?: 0 }
+        }.toMap()
+    }
     suspend fun saveDaily(value: GuardDaily) {
         context.dataStore.edit { p ->
+            p[history] = guardBlockHistory(p[history].orEmpty(),
+                GuardDaily(p[day].orEmpty(), GuardSurface.entries.associateWith { p[blocks(it)] ?: 0 }), value, LocalDate.now())
             p[day] = value.date
             GuardSurface.entries.forEach { s -> p[blocks(s)] = value.blocks[s] ?: 0; p[used(s)] = value.usedMillis[s] ?: 0L }
         }
     }
-    suspend fun clearHistory() = saveDaily(GuardDaily())
+    suspend fun pruneBlockHistory(today: LocalDate = LocalDate.now()) {
+        context.dataStore.edit { p ->
+            p[history] = guardBlockHistory(p[history].orEmpty(),
+                GuardDaily(p[day].orEmpty(), GuardSurface.entries.associateWith { p[blocks(it)] ?: 0 }), null, today)
+        }
+    }
+    suspend fun clearHistory() {
+        context.dataStore.edit { p ->
+            p.remove(history); p[day] = ""
+            GuardSurface.entries.forEach { p[blocks(it)] = 0; p[used(it)] = 0L }
+        }
+    }
 }

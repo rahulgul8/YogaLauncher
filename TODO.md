@@ -45,19 +45,20 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 ## C. Feature introductions engine [~] branch `feature-intros`
 
 - [x] OpenSpec change `add-feature-introductions`, ADR 0012.
-- [ ] `IntroEngine` (pure, unit-tested) with these rules:
+- [x] `IntroEngine` (pure, unit-tested) with these rules:
   - one per surface and one new a day;
   - none for 24 h after onboarding;
   - "Not now" snoozes for 7 days, and a second "Not now" retires it.
-- [ ] `IntroState` in DataStore, `IntroSignals` from the existing repositories, and the shared `IntroCard` kit component.
-- [ ] Surfaces: the Usage screen card, a home line, and the sibling line on the block card.
-- [ ] Settings → Help → Suggestions: a list of retired introductions.
-- [ ] **I1 Shorts block:** YouTube ≥ 3 h a week → "6 h 40 m on YouTube this week" → **Turn off Shorts** → disclosure → Android settings → confirmation with Undo.
-- [ ] **I2 Reels block:** the same for Instagram.
-- [ ] **I3 Browser surfaces:** at least 5 blocks a week and at least 1 h of browser use.
-- [ ] **I4 Daily allowance**, prefilled at 80% of their average.
-- [ ] **I5 Lower allowance**, using `suggestedAllowance`.
-- [ ] **I8 Grey past limit.**
+- [x] `IntroState` in DataStore, `IntroSignals` from the existing repositories, and the shared `IntroCard` kit component.
+- [x] Surfaces: the Usage screen card, a home line, and the sibling line on the block card.
+- [x] Settings → Help → Suggestions: a list of retired introductions.
+- [x] **I1 Shorts block:** YouTube ≥ 3 h a week → "6 h 40 m on YouTube this week" → **Turn off Shorts** → disclosure → Android settings → confirmation with Undo.
+- [x] **I2 Reels block:** the same for Instagram.
+- [x] **I3 Browser surfaces:** at least 5 blocks a week and at least 1 h of browser use.
+- [x] **I4 Daily allowance**, prefilled at 80% of their average.
+- [x] **I5 Lower allowance**, using `suggestedAllowance`.
+- [x] **I8 Grey past limit.**
+- [ ] Check on the phone: the Usage card, the home line, the block-card line, and the Shorts flow through Android settings and back.
 
 ## D. Home usage display styles
 

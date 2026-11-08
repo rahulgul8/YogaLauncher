@@ -35,6 +35,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
     } } ?: 0
 
     YogaScreen("Usage", onBack) {
+        item(key = "feature-introduction") { UsageIntroduction() }
         item {
             Column(Modifier.fillMaxWidth().padding(horizontal = ScreenMargin, vertical = 12.dp)) {
                 YogaEyebrow(if (weekly) "Last 7 days" else "Today")

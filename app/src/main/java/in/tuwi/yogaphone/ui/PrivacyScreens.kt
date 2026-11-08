@@ -127,7 +127,7 @@ fun PrivacyScreen(prefs: InsightsPreferences, insights: InsightsRepository, back
 }
 
 @Composable
-fun HelpScreen(onReplaySetup: () -> Unit, onBack: () -> Unit) {
+fun HelpScreen(onReplaySetup: () -> Unit, onSuggestions: () -> Unit = {}, onBack: () -> Unit) {
     val context = LocalContext.current
     val updateController = (context.applicationContext as YogaApplication).updateController
     val updateNote by updateController.checkNote.collectAsState()
@@ -138,6 +138,7 @@ fun HelpScreen(onReplaySetup: () -> Unit, onBack: () -> Unit) {
         "Reminders or timebox endings arrive late" to "Some phones pause background work to save battery. Letting Yoga run without battery restrictions makes reminders more reliable.",
     )
     YogaScreen("Help", onBack) {
+        item { YogaRow("Suggestions", summary = "Ideas based on your phone", onClick = onSuggestions) }
         item { YogaRow("Replay setup", summary = "Walk through the first-run steps again", onClick = onReplaySetup) }
         item {
             YogaRow(

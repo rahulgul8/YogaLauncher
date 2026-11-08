@@ -111,7 +111,12 @@ class InsightsRepository(private val context: Context, private val database: Yog
     suspend fun setInsightsEnabled(value: Boolean) = context.dataStore.edit { it[Keys.enabled] = value }
     suspend fun setUsageTracking(value: Boolean) = context.dataStore.edit { it[Keys.tracking] = value }
     suspend fun setRetention(days: Int) { context.dataStore.edit { it[Keys.retention] = days }; prune() }
-    suspend fun setOnboardingVersion(value: Int) = context.dataStore.edit { it[Keys.onboarding] = value }
+    suspend fun setOnboardingVersion(value: Int) = context.dataStore.edit {
+        if (value >= 1 && (it[Keys.onboarding] ?: 0) == 0) {
+            it[`in`.tuwi.yogaphone.intro.IntroStore.onboardingFinished] = System.currentTimeMillis()
+        }
+        it[Keys.onboarding] = value
+    }
     suspend fun markTip(id: String) = context.dataStore.edit { it[Keys.tips] = it[Keys.tips].orEmpty() + id }
     suspend fun dismissSuggestion(key: String) = context.dataStore.edit { it[Keys.dismissed] = key }
 
