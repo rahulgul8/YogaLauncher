@@ -1,7 +1,7 @@
 // Publishes to Google Play with the Tuwi service account:
 //   node scripts/play-upload.mjs check
-//   node scripts/play-upload.mjs upload [--track internal] [--aab <path>] [--status completed|draft]
-//   node scripts/play-upload.mjs promote --version <code> --track beta [--status completed|draft]
+//   node scripts/play-upload.mjs upload [--track internal] [--aab <path>] [--status completed|draft] [--priority 0-5]
+//   node scripts/play-upload.mjs promote --version <code> --track beta [--status completed|draft] [--priority 0-5]
 //   node scripts/play-upload.mjs listing [--language en-US]
 // Each change command also takes --dry-run, --no-review and --no-notes.
 // `check` lists every track's releases and each store listing's text and graphics. `upload` uploads the bundle, points the
@@ -29,8 +29,12 @@ const flags = parseFlags(rest);
 if (!['check', 'upload', 'promote', 'listing'].includes(command)) {
   console.error('usage: node scripts/play-upload.mjs check | upload [--track internal] [--aab <path>] '
     + '| promote --version <code> --track <track> | listing  [--status completed|draft] '
-    + '[--dry-run] [--no-review] [--no-notes]');
+    + '[--priority 0-5] [--dry-run] [--no-review] [--no-notes]');
   process.exit(2);
+}
+const priority = Number(flags.priority ?? 2);
+if (['upload', 'promote'].includes(command) && (!Number.isInteger(priority) || priority < 0 || priority > 5)) {
+  throw new Error('--priority must be an integer from 0 to 5.');
 }
 
 const keyPath = process.env.PLAY_SERVICE_ACCOUNT_JSON
@@ -92,9 +96,9 @@ async function setTrack(versionCode) {
   const releaseNotes = flags['no-notes'] ? [] : notesFor(versionCode);
   await call('PUT', `${editUrl}/tracks/${track}`, JSON.stringify({
     track,
-    releases: [{versionCodes: [String(versionCode)], status, releaseNotes}],
+    releases: [{versionCodes: [String(versionCode)], status, releaseNotes, inAppUpdatePriority: priority}],
   }), 'application/json');
-  console.log(`Track ${track}: version code ${versionCode}, ${status}, `
+  console.log(`Track ${track}: version code ${versionCode}, ${status}, update priority ${priority}, `
     + `notes in ${releaseNotes.map((n) => n.language).join(', ') || 'no language'}`);
 }
 

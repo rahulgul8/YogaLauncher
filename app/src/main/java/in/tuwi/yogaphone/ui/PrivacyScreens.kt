@@ -8,6 +8,11 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import `in`.tuwi.yogaphone.BuildConfig
+import `in`.tuwi.yogaphone.MainActivity
+import `in`.tuwi.yogaphone.YogaApplication
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -124,6 +129,8 @@ fun PrivacyScreen(prefs: InsightsPreferences, insights: InsightsRepository, back
 @Composable
 fun HelpScreen(onReplaySetup: () -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
+    val updateController = (context.applicationContext as YogaApplication).updateController
+    val updateNote by updateController.checkNote.collectAsState()
     val faqs = listOf(
         "Why do some apps open without the pause?" to "Yoga can only pause apps you open from Yoga itself. Apps opened from a notification, another app or the recents screen skip it.",
         "Why are my numbers different from Digital Wellbeing?" to "Yoga counts the time apps are in the foreground, from Android's usage events, and leaves out essential apps. Digital Wellbeing may count screen time differently or include apps Yoga excludes.",
@@ -132,6 +139,19 @@ fun HelpScreen(onReplaySetup: () -> Unit, onBack: () -> Unit) {
     )
     YogaScreen("Help", onBack) {
         item { YogaRow("Replay setup", summary = "Walk through the first-run steps again", onClick = onReplaySetup) }
+        item {
+            YogaRow(
+                "Check for updates",
+                summary = "Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})" +
+                    (updateNote?.let { "\n${it.text}" } ?: ""),
+                trailing = {
+                    val activity = context as? MainActivity
+                    if (activity != null && updateNote == `in`.tuwi.yogaphone.update.UpdateCheckNote.UPDATE_READY)
+                        YogaTextButton("Update", { updateController.startFlexible(activity) })
+                    else if (activity != null) YogaTextButton("Check now", { updateController.forceCheck(activity) })
+                },
+            )
+        }
         item { YogaRow("Battery optimisation", summary = "Open Android's battery optimisation list", onClick = {
             runCatching { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
         }) }

@@ -31,6 +31,12 @@ Play App Signing holds the app signing key; we hold only the upload key.
 Bump `versionCode` for every upload. The first bundle is uploaded by hand in Play Console (the API can't create an app);
 later ones go through `scripts/play-upload.mjs` with the TUWI service account, after the founder's go-ahead.
 
+## Choosing an update priority
+
+Pass `--priority N` to `play-upload.mjs upload` or `promote`. Use priority 2 for normal releases. Use 4 for an
+important update that should open Play's flexible update dialog. Reserve 5 for rare critical fixes because it opens a
+full-screen immediate update. The script defaults to 2 and accepts values from 0 to 5.
+
 ## Database
 
 Schema JSON is exported to `app/schemas`. Version 8 is the first released schema. Any entity change: bump the version,
