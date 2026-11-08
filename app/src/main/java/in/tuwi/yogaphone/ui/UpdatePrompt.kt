@@ -130,8 +130,9 @@ private fun HomePromptLine(
 private fun WhatsNewSheet(versionName: String, lines: List<String>, onDismiss: () -> Unit) {
     YogaSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = ScreenMargin).padding(bottom = 28.dp)) {
-            YogaEyebrow("What's new", Modifier.padding(top = 8.dp, bottom = 10.dp))
-            Text(versionName, style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
+            // The display serif draws "1" like "I", so the version sits in the sans eyebrow.
+            YogaEyebrow("Version $versionName", Modifier.padding(top = 8.dp, bottom = 10.dp))
+            Text("What's new", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
             Spacer(Modifier.size(20.dp))
             lines.take(3).forEach { line ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {

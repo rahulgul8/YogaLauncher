@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -469,6 +470,8 @@ fun YogaSheet(onDismissRequest: () -> Unit, modifier: Modifier = Modifier, conte
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         modifier = modifier,
+        // Open fully: a half-open sheet hides the primary button of taller sheets below the screen.
+        sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onBackground,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -476,8 +479,9 @@ fun YogaSheet(onDismissRequest: () -> Unit, modifier: Modifier = Modifier, conte
             Box(Modifier.padding(vertical = 12.dp).size(width = 36.dp, height = 2.dp)
                 .background(MaterialTheme.colorScheme.outlineVariant, CircleShape))
         },
-        content = content,
-    )
+    ) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding()) { content() }
+    }
 }
 
 /** Branded confirmation dialog with one clear primary action. */
