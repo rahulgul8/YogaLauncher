@@ -20,13 +20,17 @@ class IntroSignalsReader(private val app: YogaApplication) {
     /** Debug and profile builds: fake evidence for checking introductions on a phone without real history. */
     @Volatile private var preview: Map<String, Int> = emptyMap()
 
-    /** `youtube=400,instagram=300,browser=90,days=7,avg=200`, or `off`. Keys left out keep real values. */
+    /**
+     * `youtube=400,instagram=300,browser=90,days=7,avg=200`, or `off`. Keys left out keep real values.
+     * `reset=1` also forgets every introduction shown, snoozed or acted on, so one can be checked again today.
+     */
     fun setPreview(spec: String) {
         if (!BuildConfig.INTRO_PREVIEW) return
-        preview = if (spec == "off") emptyMap() else spec.split(',').mapNotNull { part ->
+        val parsed = if (spec == "off") emptyMap() else spec.split(',').mapNotNull { part ->
             part.split('=').takeIf { it.size == 2 }?.let { (k, v) -> v.trim().toIntOrNull()?.let { k.trim() to it } }
         }.toMap()
-        refresh()
+        preview = parsed - "reset"
+        if (parsed["reset"] == 1) scope.launch { app.introStore.clearForPreview(); refresh() } else refresh()
     }
 
     private fun withPreview(real: IntroSignals): IntroSignals {

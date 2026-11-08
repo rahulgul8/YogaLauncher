@@ -53,6 +53,12 @@ class IntroStore(private val context: Context) {
         context.dataStore.edit { p -> val state = read(p)
             write(p, state.copy(records = state.records + (id to (state.records[id] ?: IntroRecord()).copy(acted = true)))) }
     }
+    /** Debug and profile builds: forget every introduction (not the onboarding time) for phone checks. */
+    suspend fun clearForPreview() {
+        context.dataStore.edit { p ->
+            p.asMap().keys.filter { it.name.startsWith("intro_") && it != onboardingFinished }.forEach { p.remove(it) }
+        }
+    }
     suspend fun resetForSuggestion(id: IntroId) {
         context.dataStore.edit { p -> val state = read(p)
             write(p, state.copy(records = state.records + (id to (state.records[id] ?: IntroRecord()).copy(
