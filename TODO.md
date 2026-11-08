@@ -66,7 +66,7 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [x] Fixed (4a327cd): the action showed a false "Couldn't change that setting", because the card's coroutine was cancelled as the card left the screen. A notice without an action now shows only "OK".
 - [x] Re-checked on the phone after 4a327cd (`--es intro_preview "reset=1,instagram=300"`): the Reels introduction shows on home and on Usage. "Turn off Reels" shows "Reels are off. Posts and messages still work." with Undo and no failure notice, and Undo turns Instagram Reels back off. The test allowance was removed, and the preview and introduction history were reset on the moto g31. Also fixed: the allowance evidence now says "outside essential apps" when the allowance counts all apps except essential (868126c).
 - [ ] Check the Shorts flow through Android settings and back. This needs the guard turned off first, which is the founder's call on their phone.
-- [ ] Check the block-card line "Also turn off Reels?". Needs Instagram, which isn't installed on the moto g31.
+- [x] Block-card line checked on the moto g31 (fake evidence `instagram=300`, which also counts Instagram as installed). Opening Shorts shows "Also turn off Reels? · Turn off Reels · Not now", and the card stays up for 8 s. The overlay takes taps: "Turn off Reels" turns Reels on and shows "Reels are off too · Undo", and Undo turns Reels off again. The phone was left as found: Reels off, Shorts blocked, preview cleared.
 
 ## D. Home usage display styles
 
