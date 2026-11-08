@@ -166,6 +166,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setShowDate(value: Boolean) = launch { prefs.setShowDate(value) }
     fun setHomeAppCount(value: Int) = launch { prefs.setHomeAppCount(value) }
     fun setHomeTextAlignment(value: HomeTextAlignment) = launch { prefs.setHomeTextAlignment(value) }
+    fun setAutoOpenSingleMatch(value: Boolean) = launch { prefs.setAutoOpenSingleMatch(value) }
     fun setDockSlot(index: Int, value: String) = launch { prefs.setDockSlot(index, value) }
     fun markHomeRoleAsked() = launch { prefs.markHomeRoleAsked() }
 

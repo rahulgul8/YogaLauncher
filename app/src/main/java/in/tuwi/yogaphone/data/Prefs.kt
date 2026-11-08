@@ -30,6 +30,7 @@ data class UserPreferences(
     val showDate: Boolean = true,
     val homeAppCount: Int = Constants.DEFAULT_HOME_APP_COUNT,
     val homeTextAlignment: HomeTextAlignment = HomeTextAlignment.LEFT,
+    val autoOpenSingleMatch: Boolean = true,
     val recentSearches: List<String> = emptyList(),
     val favoritesMigrated: Boolean = false,
     /** Quick-launch dock, four slots: [DOCK_DEFAULT] (the phone's own app for that slot), [DOCK_EMPTY], or a package. */
@@ -53,6 +54,7 @@ class Prefs(private val context: Context) {
         val showDate = booleanPreferencesKey("show_date")
         val homeAppCount = intPreferencesKey("home_app_count")
         val alignment = stringPreferencesKey("home_text_alignment")
+        val autoOpenSingleMatch = booleanPreferencesKey("auto_open_single_match")
         val recentSearches = stringPreferencesKey("recent_searches")
         val favoritesMigrated = booleanPreferencesKey("favorites_migrated_to_room")
         val dockSlots = stringPreferencesKey("dock_slots")
@@ -78,6 +80,7 @@ class Prefs(private val context: Context) {
             homeAppCount = (values[Keys.homeAppCount] ?: Constants.DEFAULT_HOME_APP_COUNT)
                 .coerceIn(Constants.MIN_HOME_APP_COUNT, Constants.MAX_HOME_APP_COUNT),
             homeTextAlignment = values[Keys.alignment].enumOrNull<HomeTextAlignment>() ?: HomeTextAlignment.LEFT,
+            autoOpenSingleMatch = values[Keys.autoOpenSingleMatch] ?: true,
             recentSearches = values[Keys.recentSearches]?.split(RECENT_SEPARATOR)?.filter(String::isNotBlank).orEmpty(),
             favoritesMigrated = values[Keys.favoritesMigrated] ?: false,
             dockSlots = values[Keys.dockSlots]?.split(RECENT_SEPARATOR)?.takeIf { it.size == DOCK_SIZE }
@@ -93,6 +96,7 @@ class Prefs(private val context: Context) {
     suspend fun setShowDate(value: Boolean) = setBoolean(Keys.showDate, value)
     suspend fun setHomeAppCount(value: Int) = setInt(Keys.homeAppCount, value.coerceIn(4, 12))
     suspend fun setHomeTextAlignment(value: HomeTextAlignment) = setString(Keys.alignment, value.name)
+    suspend fun setAutoOpenSingleMatch(value: Boolean) = setBoolean(Keys.autoOpenSingleMatch, value)
 
     suspend fun setDockSlot(index: Int, value: String) {
         context.dataStore.edit { values ->

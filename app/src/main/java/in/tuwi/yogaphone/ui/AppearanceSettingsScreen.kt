@@ -49,6 +49,7 @@ fun AppearanceSettingsScreen(
     onShowDate: (Boolean) -> Unit,
     onHomeAppCount: (Int) -> Unit,
     onAlignment: (HomeTextAlignment) -> Unit,
+    onAutoOpenSingleMatch: (Boolean) -> Unit,
 ) {
     YogaScreen("Appearance", onBack, subtitle = "Three looks, each with its own colours and type. Pick the one that feels like yours.") {
         item { YogaSection("Look") }
@@ -102,5 +103,8 @@ fun AppearanceSettingsScreen(
                     .forEach { (a, label) -> YogaChip(label, preferences.homeTextAlignment == a, { onAlignment(a) }) }
             }
         }
+        item { YogaSection("Search") }
+        item { YogaSwitchRow("Open the only match", preferences.autoOpenSingleMatch, onAutoOpenSingleMatch,
+            summary = "When a search leaves one app, open it") }
     }
 }
