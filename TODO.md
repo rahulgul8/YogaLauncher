@@ -126,6 +126,9 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 
 ## Phone checks still open
 
+- [x] Home gestures (7f44eec), checked on the moto g31: touch and hold on empty home opens the Home sheet; Home on a calm home opens the drawer with the keyboard; Home with a sheet open only closes it; typing "calc" opens Calculator; Home from an app returns to plain home.
+- [ ] Home gestures still to check: the "Add apps to home" picker (check marks, Done, a full-home message) and Appearance → Search → "Open the only match" turned off.
+
 - [x] Sheets opened half-expanded and hid taller sheets' buttons (Timebox Start) below the screen. All sheets now open fully (fde118d).
 - [ ] Pause screen, sheets, light mode, and the Stone and Midnight Sage looks on the release build.
 - [ ] Turn off `svc power stayon` on the founder's phone. Wait until the founder frees up the phone.
