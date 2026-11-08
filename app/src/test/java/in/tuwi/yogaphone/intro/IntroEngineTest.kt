@@ -96,6 +96,10 @@ class IntroEngineTest {
         assertEquals(280, intro.impactMinutesPerWeek)
         assertEquals(480, pick(daily.copy(avgDistractingPerDay = 1000.0))!!.targetMinutes)
     }
+    @Test fun dailyEvidenceNamesWhatTheAllowanceCounts() {
+        assertEquals("2 h 40 m a day outside essential apps",
+            pick(daily.copy(avgDistractingPerDay = 160.0, countsAllApps = true))!!.evidence)
+    }
     @Test fun lowerUsesSuggestedValueAndRealEvidenceCount() {
         val s = IntroSignals(allowanceMinutes = 90, suggestedAllowance = 75, daysUnderSuggestedAllowance = 6)
         val intro = pick(s)!!

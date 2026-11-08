@@ -49,7 +49,7 @@ object IntroEngine {
             if (s.allowanceMinutes == null && s.recordedDays >= 3 && average != null && average >= 120) {
                 // The existing allowance editor supports 15..480 minutes.
                 val minutes = ((average * 0.8 / 15).toInt() * 15).coerceIn(30, 480)
-                list += Intro(IntroId.DAILY_ALLOWANCE, surface, "${introDuration(average.toInt())} a day in distracting apps",
+                list += Intro(IntroId.DAILY_ALLOWANCE, surface, "${introDuration(average.toInt())} a day ${if (s.countsAllApps) "outside essential apps" else "in distracting apps"}",
                     "Set ${introDuration(minutes)} a day", impactMinutesPerWeek = ((average - minutes) * 7).toInt().coerceAtLeast(0),
                     homeWorthy = true, targetMinutes = minutes)
             }

@@ -16,6 +16,8 @@ data class IntroSignals(
     val allowanceMinutes: Int? = null, val avgDistractingPerDay: Double? = null,
     val suggestedAllowance: Int? = null, val daysUnderSuggestedAllowance: Int = 0,
     val daysOverLimitThisWeek: Int = 0, val greyOverLimitOn: Boolean = false,
+    /** The allowance counts every app except essential ones, not only distracting apps. */
+    val countsAllApps: Boolean = false,
     val allowed: Set<IntroId> = IntroId.entries.toSet(),
     val blockedSurface: GuardSurface? = null,
 )

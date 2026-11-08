@@ -99,6 +99,7 @@ class IntroSignalsReader(private val app: YogaApplication) {
             daysUnderSuggestedAllowance = if (suggestion == null) 0 else (1L..7L).count { (eligibleByDay[today.minusDays(it)] ?: Long.MAX_VALUE) <= suggestion },
             daysOverLimitThisWeek = if (allowance == null) 0 else weekDays.count { (eligibleByDay[it] ?: 0) > allowance },
             greyOverLimitOn = app.quietRepository.preferences.first().greyOverLimit, allowed = allowed,
+            countsAllApps = app.usagePrefs.preferences.first().counts == `in`.tuwi.yogaphone.usage.AllowanceCounts.ALL_EXCEPT_ESSENTIAL,
         ))
     }
 }
