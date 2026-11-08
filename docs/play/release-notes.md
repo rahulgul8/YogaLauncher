@@ -2,6 +2,16 @@
 
 One section per version code. Each language goes in its own tag; 500 characters at most.
 
+## 1.3 (4)
+
+```
+<en-US>
+Updates now arrive by themselves. Yoga downloads them quietly and installs when you're not using it, with a short note on what's new.
+Suggestions that fit how you use your phone, like turning off Shorts or Reels or setting a daily allowance, each with Undo.
+Fixes and polish.
+</en-US>
+```
+
 ## 1.2 (3)
 
 ```
