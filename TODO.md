@@ -33,7 +33,9 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [x] **Priority 4:** the flexible Play dialog. **Priority 5:** an immediate update.
 - [x] Add `--priority N` to `scripts/play-upload.mjs` (`inAppUpdatePriority`), default 2.
 - [x] **What's new:** home line, then a one-screen sheet after a version change.
-- [ ] Tests with `FakeAppUpdateManager` (policy and What's-new tests done; controller test not written). Check the real flow through internal app sharing on the phone.
+- [x] Phone, 8 Nov (moto g31, sideloaded): the "New in 1.2" line, the What's new sheet and Done work, and Help → Check now reaches Play and reports "You're up to date". Fixed: the version now sits in the sans eyebrow, because the serif drew "1.2" as "I.2".
+- [ ] Controller test with `FakeAppUpdateManager` (policy and What's-new tests done).
+- [ ] Check a real download and install through internal app sharing; this needs a Play-installed build.
 
 ## B. Onboarding images (Codex imagegen) [~] merged in edd1436; Reels still to do
 
@@ -59,7 +61,9 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [x] **I4 Daily allowance**, prefilled at 80% of their average.
 - [x] **I5 Lower allowance**, using `suggestedAllowance`.
 - [x] **I8 Grey past limit.**
-- [ ] Check on the phone: the Usage card, the home line, the block-card line, and the Shorts flow through Android settings and back.
+- [x] Phone, 8 Nov: Suggestions shows "Nothing to suggest right now", and the block card still works with the guard on and Shorts blocked.
+- [ ] Check on the phone: the Usage card, the home line and the Shorts flow through Android settings and back. Needs Usage Access for Yoga, which is off on the moto g31.
+- [ ] Check the block-card line "Also turn off Reels?". Needs Instagram, which isn't installed on the moto g31.
 
 ## D. Home usage display styles
 
@@ -119,5 +123,6 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 
 ## Phone checks still open
 
+- [x] Sheets opened half-expanded and hid taller sheets' buttons (Timebox Start) below the screen. All sheets now open fully (fde118d).
 - [ ] Pause screen, sheets, light mode, and the Stone and Midnight Sage looks on the release build.
 - [ ] Turn off `svc power stayon` on the founder's phone. Wait until the founder frees up the phone.
