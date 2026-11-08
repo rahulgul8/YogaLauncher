@@ -41,6 +41,8 @@ All data is stored in the app's private storage on your phone:
 - Daily and hourly usage totals, unlock counts, focus and timebox sessions, and pause/reflection outcomes — kept for 90 days by default (choose 30, 90 or 365 days).
 - Held notifications — title and text only, deleted after at most 24 hours.
 - The optional "value of time" amount you enter. It is used only to show an illustrative figure and is never treated as income or spending.
+- Which in-app suggestions you have seen, put off or acted on, so each one appears only when it is useful.
+- When Yoga last checked for an update and which "What's new" notes you have seen.
 
 Android's automatic cloud backup is **turned off** for Yoga, so this data is not copied to Google Drive. If you choose **Export** in Privacy and data, Yoga writes a backup file to a location you pick; what happens to that file is up to you.
 
@@ -49,6 +51,10 @@ Android's automatic cloud backup is **turned off** for Yoga, so this data is not
 Optional monthly, yearly and lifetime purchases are processed by Google Play. Google handles payment details; Yoga does not receive your card or bank details. Yoga queries Play purchase status and acknowledges completed purchases through Play Billing. The app stores the last known purchased plan locally so Pro works offline. No purchase-validation server or third-party billing SDK is used, and Yoga does not send usage measurements to Google for billing.
 
 The original trial start, trial progress and dismissal of the trial-ending card are stored locally and retained in manual backups. A backup does not grant purchased access: purchases are restored from Google Play. Resetting launcher settings and history keeps the original trial record, prompt dismissal and cached purchase status; it does not begin another trial. Uninstalling or clearing Android app storage removes these local records.
+
+## App updates
+
+At most once a day, Yoga asks Google Play whether a newer version is available, using Play's in-app updates service. Google Play downloads and installs the update. Yoga sends no usage data with this check.
 
 ## Your choices
 

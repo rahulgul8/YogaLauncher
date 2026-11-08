@@ -20,7 +20,7 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 
 - [~] **First Play review of 1.2 (3):** open testing in 178 countries, store listing, and all 12 declarations, Accessibility included. Sent 8 Nov 2026. *Waiting on Google.*
 - [ ] **Trader status declaration** (founder, Play Console). Due 1 Feb 2027.
-- [ ] **When 1.3 ships:** redeploy yogaphone.tuwi.in, because the privacy policy now says guard block counts are kept for 7 days (`firebase deploy --only hosting`).
+- [x] **When 1.3 ships:** redeployed yogaphone.tuwi.in on 8 Nov (1.3 on internal testing). The policy also covers the update check and stored suggestions. Was: redeploy yogaphone.tuwi.in, because the privacy policy now says guard block counts are kept for 7 days (`firebase deploy --only hosting`).
 - [ ] **After approval:** replace "Coming soon to Google Play" and the email CTA on yogaphone.tuwi.in with the store link.
 - [ ] **Production release.** Only when the founder asks for production.
 - [ ] **Tink Tonk: Music Puzzle** update is approved and waiting to be published (another app, same account).
