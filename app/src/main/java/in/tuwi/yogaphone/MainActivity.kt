@@ -15,6 +15,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -112,6 +113,7 @@ import `in`.tuwi.yogaphone.ui.DockSlot
 import `in`.tuwi.yogaphone.ui.HomeDock
 import `in`.tuwi.yogaphone.ui.resolveDock
 import `in`.tuwi.yogaphone.ui.DefaultHomePrompt
+import `in`.tuwi.yogaphone.ui.UpdatePrompt
 import `in`.tuwi.yogaphone.ui.isDefaultHome
 import `in`.tuwi.yogaphone.ui.defaultHomeIntent
 import `in`.tuwi.yogaphone.data.DOCK_DEFAULT
@@ -159,9 +161,13 @@ class MainActivity : ComponentActivity() {
     private var homeRequest by mutableIntStateOf(0)
     private var digestRequest by mutableIntStateOf(0)
     private var insightsRequest by mutableIntStateOf(0)
+    private val updateLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+        (application as YogaApplication).updateController.onUpdateFlowResult(it.resultCode)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        (application as YogaApplication).updateController.attachLauncher(updateLauncher)
         appChangeReceiver = AppChangeReceiver(viewModel::refreshApps)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(appChangeReceiver, AppChangeReceiver.getIntentFilter(), RECEIVER_NOT_EXPORTED)
@@ -200,6 +206,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         (application as YogaApplication).proRepository.onResume()
+        (application as YogaApplication).updateController.onHomeResume(this)
     }
 
     override fun onStart() {
@@ -208,6 +215,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        (application as YogaApplication).updateController.onHomeStop()
         (application as YogaApplication).widgetRepository.stopListening()
         super.onStop()
     }
@@ -455,6 +463,7 @@ private fun LauncherNavigation(
                 statusContent = {
                     Column {
                         if (!isDefault) DefaultHomePrompt { askToBeHome() }
+                        UpdatePrompt(activity, yoga.updateController)
                         val guardDay by yoga.guardPrefs.daily.collectAsState(initial = GuardDaily())
                         TrialEndingCard(if (guardDay.date == rememberGuardDate()) guardDay.blocks.values.sum() else 0,
                             if (usageState.preferences.timeValueEnabled) `in`.tuwi.yogaphone.usage.TimeValueCalculator().format(60, usageState.preferences.hourlyAmount(), usageState.preferences.currency) else null)

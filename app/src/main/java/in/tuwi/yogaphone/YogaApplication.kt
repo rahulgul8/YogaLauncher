@@ -12,6 +12,7 @@ import `in`.tuwi.yogaphone.focus.FocusPrefs
 import `in`.tuwi.yogaphone.focus.FocusRepository
 
 class YogaApplication : Application() {
+    val updateController by lazy { `in`.tuwi.yogaphone.update.UpdateController(this) }
     val proRepository by lazy { `in`.tuwi.yogaphone.pro.ProRepository(this) }
     val guardPrefs by lazy { `in`.tuwi.yogaphone.guard.GuardPrefs(this) }
     val usagePrefs by lazy { UsagePrefs(this) }

@@ -27,12 +27,12 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 ## A. Updates: seamless and automatic (ship in 1.3) [~] branch `in-app-updates`
 
 - [x] OpenSpec change `add-in-app-updates`, ADR 0013.
-- [ ] Add `app-update-ktx`. Check on home resume, at most once a day.
-- [ ] **Normal update:** quiet home line, "Update ready · Update". The download is flexible and installs silently while Yoga is in the background.
-- [ ] **Priority 4:** the flexible Play dialog. **Priority 5:** an immediate update.
-- [ ] Add `--priority N` to `scripts/play-upload.mjs` (`inAppUpdatePriority`), default 2.
-- [ ] **What's new:** home line, then a one-screen sheet after a version change.
-- [ ] Tests with `FakeAppUpdateManager`. Check the real flow through internal app sharing on the phone.
+- [x] Add `app-update-ktx`. Check on home resume, at most once a day.
+- [x] **Normal update:** quiet home line, "Update ready · Update". The download is flexible and installs silently while Yoga is in the background.
+- [x] **Priority 4:** the flexible Play dialog. **Priority 5:** an immediate update.
+- [x] Add `--priority N` to `scripts/play-upload.mjs` (`inAppUpdatePriority`), default 2.
+- [x] **What's new:** home line, then a one-screen sheet after a version change.
+- [ ] Tests with `FakeAppUpdateManager` (policy and What's-new tests done; controller test not written). Check the real flow through internal app sharing on the phone.
 
 ## B. Onboarding images (Codex imagegen) [~] branch `onboarding-images`
 
