@@ -37,12 +37,12 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [ ] Controller test with `FakeAppUpdateManager` (policy and What's-new tests done).
 - [ ] Check a real download and install through internal app sharing; this needs a Play-installed build.
 
-## B. Onboarding images (Codex imagegen) [~] merged in edd1436; Reels still to do
+## B. Onboarding images (Codex imagegen) [x] merged in edd1436 and e249c8e
 
 - [x] Brief Codex with D1, the brand tokens (docs/design/brand.md) and the image list (brief 13).
-- [~] Onboarding images: welcome, awareness, shorts, allowance, nudges and done are done. **Reels:** the draft reads as a speech bubble, so regenerate it.
+- [x] Onboarding images: welcome, awareness, shorts, reels, allowance, nudges and done. Reels was regenerated as an open loop of film (brief 13b).
 - [x] Spot images (3): shield, hourglass, moon.
-- [x] Transparent WebP in `res/drawable-nodpi/`: heroes 1080 px at 15–37 KB, spots 384 px at 2–4 KB (`scripts/onboarding-images.py`).
+- [x] Transparent WebP in `res/drawable-nodpi/`: heroes 1080 px at 15–45 KB, spots 384 px at 2–4 KB (`scripts/onboarding-images.py`).
 - [x] Tint test in Obsidian, Stone and Midnight Sage, light and dark (`design/onboarding/contact-sheet.png`).
 
 ## C. Feature introductions engine [~] merged in 59da920; phone check left
