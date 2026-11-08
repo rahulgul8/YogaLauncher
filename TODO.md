@@ -62,7 +62,10 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [x] **I5 Lower allowance**, using `suggestedAllowance`.
 - [x] **I8 Grey past limit.**
 - [x] Phone, 8 Nov: Suggestions shows "Nothing to suggest right now", and the block card still works with the guard on and Shorts blocked.
-- [ ] Check on the phone: the Usage card, the home line and the Shorts flow through Android settings and back. Needs Usage Access for Yoga, which is off on the moto g31.
+- [x] Phone, 8 Nov, with fake evidence (`--es intro_preview "days=7,avg=200"`, debug and profile builds only): the home line "3 h 20 m a day in distracting apps · Set 2 h 30 m a day" and the Usage card both show, and the action sets the allowance.
+- [x] Fixed (4a327cd): the action showed a false "Couldn't change that setting", because the card's coroutine was cancelled as the card left the screen. A notice without an action now shows only "OK".
+- [ ] Re-check on the phone after 4a327cd: the confirmation with Undo appears (Reels with `instagram=300`), and Undo restores the setting. Then remove the 2 h 30 m allowance the test set on the moto g31.
+- [ ] Check the Shorts flow through Android settings and back. This needs the guard turned off first, which is the founder's call on their phone.
 - [ ] Check the block-card line "Also turn off Reels?". Needs Instagram, which isn't installed on the moto g31.
 
 ## D. Home usage display styles
