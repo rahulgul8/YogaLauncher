@@ -53,7 +53,11 @@ import `in`.tuwi.yogaphone.MainUiState
 import `in`.tuwi.yogaphone.data.AppModel
 import `in`.tuwi.yogaphone.data.FontSizeOption
 import `in`.tuwi.yogaphone.data.HomeTextAlignment
+import `in`.tuwi.yogaphone.ui.theme.ScreenMargin
+import `in`.tuwi.yogaphone.ui.theme.YogaRow
+import `in`.tuwi.yogaphone.ui.theme.YogaSheet
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -72,6 +76,7 @@ fun HomeScreen(
     onOpenClock: () -> Unit,
     onOpenCalendar: () -> Unit,
     onExpandNotifications: () -> Unit,
+    onEmptyLongPress: () -> Unit = {},
     statusContent: @Composable () -> Unit = {},
     topActions: @Composable RowScope.() -> Unit = {},
     profileLabel: String? = null,
@@ -95,6 +100,8 @@ fun HomeScreen(
     // A swipe that starts on the home app list is taken by the list; whatever it can't scroll moves the drawer.
     val drag by rememberUpdatedState(onDrawerDrag)
     val release by rememberUpdatedState(onDrawerRelease)
+    val emptyLongPress by rememberUpdatedState(onEmptyLongPress)
+    val expandNotifications by rememberUpdatedState(onExpandNotifications)
     val listToDrawer = remember {
         object : NestedScrollConnection {
             var pulling = false
@@ -115,29 +122,62 @@ fun HomeScreen(
 
     Box(
         modifier = modifier.fillMaxSize().nestedScroll(listToDrawer).pointerInput(Unit) {
-            // Swipe up pulls the drawer with the finger; swipe down opens the notification shade.
+            // Swipe up pulls the drawer with the finger; swipe down opens the notification shade;
+            // touch and hold on empty space opens the Home options.
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
                 val tracker = VelocityTracker().apply { addPosition(down.uptimeMillis, down.position) }
-                var total = 0f
+                var total = Offset.Zero
                 var dragging = false
-                var claimedByChild = false
-                while (true) {
-                    val event = awaitPointerEvent()
-                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    if (!change.pressed) break
-                    if (change.isConsumed && !dragging) claimedByChild = true
-                    val dy = change.position.y - change.previousPosition.y
-                    total += dy
-                    tracker.addPosition(change.uptimeMillis, change.position)
-                    if (!claimedByChild && !dragging && total < -viewConfiguration.touchSlop) {
-                        dragging = true
-                        onDrawerDrag(total)
-                    } else if (dragging) onDrawerDrag(dy)
-                    if (dragging) change.consume()
+                var claimedByChild = down.isConsumed
+                var movedBeyondSlop = false
+                val liftedBeforeLongPress = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull true
+                        if (change.isConsumed && !dragging) claimedByChild = true
+                        val delta = change.position - change.previousPosition
+                        total += delta
+                        movedBeyondSlop = movedBeyondSlop || (change.position - down.position).getDistance() >= viewConfiguration.touchSlop
+                        tracker.addPosition(change.uptimeMillis, change.position)
+                        if (!change.pressed) return@withTimeoutOrNull true
+                        if (!claimedByChild && !dragging && total.y < -viewConfiguration.touchSlop) {
+                            dragging = true
+                            drag(total.y)
+                        } else if (dragging) drag(delta.y)
+                        if (dragging) change.consume()
+                    }
+                    @Suppress("UNREACHABLE_CODE") false
+                } == true
+                if (!liftedBeforeLongPress && !claimedByChild && !dragging && !movedBeyondSlop) {
+                    emptyLongPress()
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        change.consume()
+                        if (!change.pressed) break
+                    }
+                    return@awaitEachGesture
                 }
-                if (dragging) onDrawerRelease(tracker.calculateVelocity().y)
-                else if (!claimedByChild && total > 120f) onExpandNotifications()
+                if (!liftedBeforeLongPress) {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (change.isConsumed && !dragging) claimedByChild = true
+                        val delta = change.position - change.previousPosition
+                        total += delta
+                        movedBeyondSlop = movedBeyondSlop || (change.position - down.position).getDistance() >= viewConfiguration.touchSlop
+                        tracker.addPosition(change.uptimeMillis, change.position)
+                        if (!change.pressed) break
+                        if (!claimedByChild && !dragging && total.y < -viewConfiguration.touchSlop) {
+                            dragging = true
+                            drag(total.y)
+                        } else if (dragging) drag(delta.y)
+                        if (dragging) change.consume()
+                    }
+                }
+                if (dragging) release(tracker.calculateVelocity().y)
+                else if (!claimedByChild && total.y > 120f) expandNotifications()
             }
         },
     ) {
@@ -169,7 +209,7 @@ fun HomeScreen(
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.BottomStart) {
                 when {
                     uiState.isLoading -> Unit
-                    uiState.favoriteApps.isEmpty() -> CalmHint("Swipe up to choose the apps you want here")
+                    uiState.favoriteApps.isEmpty() -> CalmHint("Touch and hold to add apps here")
                     else -> LazyColumn(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Bottom),
@@ -193,6 +233,28 @@ fun HomeScreen(
             }
             Spacer(Modifier.height(28.dp))
             dock()
+        }
+    }
+}
+
+@Composable
+fun HomeOptionsSheet(
+    onAddApps: () -> Unit,
+    onWidgets: () -> Unit,
+    onAppearance: () -> Unit,
+    onSettings: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    YogaSheet(onDismiss) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Text("Home", style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(horizontal = ScreenMargin, vertical = 12.dp))
+            listOf(
+                "Add apps to home" to onAddApps,
+                "Widgets" to onWidgets,
+                "Appearance" to onAppearance,
+                "Settings" to onSettings,
+            ).forEach { (label, action) -> YogaRow(label, onClick = { onDismiss(); action() }) }
         }
     }
 }

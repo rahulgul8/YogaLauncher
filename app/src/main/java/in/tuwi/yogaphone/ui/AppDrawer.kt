@@ -76,8 +76,10 @@ import `in`.tuwi.yogaphone.data.AppModel
 import `in`.tuwi.yogaphone.logic.SearchableApp
 import `in`.tuwi.yogaphone.logic.rankAppSearch
 import `in`.tuwi.yogaphone.ui.theme.YogaIcons
+import `in`.tuwi.yogaphone.ui.theme.YogaTextButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -152,6 +154,9 @@ fun AppDrawerLayer(
     onClosed: () -> Unit,
     /** Shown instead of "Search apps" while choosing an app for some purpose. */
     pickingTitle: String? = null,
+    autoOpenSingleMatch: Boolean = true,
+    /** When present, the drawer stays open and marks apps selected by the caller. */
+    isSelected: ((AppModel) -> Boolean)? = null,
     isPaused: (AppModel) -> Boolean = { false },
     /** Section title for each app when the drawer is grouped by category; null keeps one alphabetical list. */
     groupOf: ((AppModel) -> String)? = null,
@@ -162,6 +167,8 @@ fun AppDrawerLayer(
     var showPaused by remember { mutableStateOf(false) }
     var showOthers by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
+    var previousQuery by remember { mutableStateOf("") }
+    val autoOpenedQueries = remember { mutableSetOf<String>() }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -175,10 +182,21 @@ fun AppDrawerLayer(
     LaunchedEffect(controller.keyboardRequests) {
         if (controller.keyboardRequests > 0) { runCatching { focusRequester.requestFocus() }; keyboard?.show() }
     }
+    LaunchedEffect(query, matches.size, pickingTitle, autoOpenSingleMatch) {
+        val previous = previousQuery
+        previousQuery = query
+        if (shouldAutoOpen(previous, query, matches.size, pickingTitle != null, autoOpenSingleMatch)) {
+            delay(300)
+            if (autoOpenedQueries.add(query)) {
+                keyboard?.hide()
+                matches.singleOrNull()?.let { onAppClick(it, query) }
+            }
+        }
+    }
     LaunchedEffect(closed) {
         if (closed) {
             keyboard?.hide(); focusManager.clearFocus(force = true)
-            query = ""; showOthers = false; showPaused = false
+            query = ""; previousQuery = ""; autoOpenedQueries.clear(); showOthers = false; showPaused = false
             listState.scrollToItem(0)
             onClosed()
         }
@@ -250,7 +268,8 @@ fun AppDrawerLayer(
                     if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
                         Icon(YogaIcons.Close, contentDescription = "Clear search", tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp))
-                    } else Spacer(Modifier.size(48.dp))
+                    } else if (isSelected == null) Spacer(Modifier.size(48.dp))
+                    if (isSelected != null) YogaTextButton("Done", controller::close)
                 }
                 HorizontalDivider(Modifier.padding(top = 10.dp, end = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 if (query.isBlank() && recentSearches.isNotEmpty()) {
@@ -291,6 +310,7 @@ fun AppDrawerLayer(
                             fontSize = fontSize,
                             highlighted = query.isNotBlank() && matches.firstOrNull() == app,
                             deemphasized = isPaused(app),
+                            selected = isSelected?.invoke(app) == true,
                             onClick = { onAppClick(app, query) },
                             onLongClick = { if (pickingTitle == null) onAppLongClick(app) },
                         )
@@ -305,6 +325,7 @@ fun AppDrawerLayer(
                     }
                     if (showPaused) items(paused, key = { "paused:${it.appPackage}:${it.activityClassName}" }) { app ->
                         DrawerAppRow(app = app, fontSize = fontSize, highlighted = false, deemphasized = true,
+                            selected = isSelected?.invoke(app) == true,
                             onClick = { onAppClick(app, query) }, onLongClick = { onAppLongClick(app) })
                     }
                 }
@@ -346,6 +367,7 @@ private fun DrawerAppRow(
     fontSize: Int,
     highlighted: Boolean,
     deemphasized: Boolean = false,
+    selected: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -364,7 +386,17 @@ private fun DrawerAppRow(
             color = if (deemphasized) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
-        if (highlighted) Text("Go", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        if (selected) Icon(YogaIcons.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp))
+        else if (highlighted) Text("Go", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
     }
 }
+
+internal fun shouldAutoOpen(
+    previousQuery: String,
+    query: String,
+    matchCount: Int,
+    picking: Boolean,
+    enabled: Boolean,
+): Boolean = enabled && !picking && query.isNotBlank() && query.length > previousQuery.length && matchCount == 1
 

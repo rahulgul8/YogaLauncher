@@ -3,6 +3,7 @@ package `in`.tuwi.yogaphone
 import `in`.tuwi.yogaphone.pro.*
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -123,6 +124,7 @@ import `in`.tuwi.yogaphone.ui.AppMenuAction
 import `in`.tuwi.yogaphone.ui.AppearanceSettingsScreen
 import `in`.tuwi.yogaphone.ui.HiddenAppsScreen
 import `in`.tuwi.yogaphone.ui.HomeScreen
+import `in`.tuwi.yogaphone.ui.HomeOptionsSheet
 import `in`.tuwi.yogaphone.ui.RenameAppDialog
 import `in`.tuwi.yogaphone.ui.SettingsScreen
 import `in`.tuwi.yogaphone.ui.homeFontSize
@@ -160,6 +162,10 @@ class MainActivity : ComponentActivity() {
     private var usageRequest by mutableIntStateOf(0)
     private lateinit var appChangeReceiver: AppChangeReceiver
     private var homeRequest by mutableIntStateOf(0)
+    /** Home pressed while Yoga was already in front: opens the drawer, like Nova's Home-button action. */
+    private var homeAgainRequest by mutableIntStateOf(0)
+    /** True from onStop until the next onResume: a Home intent then is a return from another app. */
+    private var stoppedSinceResume = true
     private var digestRequest by mutableIntStateOf(0)
     private var insightsRequest by mutableIntStateOf(0)
     private val updateLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
@@ -179,7 +185,7 @@ class MainActivity : ComponentActivity() {
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
         if (intent.action == QuietRepository.ACTION_OPEN_DIGEST) digestRequest++
         if (intent.action == InsightsRepository.ACTION_OPEN_INSIGHTS) insightsRequest++
-        setContent { YogaLauncherApp(viewModel, usageViewModel, focusViewModel, homeRequest, usageRequest, digestRequest, insightsRequest) }
+        setContent { YogaLauncherApp(viewModel, usageViewModel, focusViewModel, homeRequest, homeAgainRequest, usageRequest, digestRequest, insightsRequest) }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -187,7 +193,9 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         readIntroPreview(intent)
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
-        if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) homeRequest++
+        if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) {
+            if (stoppedSinceResume) homeRequest++ else homeAgainRequest++
+        }
         if (intent.action == FocusSystem.ACTION_OPEN_TIMEBOX) homeRequest++
         if (intent.action == QuietRepository.ACTION_OPEN_DIGEST) digestRequest++
         if (intent.action == InsightsRepository.ACTION_OPEN_INSIGHTS) insightsRequest++
@@ -214,6 +222,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        stoppedSinceResume = false
         (application as YogaApplication).proRepository.onResume()
         (application as YogaApplication).updateController.onHomeResume(this)
     }
@@ -224,6 +233,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        stoppedSinceResume = true
         (application as YogaApplication).updateController.onHomeStop()
         (application as YogaApplication).widgetRepository.stopListening()
         super.onStop()
@@ -236,7 +246,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, focusViewModel: FocusViewModel, homeRequest: Int, usageRequest: Int, digestRequest: Int, insightsRequest: Int) {
+private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, focusViewModel: FocusViewModel, homeRequest: Int, homeAgainRequest: Int, usageRequest: Int, digestRequest: Int, insightsRequest: Int) {
     val uiState by viewModel.uiState.collectAsState()
     val pro by (androidx.compose.ui.platform.LocalContext.current.applicationContext as YogaApplication).proRepository.state.collectAsState()
     val focusState by focusViewModel.state.collectAsState()
@@ -267,7 +277,7 @@ private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewM
     YogaPhoneTheme(themeMode, if (ProGate.allows(ProFeature.LOOKS, pro)) uiState.preferences.palette else `in`.tuwi.yogaphone.data.Palette.OBSIDIAN_BRASS) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             `in`.tuwi.yogaphone.ui.IntroActionHost {
-                LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, usageRequest, digestRequest, greyReason, quietPrefs, quiet, insightsRequest)
+                LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, homeAgainRequest, usageRequest, digestRequest, greyReason, quietPrefs, quiet, insightsRequest)
             }
         }
     }
@@ -281,6 +291,7 @@ private fun LauncherNavigation(
     focusState: FocusUiState,
     uiState: MainUiState,
     homeRequest: Int,
+    homeAgainRequest: Int,
     usageRequest: Int,
     digestRequest: Int,
     greyReason: GreyReason?,
@@ -406,6 +417,8 @@ private fun LauncherNavigation(
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
     var replacingApp by remember { mutableStateOf<AppModel?>(null) }
+    var homePicking by remember { mutableStateOf(false) }
+    var showHomeOptions by remember { mutableStateOf(false) }
     var favoriteMenuApp by remember { mutableStateOf<AppModel?>(null) }
     var drawerMenuApp by remember { mutableStateOf<AppModel?>(null) }
     var renameApp by remember { mutableStateOf<AppModel?>(null) }
@@ -433,20 +446,33 @@ private fun LauncherNavigation(
         }
     }
 
-    LaunchedEffect(homeRequest) {
-        if (homeRequest > 0) {
-            drawer.close()
-            replacingApp = null
-            pickingDockSlot = null
-            favoriteMenuApp = null
-            drawerMenuApp = null
-            renameApp = null
-            showTimeboxStart = false
-            showTimeboxControl = false
-            showFocusStart = false
-            showFocusControl = false
-            navController.returnHome()
-        }
+    fun resetToHome() {
+        drawer.close()
+        replacingApp = null
+        homePicking = false
+        showHomeOptions = false
+        pickingDockSlot = null
+        favoriteMenuApp = null
+        drawerMenuApp = null
+        renameApp = null
+        showTimeboxStart = false
+        showTimeboxControl = false
+        showFocusStart = false
+        showFocusControl = false
+        dockMenuSlot = null
+        showProfiles = false
+        categoryFor = null
+        navController.returnHome()
+    }
+    LaunchedEffect(homeRequest) { if (homeRequest > 0) resetToHome() }
+    // Home pressed on a calm home screen opens the drawer with the keyboard; anywhere else it just goes home.
+    LaunchedEffect(homeAgainRequest) {
+        if (homeAgainRequest == 0) return@LaunchedEffect
+        val calm = route == HOME && drawer.isClosed && replacingApp == null && pickingDockSlot == null && !homePicking &&
+            !showHomeOptions && favoriteMenuApp == null && drawerMenuApp == null && renameApp == null && dockMenuSlot == null &&
+            !showTimeboxStart && !showTimeboxControl && !showFocusStart && !showFocusControl && !showProfiles &&
+            pendingPause == null && categoryFor == null
+        if (calm) drawer.open() else resetToHome()
     }
     BackHandler(enabled = route == HOME && drawerClosed) { /* A HOME activity stays home. */ }
 
@@ -471,6 +497,7 @@ private fun LauncherNavigation(
                 onOpenClock = { context.openClock() },
                 onOpenCalendar = { context.openCalendar() },
                 onExpandNotifications = { context.expandNotifications() },
+                onEmptyLongPress = { showHomeOptions = true },
                 statusContent = {
                     Column {
                         if (!isDefault) DefaultHomePrompt { askToBeHome() }
@@ -592,6 +619,7 @@ private fun LauncherNavigation(
                 onShowDate = viewModel::setShowDate,
                 onHomeAppCount = viewModel::setHomeAppCount,
                 onAlignment = viewModel::setHomeTextAlignment,
+                onAutoOpenSingleMatch = viewModel::setAutoOpenSingleMatch,
             )
         }
         composable(PROFILES) {
@@ -697,18 +725,27 @@ private fun LauncherNavigation(
             recentSearches = uiState.preferences.recentSearches,
             fontSize = homeFontSize(uiState.preferences.fontSize),
             pickingTitle = replacingApp?.let { "Replace ${it.displayLabel}" }
-                ?: pickingDockSlot?.let { "Choose an app for the dock" },
+                ?: pickingDockSlot?.let { "Choose an app for the dock" }
+                ?: "Choose apps for home".takeIf { homePicking },
+            autoOpenSingleMatch = uiState.preferences.autoOpenSingleMatch,
+            isSelected = if (homePicking) viewModel::isOnHome else null,
             onAppClick = { selected, query ->
                 val replaced = replacingApp
                 val slot = pickingDockSlot
                 when {
                     replaced != null -> { viewModel.setFavorite(selected, true, replaced.appPackage); drawer.close() }
                     slot != null -> { viewModel.setDockSlot(slot, selected.appPackage); drawer.close() }
+                    homePicking -> {
+                        val onHome = viewModel.isOnHome(selected)
+                        val limit = if (uiState.activeProfile == null) uiState.preferences.homeAppCount else MAX_PROFILE_APPS
+                        if (onHome || uiState.favoriteApps.size < limit) viewModel.setFavorite(selected, !onHome)
+                        else Toast.makeText(context, "Home holds $limit apps. Remove one first.", Toast.LENGTH_SHORT).show()
+                    }
                     else -> requestLaunch(selected, query)
                 }
             },
             onAppLongClick = { drawerMenuApp = it },
-            onClosed = { replacingApp = null; pickingDockSlot = null },
+            onClosed = { replacingApp = null; pickingDockSlot = null; homePicking = false },
             isPaused = { focusState.pausedByFocus(it.appPackage) },
             groupOf = categoryNames.takeIf { uiState.organize.groupDrawerByCategory }?.let { names ->
                 { app: AppModel -> names[uiState.categoryOf[app.appPackage]] ?: "Other" }
@@ -717,6 +754,14 @@ private fun LauncherNavigation(
         )
     }
     LaunchedEffect(route) { if (route != HOME) drawer.snapClosed() }
+
+    if (showHomeOptions) HomeOptionsSheet(
+        onAddApps = { homePicking = true; drawer.open() },
+        onWidgets = { navController.navigate(WIDGETS) },
+        onAppearance = { navController.navigate(APPEARANCE) },
+        onSettings = { navController.navigate(SETTINGS) },
+        onDismiss = { showHomeOptions = false },
+    )
 
     dockMenuSlot?.let { slot ->
         val app = slot.app
