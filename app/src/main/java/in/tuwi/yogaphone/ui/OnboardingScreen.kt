@@ -421,7 +421,11 @@ private const val INSTAGRAM = "com.instagram.android"
 private fun installed(context: Context, pkg: String): Boolean =
     runCatching { context.packageManager.getApplicationInfo(pkg, 0).enabled }.getOrDefault(false)
 
-private fun duration(minutes: Long): String = "${minutes / 60} h ${minutes % 60} m"
+private fun duration(minutes: Long): String = when {
+    minutes < 60 -> "$minutes min"
+    minutes % 60 == 0L -> "${minutes / 60} h"
+    else -> "${minutes / 60} h ${minutes % 60} m"
+}
 
 private fun allowancePrefill(usage: UsageUiState): Int {
     val snapshot = usage.snapshot
