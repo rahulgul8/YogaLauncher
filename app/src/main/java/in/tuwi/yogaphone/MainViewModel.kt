@@ -98,6 +98,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refreshApps() = launch { repository.refreshApps() }
+    fun refreshWorkApps() = launch { repository.refreshWorkApps() }
+    val workApps: StateFlow<List<AppModel>> = repository.workApps.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     fun launchApp(appModel: AppModel, searchTerm: String = "") {
         if (searchTerm.isNotBlank()) launch { prefs.recordRecentSearch(searchTerm) }
         launchApp(getApplication(), appModel)

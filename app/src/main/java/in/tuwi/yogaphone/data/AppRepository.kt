@@ -6,6 +6,7 @@ import `in`.tuwi.yogaphone.data.db.AppEntryEntity
 import `in`.tuwi.yogaphone.data.db.YogaDatabase
 import `in`.tuwi.yogaphone.logic.reorderFavoriteList
 import `in`.tuwi.yogaphone.utils.getAppsList
+import `in`.tuwi.yogaphone.utils.getWorkApps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,9 @@ class AppRepository(
 ) {
     private val dao = database.appEntryDao()
     private val installedApps = MutableStateFlow<List<AppModel>>(emptyList())
+    private val installedWorkApps = MutableStateFlow<List<AppModel>>(emptyList())
+    /** Work-profile apps, kept apart from [apps] because Yoga's own settings are keyed by package. */
+    val workApps: Flow<List<AppModel>> = installedWorkApps
 
     val apps: Flow<List<AppModel>> = combine(installedApps, dao.observeAll()) { installed, entries ->
         val metadata = entries.associateBy(AppEntryEntity::packageName)
@@ -42,10 +46,14 @@ class AppRepository(
     suspend fun refreshApps() = withContext(Dispatchers.IO) {
         val refreshed = getAppsList(context).distinctBy { it.appPackage to it.activityClassName }
         installedApps.value = refreshed
+        installedWorkApps.value = getWorkApps(context)
         val packages = refreshed.map(AppModel::appPackage).distinct()
         // A temporarily locked profile or PackageManager failure must not wipe user metadata.
         if (packages.isNotEmpty()) dao.deleteUninstalled(packages)
     }
+
+    /** Cheap refresh for a work profile turning on or off. */
+    suspend fun refreshWorkApps() { installedWorkApps.value = getWorkApps(context) }
 
     suspend fun setFavorite(packageName: String, favorite: Boolean, replacePackage: String? = null) {
         val homeLimit = prefs.userPreferences.first().homeAppCount

@@ -4,6 +4,7 @@ import `in`.tuwi.yogaphone.pro.*
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import `in`.tuwi.yogaphone.utils.requestWorkProfileOn
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -128,6 +129,8 @@ import `in`.tuwi.yogaphone.ui.HomeOptionsSheet
 import `in`.tuwi.yogaphone.ui.RenameAppDialog
 import `in`.tuwi.yogaphone.ui.SettingsScreen
 import `in`.tuwi.yogaphone.ui.homeFontSize
+import `in`.tuwi.yogaphone.ui.theme.YogaDialog
+import androidx.compose.material3.Text
 import `in`.tuwi.yogaphone.ui.theme.YogaPhoneTheme
 import `in`.tuwi.yogaphone.ui.theme.themeUsesDarkIcons
 
@@ -161,6 +164,10 @@ class MainActivity : ComponentActivity() {
     private val focusViewModel: FocusViewModel by viewModels()
     private var usageRequest by mutableIntStateOf(0)
     private lateinit var appChangeReceiver: AppChangeReceiver
+    /** A work profile turning on, off, or being added or removed. Only runtime-registered receivers get these. */
+    private val workProfileReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) { viewModel.refreshWorkApps() }
+    }
     private var homeRequest by mutableIntStateOf(0)
     /** Home pressed while Yoga was already in front: opens the drawer, like Nova's Home-button action. */
     private var homeAgainRequest by mutableIntStateOf(0)
@@ -178,8 +185,10 @@ class MainActivity : ComponentActivity() {
         appChangeReceiver = AppChangeReceiver(viewModel::refreshApps)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(appChangeReceiver, AppChangeReceiver.getIntentFilter(), RECEIVER_NOT_EXPORTED)
+            registerReceiver(workProfileReceiver, workProfileFilter(), RECEIVER_NOT_EXPORTED)
         } else {
             @Suppress("DEPRECATION") registerReceiver(appChangeReceiver, AppChangeReceiver.getIntentFilter())
+            @Suppress("DEPRECATION") registerReceiver(workProfileReceiver, workProfileFilter())
         }
         readIntroPreview(intent)
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
@@ -223,6 +232,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         stoppedSinceResume = false
+        viewModel.refreshWorkApps()
         (application as YogaApplication).proRepository.onResume()
         (application as YogaApplication).updateController.onHomeResume(this)
     }
@@ -241,6 +251,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         runCatching { unregisterReceiver(appChangeReceiver) }
+        runCatching { unregisterReceiver(workProfileReceiver) }
         super.onDestroy()
     }
 }
@@ -418,6 +429,9 @@ private fun LauncherNavigation(
     }
     var replacingApp by remember { mutableStateOf<AppModel?>(null) }
     var homePicking by remember { mutableStateOf(false) }
+    val workApps by viewModel.workApps.collectAsState()
+    var workPrompt by remember { mutableStateOf<AppModel?>(null) }
+    var pendingWork by remember { mutableStateOf<AppModel?>(null) }
     var showHomeOptions by remember { mutableStateOf(false) }
     var favoriteMenuApp by remember { mutableStateOf<AppModel?>(null) }
     var drawerMenuApp by remember { mutableStateOf<AppModel?>(null) }
@@ -741,6 +755,7 @@ private fun LauncherNavigation(
                         if (onHome || uiState.favoriteApps.size < limit) viewModel.setFavorite(selected, !onHome)
                         else Toast.makeText(context, "Home holds $limit apps. Remove one first.", Toast.LENGTH_SHORT).show()
                     }
+                    selected.isWork && selected.workPaused -> workPrompt = selected
                     else -> requestLaunch(selected, query)
                 }
             },
@@ -751,9 +766,34 @@ private fun LauncherNavigation(
                 { app: AppModel -> names[uiState.categoryOf[app.appPackage]] ?: "Other" }
             },
             otherApps = uiState.otherApps,
+            workApps = workApps,
         )
     }
     LaunchedEffect(route) { if (route != HOME) drawer.snapClosed() }
+
+    workPrompt?.let { app ->
+        YogaDialog(
+            title = "Turn on work apps?",
+            confirmText = "Turn on",
+            onConfirm = {
+                workPrompt = null
+                if (requestWorkProfileOn(context, app.user)) pendingWork = app
+                else {
+                    Toast.makeText(context, "Turn on work apps in Settings", Toast.LENGTH_SHORT).show()
+                    runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_SETTINGS)) }
+                }
+            },
+            onDismissRequest = { workPrompt = null },
+            text = { Text("Your work profile is paused. Turn it on to open ${app.displayLabel}.") },
+        )
+    }
+    // Open the app that was tapped once its profile is on. Give up after a while (the PIN may have been cancelled).
+    LaunchedEffect(workApps, pendingWork) {
+        val wanted = pendingWork ?: return@LaunchedEffect
+        workApps.firstOrNull { it.user == wanted.user && it.appPackage == wanted.appPackage &&
+            it.activityClassName == wanted.activityClassName && !it.workPaused }?.let { pendingWork = null; requestLaunch(it) }
+    }
+    LaunchedEffect(pendingWork) { if (pendingWork != null) { kotlinx.coroutines.delay(30_000); pendingWork = null } }
 
     if (showHomeOptions) HomeOptionsSheet(
         onAddApps = { homePicking = true; drawer.open() },
@@ -927,3 +967,10 @@ private fun Context.expandNotifications() {
     }
 }
 
+private fun workProfileFilter() = android.content.IntentFilter().apply {
+    addAction(Intent.ACTION_MANAGED_PROFILE_AVAILABLE)
+    addAction(Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE)
+    addAction(Intent.ACTION_MANAGED_PROFILE_UNLOCKED)
+    addAction(Intent.ACTION_MANAGED_PROFILE_ADDED)
+    addAction(Intent.ACTION_MANAGED_PROFILE_REMOVED)
+}

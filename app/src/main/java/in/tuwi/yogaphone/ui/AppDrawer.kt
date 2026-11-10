@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -162,6 +163,8 @@ fun AppDrawerLayer(
     groupOf: ((AppModel) -> String)? = null,
     /** Apps the active profile tucks away; reachable with "All apps". */
     otherApps: List<AppModel> = emptyList(),
+    /** Work-profile apps: a "Work" section at the end, and in search. Never offered while picking. */
+    workApps: List<AppModel> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     var showPaused by remember { mutableStateOf(false) }
@@ -173,7 +176,8 @@ fun AppDrawerLayer(
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
-    val searchable = if (query.isNotBlank() || showOthers) apps + otherApps else apps
+    val work = if (pickingTitle == null) workApps else emptyList()
+    val searchable = (if (query.isNotBlank() || showOthers) apps + otherApps else apps) + (if (query.isNotBlank()) work else emptyList())
     val matches = remember(searchable, query) {
         rankAppSearch(searchable.map { SearchableApp(it.displayLabel, it) }, query)
     }
@@ -304,16 +308,24 @@ fun AppDrawerLayer(
                 else listOf("" to visible)
                 sections.forEach { (title, sectionApps) ->
                     if (title.isNotEmpty()) item(key = "section:$title") { SectionLabel(title) }
-                    items(sectionApps, key = { "${it.appPackage}:${it.activityClassName}" }) { app ->
+                    items(sectionApps, key = ::drawerKey) { app ->
                         DrawerAppRow(
                             app = app,
                             fontSize = fontSize,
                             highlighted = query.isNotBlank() && matches.firstOrNull() == app,
-                            deemphasized = isPaused(app),
+                            deemphasized = isPaused(app) || app.workPaused,
                             selected = isSelected?.invoke(app) == true,
                             onClick = { onAppClick(app, query) },
-                            onLongClick = { if (pickingTitle == null) onAppLongClick(app) },
+                            // Home, hide and category actions are per package, so they would change the personal app.
+                            onLongClick = { if (pickingTitle == null && !app.isWork) onAppLongClick(app) },
                         )
+                    }
+                }
+                if (query.isBlank() && work.isNotEmpty()) {
+                    item(key = "section:work") { SectionLabel(if (work.all { it.workPaused }) "Work · paused" else "Work") }
+                    items(work, key = ::drawerKey) { app ->
+                        DrawerAppRow(app = app, fontSize = fontSize, highlighted = false, deemphasized = app.workPaused,
+                            onClick = { onAppClick(app, query) }, onLongClick = {})
                     }
                 }
                 if (query.isBlank() && otherApps.isNotEmpty() && !showOthers) item(key = "all-apps") {
@@ -386,11 +398,19 @@ private fun DrawerAppRow(
             color = if (deemphasized) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f) else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
+        if (app.isWork) Text("Work", style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (app.workPaused) 0.5f else 1f),
+            modifier = Modifier.padding(start = 8.dp, end = if (selected || highlighted) 8.dp else 0.dp)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                .padding(horizontal = 8.dp, vertical = 2.dp))
         if (selected) Icon(YogaIcons.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(18.dp))
         else if (highlighted) Text("Go", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
     }
 }
+
+/** Work apps share package and activity names with personal ones, so their list keys need the profile. */
+private fun drawerKey(app: AppModel): String = (if (app.isWork) "work:" else "") + "${app.appPackage}:${app.activityClassName}"
 
 internal fun shouldAutoOpen(
     previousQuery: String,

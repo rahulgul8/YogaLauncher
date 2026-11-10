@@ -3,6 +3,10 @@ package `in`.tuwi.yogaphone.utils
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.LauncherApps
+import android.os.Build
+import android.os.Process
+import android.os.UserHandle
+import android.os.UserManager
 import android.widget.Toast
 import `in`.tuwi.yogaphone.data.AppModel
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +46,39 @@ suspend fun getAppsList(context: Context): List<AppModel> {
 
         appList
     }
+}
+
+/** Launcher activities in the other profiles (work), each marked with whether its profile is paused. */
+suspend fun getWorkApps(context: Context): List<AppModel> = withContext(Dispatchers.IO) {
+    runCatching {
+        val launcherApps = context.getSystemService(LauncherApps::class.java)
+        val users = context.getSystemService(UserManager::class.java)
+        val collator = Collator.getInstance()
+        launcherApps.profiles.filter { it != Process.myUserHandle() }.flatMap { profile ->
+            val paused = runCatching { users.isQuietModeEnabled(profile) }.getOrDefault(false)
+            launcherApps.getActivityList(null, profile).map { app ->
+                AppModel(
+                    appLabel = app.label.toString(),
+                    appPackage = app.applicationInfo.packageName,
+                    activityClassName = app.componentName.className,
+                    user = profile,
+                    key = collator.getCollationKey(app.label.toString()),
+                    isWork = true,
+                    workPaused = paused,
+                )
+            }
+        }.sorted()
+    }.getOrDefault(emptyList())
+}
+
+/**
+ * Turns a paused work profile back on; Android may ask for the work PIN first. False when it can't be done
+ * from here (Android 8, or Yoga isn't the default home app), so the caller can point to Settings instead.
+ */
+fun requestWorkProfileOn(context: Context, user: UserHandle): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+    return runCatching { context.getSystemService(UserManager::class.java).requestQuietModeEnabled(false, user); true }
+        .getOrDefault(false)
 }
 
 /**

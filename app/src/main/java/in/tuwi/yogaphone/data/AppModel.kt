@@ -15,6 +15,10 @@ data class AppModel(
     val isHidden: Boolean = false,
     val isEssential: Boolean = false,
     val isDistracting: Boolean = false,
+    /** An app in the work profile. Shown in the drawer and search only: home, hidden and categories are per package. */
+    val isWork: Boolean = false,
+    /** The work profile is paused, so the app can't open until it's turned back on. */
+    val workPaused: Boolean = false,
 ) : Comparable<AppModel> {
     val displayLabel: String get() = customLabel?.takeIf { it.isNotBlank() } ?: appLabel
     override fun compareTo(other: AppModel): Int = displayLabel.compareTo(other.displayLabel, ignoreCase = true)
