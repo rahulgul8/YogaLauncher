@@ -126,6 +126,13 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 
 ## Phone checks still open
 
+- [x] 1.4 (5) on internal testing, 10 Nov (v1.4-5): onboarding v3, home display styles, work apps.
+- [x] Onboarding v3 short run for v2 users, checked on the moto g31: "Your last 7 days" and the Shorts step with its image.
+- [ ] Onboarding v3 still to check: the value-of-time step, the home display choice, and the full replay (Help → Replay setup).
+- [ ] Home display styles on home: Line, Number, Ring, Week, Off, with and without an allowance.
+- [ ] Work apps: needs a phone with a work profile (the moto g31 has none). Check paused, then turn on and open.
+- [ ] Decide on learning videos (branch learning-videos): it changes what guard reads, so update the Accessibility declaration before shipping it past internal testing.
+
 - [x] Home gestures (7f44eec), checked on the moto g31: touch and hold on empty home opens the Home sheet; Home on a calm home opens the drawer with the keyboard; Home with a sheet open only closes it; typing "calc" opens Calculator; Home from an app returns to plain home.
 - [ ] Home gestures still to check: the "Add apps to home" picker (check marks, Done, a full-home message) and Appearance → Search → "Open the only match" turned off.
 
