@@ -2,6 +2,17 @@
 
 One section per version code. Each language goes in its own tag; 500 characters at most.
 
+## 1.4.1 (6)
+
+```
+<en-US>
+A new welcome: fewer words, calm images, and a step to turn off Shorts and Reels while regular videos keep working.
+Choose how today's usage looks on home: a line, a number, a ring or the week.
+Work apps now show in the drawer and search.
+Fixes: no flash of empty shortcuts when home opens, and clearer week bars.
+</en-US>
+```
+
 ## 1.4 (5)
 
 ```

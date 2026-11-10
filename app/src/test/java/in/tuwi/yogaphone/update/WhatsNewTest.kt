@@ -22,4 +22,12 @@ class WhatsNewTest {
     @Test fun missingEntryIsMarkedSeenWithoutShowing() {
         assertEquals(WhatsNewAction.None(4), WhatsNew.action(3, 4, listOf(entry)))
     }
+
+    @Test fun fixReleaseShowsTheNewestUnseenEntry() {
+        val big = WhatsNewEntry(5, "1.4", listOf("A calmer welcome"))
+        // 1.3 (4) straight to 1.4.1 (6): 1.4's notes are new to them.
+        assertEquals(WhatsNewAction.Show(big), WhatsNew.action(4, 6, listOf(big, entry)))
+        // Already saw 1.4 (5): the fix release shows nothing.
+        assertEquals(WhatsNewAction.None(6), WhatsNew.action(5, 6, listOf(big, entry)))
+    }
 }

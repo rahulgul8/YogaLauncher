@@ -15,8 +15,9 @@ object WhatsNew {
     ): WhatsNewAction {
         if (lastRunVersionCode == null) return WhatsNewAction.None(currentVersionCode)
         if (currentVersionCode <= lastRunVersionCode) return WhatsNewAction.None()
-        val entry = entries.firstOrNull { it.versionCode == currentVersionCode }
-            ?: return WhatsNewAction.None(currentVersionCode)
+        // A fix release has no entry of its own: show the newest entry this person hasn't seen yet, if any.
+        val entry = entries.filter { it.versionCode in (lastRunVersionCode + 1)..currentVersionCode }
+            .maxByOrNull { it.versionCode } ?: return WhatsNewAction.None(currentVersionCode)
         return WhatsNewAction.Show(entry)
     }
 }
