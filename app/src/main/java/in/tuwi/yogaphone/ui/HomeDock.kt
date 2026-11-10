@@ -108,15 +108,20 @@ fun HomeDock(
     onSlotClick: (DockSlot) -> Unit,
     onSlotLongClick: (DockSlot) -> Unit,
     modifier: Modifier = Modifier,
+    /** Apps not loaded yet: keep the slots blank instead of flashing "+" for apps that are there. */
+    loading: Boolean = false,
 ) {
     Row(
         modifier.fillMaxWidth().padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        slots.take(2).forEach { DockButton(it, onSlotClick, onSlotLongClick) }
+        val slot: @Composable (DockSlot) -> Unit = {
+            if (loading) Spacer(Modifier.size(52.dp)) else DockButton(it, onSlotClick, onSlotLongClick)
+        }
+        slots.take(2).forEach { slot(it) }
         SearchPill(onSearch)
-        slots.drop(2).forEach { DockButton(it, onSlotClick, onSlotLongClick) }
+        slots.drop(2).forEach { slot(it) }
     }
 }
 

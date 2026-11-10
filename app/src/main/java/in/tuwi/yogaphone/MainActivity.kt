@@ -553,6 +553,7 @@ private fun LauncherNavigation(
                     }
                     HomeDock(
                         slots = slots,
+                        loading = uiState.allApps.isEmpty(),
                         onSearch = { replacingApp = null; pickingDockSlot = null; drawer.open() },
                         onSlotClick = { slot ->
                             val app = slot.app

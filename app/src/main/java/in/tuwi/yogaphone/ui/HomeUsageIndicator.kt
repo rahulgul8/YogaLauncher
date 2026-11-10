@@ -62,13 +62,15 @@ internal fun HomeUsageNumbers.accessibilityLabel(): String = buildString {
 @Composable
 fun HomeUsageDisplay(state: UsageUiState, onOpenUsage: () -> Unit, onDetails: () -> Unit) {
     if (state.preferences.homeStyle == HomeDisplayStyle.OFF) return
+    // Until the first read finishes, the empty snapshot says "no access"; show nothing rather than flash a wrong prompt.
+    if (state.loading && !state.snapshot.available) return
     if (!state.snapshot.access) {
         val context = androidx.compose.ui.platform.LocalContext.current
         YogaTextButton("Allow Usage Access to see today's usage", { UsageAccess.openSettings(context) }, muted = true)
         return
     }
-    if (state.loading || !state.snapshot.available) {
-        YogaTextButton(if (state.loading) "Reading today's usage…" else "Usage unavailable · view details", onOpenUsage, muted = true)
+    if (!state.snapshot.available) {
+        YogaTextButton("Usage unavailable · view details", onOpenUsage, muted = true)
         return
     }
     val numbers = homeUsageNumbers(state.snapshot, state.rules, state.snapshot.date)
@@ -149,11 +151,15 @@ fun HomeUsageWeek(numbers: HomeUsageNumbers) {
     Column(Modifier.semantics { contentDescription = numbers.accessibilityLabel() }) {
         Box(Modifier.width(78.dp).height(40.dp)) {
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom) {
+                // Bars only, no full-height track: a track drowns short days. Empty days keep a small dot.
                 numbers.week.forEachIndexed { index, minutes ->
-                    Box(Modifier.width(6.dp).fillMaxHeight().clip(CircleShape).background(MaterialTheme.colorScheme.outlineVariant), contentAlignment = Alignment.BottomCenter) {
-                        if (minutes != null && minutes > 0) Box(Modifier.fillMaxWidth().fillMaxHeight((minutes.toFloat() / maximum).coerceIn(0f, 1f))
-                            .background(if (index == 6) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)))
+                    val height = 40.dp * ((minutes ?: 0).toFloat() / maximum).coerceIn(0f, 1f)
+                    val color = when {
+                        minutes == null || minutes == 0 -> MaterialTheme.colorScheme.outlineVariant
+                        index == 6 -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     }
+                    Box(Modifier.width(6.dp).height(height.coerceAtLeast(3.dp)).clip(CircleShape).background(color))
                 }
             }
             numbers.allowanceMinutes?.let {
