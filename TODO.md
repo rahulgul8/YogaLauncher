@@ -127,6 +127,7 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 ## Phone checks still open
 
 - [x] 1.4 (5) on internal testing, 10 Nov (v1.4-5): onboarding v3, home display styles, work apps.
+- [x] 1.4.1 (6) on internal testing, 10 Nov (v1.4.1-6): startup flash and Week bars fixed.
 - [x] Onboarding v3 short run for v2 users, checked on the moto g31: "Your last 7 days" and the Shorts step with its image.
 - [x] Onboarding v3 short run finished on the moto g31 (10 Nov): the display choice with real numbers, Done, and the chosen style on home.
 - [ ] Onboarding v3 still to check: the value-of-time step and the full replay (Help → Replay setup).
