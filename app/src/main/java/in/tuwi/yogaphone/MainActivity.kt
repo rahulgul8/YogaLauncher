@@ -694,6 +694,7 @@ private fun LauncherNavigation(
                     setHomeApps = viewModel::setHomeApps,
                     setAllowance = { usageViewModel.saveRule(null, it) },
                     setDistracting = { pkg, value -> usageViewModel.classify(pkg, essential = false, distracting = value) },
+                    setHomeStyle = { style -> usageViewModel.preferences { it.copy(homeStyle = style) } },
                     setTimeValue = { on, hourly -> usageViewModel.preferences { it.copy(timeValueEnabled = on, hourlyValue = hourly.ifBlank { it.hourlyValue }) } },
                     setReminders = { on -> usageViewModel.preferences { it.copy(reminders = on) } },
                     setMindfulPause = focusViewModel::setDelayEnabled,

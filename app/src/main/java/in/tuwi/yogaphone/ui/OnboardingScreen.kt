@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -66,6 +67,7 @@ class OnboardingActions(
     val setAllowance: (Int?) -> Unit,
     val setDistracting: (String, Boolean) -> Unit,
     val setTimeValue: (Boolean, String) -> Unit,
+    val setHomeStyle: (`in`.tuwi.yogaphone.usage.HomeDisplayStyle) -> Unit,
     val setReminders: (Boolean) -> Unit,
     val setMindfulPause: (Boolean) -> Unit,
     val setGreyOverLimit: (Boolean) -> Unit,
@@ -152,6 +154,8 @@ fun OnboardingScreen(
                     Step.WEEK -> WeekStep(ui, usage)
                     Step.BLOCKS -> BlocksStep(usage, youtube, instagram)
                     Step.ALLOWANCE -> AllowanceStep(ui, usage, isDistracting, isEssential, initial, actions)
+                    Step.VALUE -> TimeValueStep(initial, actions)
+                    Step.DISPLAY -> DisplayStep(usage, usageGranted, actions)
                     Step.NUDGES -> InterventionsStep(initial, actions)
                     Step.LOOK -> LookStep(ui, actions)
                     Step.DONE -> DoneStep(initial.previousVersion == 2 && !replay)
@@ -336,6 +340,28 @@ private fun formatAllowance(minutes: Int): String = when {
     minutes < 60 -> "$minutes min"
     minutes % 60 == 0 -> "${minutes / 60} h"
     else -> "${minutes / 60} h ${minutes % 60} min"
+}
+
+@Composable
+private fun ColumnScope.TimeValueStep(initial: OnboardingInitial, actions: OnboardingActions) {
+    var on by remember { mutableStateOf(initial.timeValueOn) }
+    var hourly by remember { mutableStateOf(initial.hourlyValue) }
+    StepTitle("What is your hour worth?", "See time in distracting apps as money.")
+    YogaSwitchRow("Show the value of my time", on, { on = it; actions.setTimeValue(it, hourly) })
+    if (on) YogaTextField(
+        hourly, { hourly = it.filter { c -> c.isDigit() || c == '.' }.take(8); actions.setTimeValue(true, hourly) },
+        label = "Value of one hour", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+    )
+    YogaNote("Illustrative only. Not money spent or income lost.")
+}
+
+@Composable
+private fun ColumnScope.DisplayStep(usage: UsageUiState, usageGranted: Boolean, actions: OnboardingActions) {
+    StepTitle("How should today look?", "Your usage, right on home.")
+    // Real numbers once there are any; until then the picker labels its previews "Sample".
+    val numbers = if (usageGranted && usage.snapshot.available)
+        homeUsageNumbers(usage.snapshot, usage.rules, java.time.LocalDate.now()) else null
+    HomeDisplayPicker(usage.preferences.homeStyle, numbers, actions.setHomeStyle)
 }
 
 @Composable

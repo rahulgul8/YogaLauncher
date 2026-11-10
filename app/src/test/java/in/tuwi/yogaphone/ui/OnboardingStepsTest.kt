@@ -6,7 +6,7 @@ import org.junit.Test
 
 class OnboardingStepsTest {
     private val full = listOf(Step.WELCOME, Step.HOME, Step.APPS, Step.USAGE, Step.WEEK,
-        Step.BLOCKS, Step.ALLOWANCE, Step.NUDGES, Step.LOOK, Step.DONE)
+        Step.BLOCKS, Step.ALLOWANCE, Step.VALUE, Step.DISPLAY, Step.NUDGES, Step.LOOK, Step.DONE)
 
     @Test fun newUserWithAccess() {
         assertEquals(full, onboardingSteps(0, true, true, true, true, false))
@@ -24,13 +24,12 @@ class OnboardingStepsTest {
         assertEquals(full, onboardingSteps(0, true, true, false, true, false))
     }
     @Test fun versionTwoOnlyNewSteps() {
-        assertEquals(listOf(Step.WEEK, Step.BLOCKS, Step.DONE), onboardingSteps(2, true, true, true, true, false))
-        assertEquals(listOf(Step.WEEK, Step.DONE), onboardingSteps(2, true, false, true, true, false))
-        assertEquals(listOf(Step.BLOCKS, Step.DONE), onboardingSteps(2, false, true, false, true, false))
+        assertEquals(listOf(Step.WEEK, Step.BLOCKS, Step.DISPLAY, Step.DONE), onboardingSteps(2, true, true, true, true, false))
+        assertEquals(listOf(Step.WEEK, Step.DISPLAY, Step.DONE), onboardingSteps(2, true, false, true, true, false))
+        assertEquals(listOf(Step.BLOCKS, Step.DISPLAY, Step.DONE), onboardingSteps(2, false, true, false, true, false))
     }
-    @Test fun versionTwoNothingNewFinishes() {
-        assertEquals(emptyList<Step>(), onboardingSteps(2, false, false, true, true, false))
-        assertEquals(emptyList<Step>(), onboardingSteps(2, false, true, false, false, false))
+    @Test fun versionTwoAlwaysGetsTheDisplayChoice() {
+        assertEquals(listOf(Step.DISPLAY, Step.DONE), onboardingSteps(2, false, false, true, true, false))
     }
     @Test fun replayRestoresFullWalkthrough() {
         assertEquals(full, onboardingSteps(2, true, true, true, true, true))
