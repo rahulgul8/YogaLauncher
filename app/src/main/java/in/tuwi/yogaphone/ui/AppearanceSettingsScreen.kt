@@ -20,6 +20,8 @@ import `in`.tuwi.yogaphone.data.HomeTextAlignment
 import `in`.tuwi.yogaphone.data.Palette
 import `in`.tuwi.yogaphone.data.ThemeMode
 import `in`.tuwi.yogaphone.data.UserPreferences
+import `in`.tuwi.yogaphone.usage.HomeDisplayStyle
+import `in`.tuwi.yogaphone.usage.UsageUiState
 import `in`.tuwi.yogaphone.ui.theme.PalettePicker
 import `in`.tuwi.yogaphone.ui.theme.YogaChip
 import `in`.tuwi.yogaphone.ui.theme.YogaChipRow
@@ -50,6 +52,8 @@ fun AppearanceSettingsScreen(
     onHomeAppCount: (Int) -> Unit,
     onAlignment: (HomeTextAlignment) -> Unit,
     onAutoOpenSingleMatch: (Boolean) -> Unit,
+    usageState: UsageUiState,
+    onHomeStyle: (HomeDisplayStyle) -> Unit,
 ) {
     YogaScreen("Appearance", onBack, subtitle = "Three looks, each with its own colours and type. Pick the one that feels like yours.") {
         item { YogaSection("Look") }
@@ -81,6 +85,14 @@ fun AppearanceSettingsScreen(
         item { YogaSection("Home") }
         item { YogaSwitchRow("Show the clock", preferences.showClock, onShowClock) }
         item { YogaSwitchRow("Show the date", preferences.showDate, onShowDate) }
+        item { YogaSection("Usage on home") }
+        item {
+            HomeDisplayPicker(
+                usageState.preferences.homeStyle,
+                if (usageState.snapshot.available) homeUsageNumbers(usageState.snapshot, usageState.rules, usageState.snapshot.date) else null,
+                onHomeStyle,
+            )
+        }
         item {
             YogaRow("Home apps", summary = "${preferences.homeAppCount} at most", trailing = {
                 Row(verticalAlignment = Alignment.CenterVertically) {

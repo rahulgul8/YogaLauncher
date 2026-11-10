@@ -620,6 +620,8 @@ private fun LauncherNavigation(
                 onHomeAppCount = viewModel::setHomeAppCount,
                 onAlignment = viewModel::setHomeTextAlignment,
                 onAutoOpenSingleMatch = viewModel::setAutoOpenSingleMatch,
+                usageState = usageState,
+                onHomeStyle = { style -> usageViewModel.preferences { it.copy(homeStyle = style) } },
             )
         }
         composable(PROFILES) {
