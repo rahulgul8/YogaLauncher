@@ -1,79 +1,64 @@
 package `in`.tuwi.yogaphone.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.provider.Settings
+import androidx.annotation.DrawableRes
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import `in`.tuwi.yogaphone.BuildConfig
 import `in`.tuwi.yogaphone.MainUiState
+import `in`.tuwi.yogaphone.R
+import `in`.tuwi.yogaphone.YogaApplication
 import `in`.tuwi.yogaphone.data.AppModel
 import `in`.tuwi.yogaphone.data.ThemeMode
-import `in`.tuwi.yogaphone.ui.theme.ScreenMargin
-import `in`.tuwi.yogaphone.ui.theme.YogaCard
-import `in`.tuwi.yogaphone.ui.theme.YogaChip
-import `in`.tuwi.yogaphone.ui.theme.YogaChipRow
-import `in`.tuwi.yogaphone.ui.theme.YogaCheckRow
-import `in`.tuwi.yogaphone.ui.theme.YogaEyebrow
-import `in`.tuwi.yogaphone.ui.theme.YogaIcons
-import `in`.tuwi.yogaphone.ui.theme.YogaNote
-import `in`.tuwi.yogaphone.ui.theme.YogaPrimaryButton
-import `in`.tuwi.yogaphone.ui.theme.YogaSecondaryButton
-import `in`.tuwi.yogaphone.ui.theme.YogaSwitchRow
-import `in`.tuwi.yogaphone.ui.theme.YogaTextButton
-import `in`.tuwi.yogaphone.ui.theme.YogaTextField
+import `in`.tuwi.yogaphone.guard.GuardPreferences
+import `in`.tuwi.yogaphone.guard.GuardSurface
+import `in`.tuwi.yogaphone.guard.YogaGuardService
+import `in`.tuwi.yogaphone.logic.SearchableApp
+import `in`.tuwi.yogaphone.logic.rankAppSearch
+import `in`.tuwi.yogaphone.pro.ProFeature
+import `in`.tuwi.yogaphone.pro.ProGate
+import `in`.tuwi.yogaphone.ui.theme.*
 import `in`.tuwi.yogaphone.usage.UsageAccess
 import `in`.tuwi.yogaphone.usage.UsageUiState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** Bump to show the walkthrough again to everyone who finished an older one. */
-const val ONBOARDING_VERSION = 2
+const val ONBOARDING_VERSION = 3
 
 /** What the walkthrough writes; every step goes straight to the existing settings. */
 class OnboardingActions(
@@ -98,9 +83,8 @@ data class OnboardingInitial(
     val reminders: Boolean,
     val mindfulPause: Boolean,
     val greyOverLimit: Boolean,
+    val previousVersion: Int = 0,
 )
-
-private enum class Step { WELCOME, HOME, APPS, USAGE, ALLOWANCE, VALUE, NUDGES, LOOK, DONE }
 
 @Composable
 fun OnboardingScreen(
@@ -110,12 +94,37 @@ fun OnboardingScreen(
     isEssential: (String) -> Boolean,
     initial: OnboardingInitial,
     actions: OnboardingActions,
+    replay: Boolean = false,
 ) {
-    var index by remember { mutableIntStateOf(0) }
-    val steps = Step.entries
-    val step = steps[index]
-    BackHandler(enabled = index > 0) { index-- }
-    val next: () -> Unit = { if (index < steps.lastIndex) index++ else actions.finish() }
+    val context = LocalContext.current
+    val app = context.applicationContext as YogaApplication
+    val pro by app.proRepository.state.collectAsState()
+    var resumed by remember { mutableIntStateOf(0) }
+    val owner = LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) resumed++
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+    val usageGranted = remember(resumed) { UsageAccess.granted(context) }
+    val youtube = remember(resumed) { installed(context, YOUTUBE) }
+    val instagram = remember(resumed) { installed(context, INSTAGRAM) }
+    val steps by remember(initial.previousVersion, usageGranted, pro, youtube, instagram, replay) {
+        derivedStateOf {
+            onboardingSteps(initial.previousVersion, usageGranted,
+                BuildConfig.GUARD && ProGate.allows(ProFeature.SHORTS_BLOCKING, pro), youtube, instagram, replay)
+        }
+    }
+    var current by rememberSaveable { mutableStateOf(steps.firstOrNull() ?: Step.DONE) }
+    val step = if (current in steps) current else steps.firstOrNull { it.ordinal > current.ordinal } ?: Step.DONE
+    LaunchedEffect(step) { current = step }
+    LaunchedEffect(steps.isEmpty()) { if (steps.isEmpty()) actions.finish() }
+    if (steps.isEmpty()) return
+    val index = steps.indexOf(step).coerceAtLeast(0)
+    BackHandler(enabled = index > 0) { current = steps[index - 1] }
+    val next: () -> Unit = { if (index < steps.lastIndex) current = steps[index + 1] else actions.finish() }
 
     Column(Modifier.fillMaxSize().padding(top = 8.dp, bottom = 20.dp)) {
         Row(Modifier.fillMaxWidth().padding(start = ScreenMargin, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -123,26 +132,29 @@ fun OnboardingScreen(
             if (step != Step.DONE) YogaTextButton("Skip", actions.finish, muted = true)
         }
         AnimatedContent(
-            targetState = index,
+            targetState = step,
             transitionSpec = {
-                val forward = targetState > initialState
-                (slideInHorizontally(tween(320)) { w -> if (forward) w / 8 else -w / 8 } + fadeIn(tween(320)))
+                val forward = targetState.ordinal > initialState.ordinal
+                (slideInHorizontally(tween(320)) { w -> if (forward) w / 8 else -w / 8 } + fadeIn(tween(400)))
                     .togetherWith(slideOutHorizontally(tween(220)) { w -> if (forward) -w / 8 else w / 8 } + fadeOut(tween(180)))
             },
             modifier = Modifier.weight(1f),
             label = "onboarding",
         ) { shown ->
-            Column(Modifier.fillMaxSize()) {
-                when (steps[shown]) {
+            val contentModifier = if (shown == Step.APPS || shown == Step.ALLOWANCE) Modifier.fillMaxSize()
+                    else Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            Column(contentModifier) {
+                when (shown) {
                     Step.WELCOME -> WelcomeStep()
                     Step.HOME -> DefaultHomeStep()
                     Step.APPS -> HomeAppsStep(ui, usage, isDistracting, actions)
-                    Step.USAGE -> UsageStep()
-                    Step.ALLOWANCE -> AllowanceStep(ui, isDistracting, isEssential, initial, actions)
-                    Step.VALUE -> TimeValueStep(initial, actions)
+                    Step.USAGE -> UsageStep(usageGranted)
+                    Step.WEEK -> WeekStep(ui, usage)
+                    Step.BLOCKS -> BlocksStep(usage, youtube, instagram)
+                    Step.ALLOWANCE -> AllowanceStep(ui, usage, isDistracting, isEssential, initial, actions)
                     Step.NUDGES -> InterventionsStep(initial, actions)
                     Step.LOOK -> LookStep(ui, actions)
-                    Step.DONE -> DoneStep()
+                    Step.DONE -> DoneStep(initial.previousVersion == 2 && !replay)
                 }
             }
         }
@@ -151,7 +163,7 @@ fun OnboardingScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (index > 0) YogaTextButton("Back", { index-- }, muted = true) else Spacer(Modifier.width(1.dp))
+            if (index > 0) YogaTextButton("Back", { current = steps[index - 1] }, muted = true) else Spacer(Modifier.width(1.dp))
             YogaPrimaryButton(
                 when (step) { Step.WELCOME -> "Begin"; Step.DONE -> "Go to my home"; else -> "Continue" },
                 next,
@@ -174,13 +186,19 @@ private fun StepDots(current: Int, total: Int, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ColumnScope.StepTitle(eyebrow: String, title: String, body: String? = null) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = ScreenMargin).padding(top = 36.dp, bottom = 12.dp)) {
-        YogaEyebrow(eyebrow)
-        Text(title, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(top = 12.dp))
-        if (body != null) Text(body, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 14.dp))
+private fun OnboardingImage(@DrawableRes id: Int, compact: Boolean = false) {
+    val height = if (compact) 120.dp else if (LocalConfiguration.current.screenHeightDp < 700) 160.dp else 200.dp
+    Image(painterResource(id), contentDescription = null,
+        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary), contentScale = ContentScale.Fit,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = ScreenMargin).height(height))
+}
+
+@Composable
+private fun ColumnScope.StepTitle(title: String, body: String? = null) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = ScreenMargin).padding(top = 24.dp, bottom = 12.dp)) {
+        Text(title, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.onBackground)
+        if (body != null) Text(body, style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 14.dp))
     }
 }
 
@@ -188,16 +206,9 @@ private fun ColumnScope.StepTitle(eyebrow: String, title: String, body: String? 
 private fun ColumnScope.WelcomeStep() {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { delay(1_000); now = System.currentTimeMillis() } }
-    Column(Modifier.weight(1f).fillMaxWidth().padding(horizontal = ScreenMargin), verticalArrangement = Arrangement.Center) {
-        BrandClock(now, onClick = {}, onLongClick = {})
-        Spacer(Modifier.height(40.dp))
-        YogaEyebrow("Welcome to Yoga")
-        Text("Your phone, on your terms.", style = MaterialTheme.typography.displaySmall,
-            color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(top = 12.dp))
-        Text("A quiet home screen that shows you where your time goes, and adds a little friction only where you ask for it. " +
-            "Setup takes about a minute.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 14.dp))
-    }
+    OnboardingImage(R.drawable.onboarding_welcome)
+    Box(Modifier.padding(horizontal = ScreenMargin)) { BrandClock(now, onClick = {}, onLongClick = {}) }
+    StepTitle("Your phone, on purpose.", "A calm home that shows where time goes.")
 }
 
 @Composable
@@ -205,8 +216,7 @@ private fun ColumnScope.DefaultHomeStep() {
     val context = LocalContext.current
     var isDefault by remember { mutableStateOf(isDefaultHome(context)) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { isDefault = isDefaultHome(context) }
-    StepTitle("Step one", "Make Yoga your home screen",
-        "Yoga works as your home app, so it's there every time you press Home. You can switch back whenever you like.")
+    StepTitle("Make Yoga your home.", "Switch back any time.")
     Spacer(Modifier.height(12.dp))
     if (isDefault) DoneLine("Yoga is your home screen")
     else Box(Modifier.padding(horizontal = ScreenMargin)) {
@@ -246,9 +256,13 @@ private fun ColumnScope.HomeAppsStep(ui: MainUiState, usage: UsageUiState, isDis
             .distinct().filter { it in byPackage }.take(6)
     }
     var chosen by remember { mutableStateOf(suggested) }
-    StepTitle("Your home", "Pick the apps you reach for on purpose", "Up to 8. Everything else is one swipe away.")
+    var query by rememberSaveable { mutableStateOf("") }
+    StepTitle("Apps you reach for on purpose.", "Up to 8. The rest is one swipe away.")
+    AppSearchField(query) { query = it }
+    val visibleApps = if (query.isBlank()) apps.sortedByDescending { it.appPackage in chosen }
+        else rankAppSearch(apps.map { SearchableApp(it.displayLabel, it) }, query)
     LazyColumn(Modifier.weight(1f)) {
-        items(apps.filter { it.appPackage in chosen } + apps.filterNot { it.appPackage in chosen }, key = { it.appPackage }) { app ->
+        items(visibleApps, key = { it.appPackage }) { app ->
             val checked = app.appPackage in chosen
             YogaCheckRow(app.displayLabel, checked, enabled = checked || chosen.size < 8) {
                 chosen = if (checked) chosen - app.appPackage else chosen + app.appPackage
@@ -263,24 +277,24 @@ private fun ColumnScope.HomeAppsStep(ui: MainUiState, usage: UsageUiState, isDis
 }
 
 @Composable
-private fun ColumnScope.UsageStep() {
-    val context = LocalContext.current
-    StepTitle("Awareness", "See where your time goes",
-        "Yoga reads which app was open and for how long. It stays on this phone and is never sent anywhere. You can turn it on later.")
-    if (UsageAccess.granted(context)) DoneLine("Usage access is on")
+private fun ColumnScope.UsageStep(granted: Boolean) {
+    OnboardingImage(R.drawable.onboarding_awareness)
+    StepTitle("See where time goes.", "Stays on this phone. Never sent anywhere.")
+    if (granted) DoneLine("Usage access is on")
     else UsageAccessCard()
 }
 
 @Composable
 private fun ColumnScope.AllowanceStep(
     ui: MainUiState,
+    usage: UsageUiState,
     isDistracting: (String) -> Boolean,
     isEssential: (String) -> Boolean,
     initial: OnboardingInitial,
     actions: OnboardingActions,
 ) {
     val startOn = initial.allowanceMinutes != null || !initial.returning
-    var minutes by remember { mutableIntStateOf(initial.allowanceMinutes ?: 90) }
+    var minutes by remember { mutableIntStateOf(initial.allowanceMinutes ?: allowancePrefill(usage)) }
     var enabled by remember { mutableStateOf(startOn) }
     val apps = ui.drawerApps.distinctBy { it.appPackage }.filterNot { isEssential(it.appPackage) }
     var distracting by remember { mutableStateOf(apps.filter { isDistracting(it.appPackage) }.map { it.appPackage }.toSet()) }
@@ -289,18 +303,26 @@ private fun ColumnScope.AllowanceStep(
         val value = if (enabled) minutes else null
         if (value != initial.allowanceMinutes) actions.setAllowance(value)
     }
-    StepTitle("Allowance", "How much is enough?", "A daily budget for distracting apps. Essential apps never count.")
-    YogaSwitchRow(if (enabled) "${formatAllowance(minutes)} a day" else "No allowance for now", enabled, { enabled = it })
-    if (enabled) Slider(
-        minutes.toFloat(), { minutes = (it / 15).toInt() * 15 }, valueRange = 15f..240f, steps = 14,
-        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary,
-            inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant, activeTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0f),
-            inactiveTickColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0f)),
-        modifier = Modifier.padding(horizontal = ScreenMargin),
-    )
-    YogaNote("These count as distracting. Tap to change.")
+    var query by rememberSaveable { mutableStateOf("") }
+    // Bound the scrolling header so search and the app list remain reachable on short screens.
+    Column(Modifier.fillMaxWidth().heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.4f).dp)
+        .verticalScroll(rememberScrollState())) {
+        OnboardingImage(R.drawable.onboarding_allowance, compact = true)
+        StepTitle("How much is enough?")
+        YogaSwitchRow(if (enabled) "${formatAllowance(minutes)} a day" else "No allowance for now", enabled, { enabled = it })
+        if (enabled) Slider(
+            minutes.toFloat(), { minutes = (it / 15).toInt() * 15 }, valueRange = 15f..240f, steps = 14,
+            colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant, activeTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0f),
+                inactiveTickColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0f)),
+            modifier = Modifier.padding(horizontal = ScreenMargin),
+        )
+    }
+    AppSearchField(query) { query = it }
+    val visibleApps = if (query.isBlank()) apps.sortedByDescending { it.appPackage in distracting }
+        else rankAppSearch(apps.map { SearchableApp(it.displayLabel, it) }, query)
     LazyColumn(Modifier.weight(1f)) {
-        items(apps.sortedByDescending { it.appPackage in distracting }, key = { "d:" + it.appPackage }) { app ->
+        items(visibleApps, key = { "d:" + it.appPackage }) { app ->
             val checked = app.appPackage in distracting
             YogaCheckRow(app.displayLabel, checked) {
                 distracting = if (checked) distracting - app.appPackage else distracting + app.appPackage
@@ -317,20 +339,6 @@ private fun formatAllowance(minutes: Int): String = when {
 }
 
 @Composable
-private fun ColumnScope.TimeValueStep(initial: OnboardingInitial, actions: OnboardingActions) {
-    var on by remember { mutableStateOf(initial.timeValueOn) }
-    var hourly by remember { mutableStateOf(initial.hourlyValue) }
-    StepTitle("Optional", "What is an hour of your time worth?",
-        "Give your hour a value and Yoga shows time in distracting apps as money burning, for example 20 minutes ≈ ₹167.")
-    YogaSwitchRow("Show the value of my time", on, { on = it; actions.setTimeValue(it, hourly) })
-    if (on) YogaTextField(
-        hourly, { hourly = it.filter { c -> c.isDigit() || c == '.' }.take(8); actions.setTimeValue(true, hourly) },
-        label = "Value of one hour", keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-    )
-    YogaNote("Illustrative only. It's a way to picture your time, not money spent or income lost.")
-}
-
-@Composable
 private fun ColumnScope.InterventionsStep(initial: OnboardingInitial, actions: OnboardingActions) {
     var reminders by remember { mutableStateOf(initial.reminders) }
     var pause by remember { mutableStateOf(initial.mindfulPause) }
@@ -338,11 +346,12 @@ private fun ColumnScope.InterventionsStep(initial: OnboardingInitial, actions: O
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         reminders = granted; actions.setReminders(granted)
     }
-    StepTitle("Nudges", "Start gently", "Each of these can be changed later in Settings.")
+    OnboardingImage(R.drawable.onboarding_nudges)
+    StepTitle("Start gently.")
     YogaSwitchRow("Reminders near my allowance", reminders, {
         reminders = it
         if (it && Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS) else actions.setReminders(it)
-    }, summary = "A quiet notification at 80% and when you go past")
+    }, summary = "At 80% and past your allowance")
     YogaSwitchRow("A short pause before distracting apps", pause, { pause = it; actions.setMindfulPause(it) },
         summary = "A few seconds to choose on purpose")
     YogaSwitchRow("Turn grey past my limit", grey, { grey = it; actions.setGreyOverLimit(it) },
@@ -353,7 +362,7 @@ private fun ColumnScope.InterventionsStep(initial: OnboardingInitial, actions: O
 private fun ColumnScope.LookStep(ui: MainUiState, actions: OnboardingActions) {
     var theme by remember { mutableStateOf(ui.preferences.themeMode) }
     var palette by remember { mutableStateOf(ui.preferences.palette) }
-    StepTitle("Look", "Choose your look", "Three looks, each with its own colours and type. You can change it any time.")
+    StepTitle("Choose your look.")
     `in`.tuwi.yogaphone.ui.theme.PalettePicker(palette, theme, { palette = it; actions.setPalette(it) })
     YogaChipRow(Modifier.padding(top = 8.dp)) {
         ThemeModeChoices.forEach { (mode, label) -> YogaChip(label, theme == mode, { theme = mode; actions.setTheme(mode) }) }
@@ -361,9 +370,9 @@ private fun ColumnScope.LookStep(ui: MainUiState, actions: OnboardingActions) {
 }
 
 @Composable
-private fun ColumnScope.DoneStep() {
-    StepTitle("Ready", "That's everything.")
-    YogaNote("Everything is unlocked for 14 days.")
+private fun ColumnScope.DoneStep(whatsNew: Boolean) {
+    OnboardingImage(R.drawable.onboarding_done)
+    StepTitle(if (whatsNew) "That's what's new." else "Ready.", "Everything is unlocked for 14 days.")
     YogaCard(Modifier.padding(top = 8.dp)) {
         listOf(
             YogaIcons.Search to "Swipe up, or tap Search, for every app.",
@@ -378,4 +387,160 @@ private fun ColumnScope.DoneStep() {
             }
         }
     }
+}
+
+private const val YOUTUBE = "com.google.android.youtube"
+private const val INSTAGRAM = "com.instagram.android"
+
+private fun installed(context: Context, pkg: String): Boolean =
+    runCatching { context.packageManager.getApplicationInfo(pkg, 0).enabled }.getOrDefault(false)
+
+private fun duration(minutes: Long): String = "${minutes / 60} h ${minutes % 60} m"
+
+private fun allowancePrefill(usage: UsageUiState): Int {
+    val snapshot = usage.snapshot
+    val start = snapshot.date.minusDays(6).toString()
+    val end = snapshot.date.toString()
+    val days = snapshot.knownDays.filter { it >= start && it <= end }.toSet()
+    val minutes = snapshot.week.filter { it.eligible && it.date in days }.sumOf { it.foregroundMinutes }
+    return onboardingAllowancePrefill(if (days.isEmpty()) 0.0 else minutes.toDouble() / days.size, days.size)
+}
+
+@Composable
+private fun AppSearchField(query: String, onQuery: (String) -> Unit) {
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
+    YogaTextField(query, onQuery, label = "", placeholder = "Search apps",
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { keyboard?.hide(); focus.clearFocus() }),
+        leadingIcon = { Icon(YogaIcons.Search, contentDescription = null, modifier = Modifier.size(20.dp)) },
+        trailingIcon = {
+            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                if (query.isNotBlank()) IconButton(onClick = { onQuery("") }) {
+                    Icon(YogaIcons.Close, contentDescription = "Clear search")
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun ColumnScope.WeekStep(ui: MainUiState, usage: UsageUiState) {
+    val context = LocalContext.current
+    val home = context.packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+        ?.activityInfo?.packageName
+    val totals = usage.snapshot.week.filterNot { it.packageName == context.packageName || it.packageName == home }
+        .groupBy { it.packageName }.mapValues { (_, rows) -> rows.sumOf { it.foregroundMinutes } }
+    StepTitle("Your last 7 days.")
+    if (totals.isEmpty()) {
+        YogaNote("Your numbers fill in as you use the phone.")
+        return
+    }
+    Text(duration(totals.values.sum()), style = MaterialTheme.typography.displaySmall.copy(fontFeatureSettings = "lnum, tnum"),
+        color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(horizontal = ScreenMargin, vertical = 16.dp))
+    // Include both video apps when present, even if neither made the top three.
+    val packages = (totals.entries.sortedByDescending { it.value }.take(3).map { it.key } +
+        listOf(YOUTUBE, INSTAGRAM).filter { it in totals }).distinct()
+    packages.forEach { pkg ->
+        val label = (ui.drawerApps + ui.otherApps).firstOrNull { it.appPackage == pkg }?.displayLabel
+            ?: usage.snapshot.appLabels[pkg] ?: pkg
+        Row(Modifier.fillMaxWidth().padding(horizontal = ScreenMargin, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Text(duration(totals.getValue(pkg)), style = MaterialTheme.typography.bodyLarge,
+                color = if (pkg == YOUTUBE || pkg == INSTAGRAM) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground)
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.BlocksStep(usage: UsageUiState, youtube: Boolean, instagram: Boolean) {
+    val context = LocalContext.current
+    val app = context.applicationContext as YogaApplication
+    val preferences by app.guardPrefs.preferences.collectAsState(initial = GuardPreferences())
+    val scope = rememberCoroutineScope()
+    val owner = LocalLifecycleOwner.current
+    var guardEnabled by remember { mutableStateOf(YogaGuardService.isEnabled(context)) }
+    var wanted by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
+    var disclosure by rememberSaveable { mutableStateOf(false) }
+    var awaitingSettings by rememberSaveable { mutableStateOf(false) }
+    var returnedFromSettings by rememberSaveable { mutableStateOf(false) }
+    var failed by rememberSaveable { mutableStateOf(false) }
+    var done by rememberSaveable { mutableStateOf<String?>(null) }
+    suspend fun enable(surfaces: List<GuardSurface>) {
+        app.guardPrefs.update { p -> p.copy(surfaces = p.surfaces + surfaces.associateWith { surface ->
+            p.surface(surface).copy(enabled = true, allowanceMinutes = 0)
+        }) }
+        done = when {
+            GuardSurface.YOUTUBE in surfaces && GuardSurface.INSTAGRAM in surfaces -> "Shorts and Reels are off"
+            GuardSurface.YOUTUBE in surfaces -> "Shorts are off"
+            else -> "Reels are off"
+        }
+    }
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                guardEnabled = YogaGuardService.isEnabled(context)
+                if (awaitingSettings) {
+                    awaitingSettings = false
+                    returnedFromSettings = true
+                    failed = !guardEnabled
+                    if (guardEnabled) {
+                        val surfaces = wanted.map(GuardSurface::valueOf)
+                        wanted = arrayListOf()
+                        if (surfaces.isNotEmpty()) scope.launch { enable(surfaces) }
+                    }
+                }
+            }
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+    OnboardingImage(if (youtube) R.drawable.onboarding_shorts else R.drawable.onboarding_reels)
+    StepTitle("Keep videos. Lose the scroll.", "Shorts and Reels off. Everything else works.")
+    val surfaces = buildList {
+        if (youtube) add(GuardSurface.YOUTUBE)
+        if (instagram) add(GuardSurface.INSTAGRAM)
+    }
+    surfaces.forEach { surface ->
+        val isYoutube = surface == GuardSurface.YOUTUBE
+        val pkg = if (isYoutube) YOUTUBE else INSTAGRAM
+        val rows = usage.snapshot.week.filter { it.packageName == pkg }
+        val name = if (isYoutube) "YouTube" else "Instagram"
+        val settings = preferences.surface(surface)
+        YogaSwitchRow(if (isYoutube) "YouTube Shorts" else "Instagram Reels",
+            (!returnedFromSettings || guardEnabled) && settings.enabled && settings.allowanceMinutes == 0,
+            { checked ->
+                done = null
+                failed = false
+                if (!checked) {
+                    wanted = ArrayList(wanted.filterNot { it == surface.name })
+                    scope.launch { app.guardPrefs.update { p -> p.copy(surfaces = p.surfaces +
+                        (surface to p.surface(surface).copy(enabled = false))) } }
+                } else if (YogaGuardService.isEnabled(context)) {
+                    guardEnabled = true
+                    scope.launch { enable(listOf(surface)) }
+                } else {
+                    wanted = ArrayList((wanted + surface.name).distinct())
+                    disclosure = true
+                }
+            }, summary = if (rows.isNotEmpty()) "${duration(rows.sumOf { it.foregroundMinutes })} on $name this week"
+                else if (isYoutube) "Regular videos still work" else "Posts and messages still work")
+    }
+    done?.let { DoneLine(it) }
+    if (failed) {
+        YogaNote("Yoga guard isn't on yet")
+        Box(Modifier.padding(horizontal = ScreenMargin)) {
+            YogaTextButton("Try again", { disclosure = true }, muted = true)
+        }
+    }
+    if (disclosure) GuardDisclosureDialog(
+        onConfirm = {
+            disclosure = false
+            awaitingSettings = true
+            runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                .onFailure { awaitingSettings = false; failed = true }
+        },
+        onDismissRequest = { disclosure = false; wanted = arrayListOf(); failed = false },
+    )
 }

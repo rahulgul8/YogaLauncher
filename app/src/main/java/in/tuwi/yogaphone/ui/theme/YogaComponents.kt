@@ -381,12 +381,15 @@ fun YogaTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     prefix: String? = null,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     val c = MaterialTheme.colorScheme
     Column(modifier.fillMaxWidth().padding(horizontal = ScreenMargin, vertical = 8.dp)) {
-        Text(label.uppercase(Locale.getDefault()), style = MaterialTheme.typography.labelSmall, color = c.onSurfaceVariant)
+        if (label.isNotBlank()) Text(label.uppercase(Locale.getDefault()), style = MaterialTheme.typography.labelSmall, color = c.onSurfaceVariant)
         Row(Modifier.padding(top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             val style = MaterialTheme.typography.titleLarge.copy(color = c.onBackground, fontWeight = FontWeight.Normal)
+            leadingIcon?.let { icon -> Box(Modifier.padding(end = 12.dp)) { icon() } }
             if (prefix != null) Text(prefix, style = style, color = c.onSurfaceVariant, modifier = Modifier.padding(end = 6.dp))
             Box(Modifier.weight(1f)) {
                 if (value.isEmpty() && placeholder != null) Text(placeholder, style = style, color = c.outline)
@@ -394,6 +397,7 @@ fun YogaTextField(
                     cursorBrush = SolidColor(c.primary), keyboardOptions = keyboardOptions, keyboardActions = keyboardActions,
                     visualTransformation = visualTransformation, modifier = Modifier.fillMaxWidth())
             }
+            trailingIcon?.invoke()
         }
         HorizontalDivider(thickness = 1.dp, color = c.outline)
     }

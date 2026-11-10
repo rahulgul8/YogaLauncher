@@ -655,15 +655,17 @@ private fun LauncherNavigation(
         }
         composable(SUGGESTIONS) { `in`.tuwi.yogaphone.ui.SuggestionsScreen { navController.popBackStack() } }
         composable(HELP) {
-            HelpScreen(onReplaySetup = { navController.navigate(ONBOARDING) }, onSuggestions = { navController.navigate(SUGGESTIONS) }) { navController.popBackStack() }
+            HelpScreen(onReplaySetup = { navController.returnHome(); navController.navigate("$ONBOARDING?replay=true") }, onSuggestions = { navController.navigate(SUGGESTIONS) }) { navController.popBackStack() }
         }
-        composable(ONBOARDING) {
+        composable("$ONBOARDING?replay={replay}", arguments = listOf(androidx.navigation.navArgument("replay") { defaultValue = "false" })) { entry ->
             OnboardingScreen(
+                replay = entry.arguments?.getString("replay") == "true",
                 ui = uiState,
                 usage = usageState,
                 isDistracting = focusState::isDistracting,
                 isEssential = { focusState.classifications[it]?.essential == true },
                 initial = OnboardingInitial(
+                    previousVersion = insightsPrefs?.onboardingVersion ?: 0,
                     allowanceMinutes = usageState.rules.firstOrNull { it.scope == "TOTAL" && it.enabled }?.dailyAllowanceMinutes,
                     returning = uiState.favoriteApps.isNotEmpty() || usageState.rules.isNotEmpty(),
                     timeValueOn = usageState.preferences.timeValueEnabled,
