@@ -19,6 +19,7 @@ data class UsageSnapshot(
     val today: List<UsageAggregateEntity> = emptyList(),
     val week: List<UsageAggregateEntity> = emptyList(),
     val knownDays: Set<String> = emptySet(),
+    val excludedPackages: Set<String> = emptySet(),
     val essentialPackages: Set<String> = emptySet(),
     val evaluation: RuleEvaluation = RuleEvaluation(emptyList(), null),
     val categoryOf: Map<String, String> = emptyMap(),
@@ -114,8 +115,21 @@ class UsageRepository(private val context: Context, private val database: YogaDa
             else UsageNotifications(context).cancelOngoing()
             val unlocksToday = dao.days(today.toString(), today.toString()).firstOrNull()?.unlocks
             val labels = week.map { it.packageName }.toSet().associateWith(::labelOf)
-            UsageSnapshot(today, true, rows != null, visibleRows, week, known, essential, evaluation, categoryOf, labels, unlocksToday,
-                if (rows == null) "Android usage data is not available yet. Try again after using an app." else null)
+            UsageSnapshot(
+                date = today,
+                access = true,
+                available = rows != null,
+                today = visibleRows,
+                week = week,
+                knownDays = known,
+                excludedPackages = excluded,
+                essentialPackages = essential,
+                evaluation = evaluation,
+                categoryOf = categoryOf,
+                appLabels = labels,
+                unlocksToday = unlocksToday,
+                error = if (rows == null) "Android usage data is not available yet. Try again after using an app." else null,
+            )
         }
     }
 

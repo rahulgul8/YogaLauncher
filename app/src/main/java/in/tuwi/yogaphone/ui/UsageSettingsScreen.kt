@@ -61,7 +61,13 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
             YogaTextButton("Notification settings", { runCatching { context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)) } }, Modifier.padding(horizontal = TextButtonInset))
         }
         item { YogaNote("Checks run when Yoga resumes and about every 15 minutes. Android may delay background work.") }
-        item { YogaSwitchRow("Show usage on home", state.preferences.showHome, { enabled -> viewModel.preferences { it.copy(showHome = enabled) } }) }
+        item { YogaSection("Usage on home") }
+        item {
+            HomeDisplayPicker(
+                state.preferences.homeStyle,
+                if (state.snapshot.available) homeUsageNumbers(state.snapshot, state.rules, state.snapshot.date) else null,
+            ) { style -> viewModel.preferences { it.copy(homeStyle = style) } }
+        }
         item { ProRow("Value of time settings", ProFeature.VALUE_OF_TIME, onClick = onValue) }
         item { YogaSection("Per-app limits") }
         if (!access.allows(ProFeature.EXTRA_ALLOWANCES)) item { YogaNote("One allowance stays active on Free. Additional saved allowances resume with Pro.") }
