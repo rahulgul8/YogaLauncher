@@ -3,6 +3,8 @@
      Move it back into src/main once the Play Accessibility API declaration is approved, and set GUARD true for release. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <activity android:name=".ResistActivity" android:exported="false"
+            android:excludeFromRecents="true" android:noHistory="true" android:taskAffinity="" />
         <service android:name=".guard.YogaGuardService" android:exported="true"
             android:label="@string/yoga_guard_name" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>

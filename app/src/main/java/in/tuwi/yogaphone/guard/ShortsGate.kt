@@ -2,7 +2,7 @@ package `in`.tuwi.yogaphone.guard
 
 enum class GateAction { NONE, BACK, HOME }
 
-/** All times are monotonic milliseconds; dates come from the local calendar. */
+/** Accounting uses monotonic milliseconds; pass expiry uses epoch milliseconds. */
 class ShortsGate(initialDaily: GuardDaily = GuardDaily()) {
     var daily: GuardDaily = initialDaily
         private set
@@ -13,7 +13,8 @@ class ShortsGate(initialDaily: GuardDaily = GuardDaily()) {
     private var escalated = false
 
     fun evaluate(detected: GuardSurface?, nowMillis: Long, date: String,
-        settings: Map<GuardSurface, SurfaceSettings>): GateAction {
+        settings: Map<GuardSurface, SurfaceSettings>, passUntil: Map<GuardSurface, Long> = emptyMap(),
+        nowEpoch: Long = 0L): GateAction {
         if (daily.date != date) {
             daily = GuardDaily(date = date)
             previousAt = null
@@ -36,6 +37,10 @@ class ShortsGate(initialDaily: GuardDaily = GuardDaily()) {
         if (detected == null) return GateAction.NONE
         val preference = settings[detected] ?: return GateAction.NONE
         if (!preference.enabled) return GateAction.NONE
+        if (detected.family().any { (passUntil[it] ?: 0L) > nowEpoch }) {
+            backs.clear(); lastActionAt = null; escalated = false
+            return GateAction.NONE
+        }
         if (preference.allowanceMinutes > 0 && (daily.usedMillis[detected] ?: 0) < preference.allowanceMinutes.toLong() * 60_000) {
             return GateAction.NONE
         }

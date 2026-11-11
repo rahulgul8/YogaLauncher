@@ -72,6 +72,9 @@ class YogaGuardService : AccessibilityService() {
     private var gate = ShortsGate()
     private var ticker: Job? = null
     private var pill: TextView? = null
+    private var passPill = false
+    private var passPillUpdatedAt = 0L
+    private var passPillSurface: GuardSurface? = null
     private var card: TextView? = null
     private var cardRemoval: Job? = null
     private var flame: ValueAnimator? = null
@@ -101,7 +104,7 @@ class YogaGuardService : AccessibilityService() {
         registered = true
         scope.launch {
             yoga.proRepository.current()
-            launch { yoga.proRepository.state.collect { if (!ProGate.allows(ProFeature.VALUE_OF_TIME, it)) hidePill() } }
+            launch { yoga.proRepository.state.collect { if (!ProGate.allows(ProFeature.VALUE_OF_TIME, it) && !passPill) hidePill() } }
             gate = ShortsGate(yoga.guardPrefs.daily.first())
             savedDaily = canonical(gate.daily)
             launch {
@@ -217,15 +220,27 @@ class YogaGuardService : AccessibilityService() {
                 }
             } else null
         }
-        val action = gate.evaluate(detected, now, today(), preferences.surfaces)
+        val action = gate.evaluate(detected, now, today(), preferences.surfaces, preferences.passUntil, System.currentTimeMillis())
         saveDailyIfChanged()
         if (token != generation || !preferences.active) return
         if (action != GateAction.NONE) {
             performGlobalAction(if (action == GateAction.HOME) GLOBAL_ACTION_HOME else GLOBAL_ACTION_BACK)
-            detected?.let { showBlockCard(it) }
+            detected?.let { showBlockCard(it, yoga.guardPrefs.consumeExpiredPass(it, System.currentTimeMillis())) }
             // Verify the destination before the next decision (including first-screen/deep-link fallback).
             inspect = true
         }
+        val passSurface = detected
+        val left = passSurface?.let { preferences.passExpiry(it) - System.currentTimeMillis() } ?: 0L
+        if (passSurface != null && left > 0 && !sensitive && pkg != packageName && pkg !in homePackages) {
+            val text = "${passSurface.shortName()} \u00b7 ${(left + 59_999) / 60_000} min left"
+            if (!passPill || passPillSurface != passSurface || now - passPillUpdatedAt >= 30_000) {
+                showPill(text, text, isPass = true)
+                passPillUpdatedAt = now
+                passPillSurface = passSurface
+            }
+            return
+        }
+        if (passPill) hidePill()
         if (!preferences.liveIndicator || !yoga.proRepository.allows(ProFeature.VALUE_OF_TIME)) { hidePill(); return }
         val usage = yoga.usagePrefs.preferences.first()
         if (!usage.timeValueEnabled || !yoga.insightsRepository.preferences.first().usageTracking ||
@@ -264,13 +279,14 @@ class YogaGuardService : AccessibilityService() {
 
     private var savedDaily: GuardDaily? = null
     private fun canonical(value: GuardDaily) = value.copy(
+        passes = emptyMap(), resisted = emptyMap(),
         blocks = GuardSurface.entries.associateWith { value.blocks[it] ?: 0 },
         usedMillis = GuardSurface.entries.associateWith { value.usedMillis[it] ?: 0L })
     private suspend fun saveDailyIfChanged() {
         val next = canonical(gate.daily)
         if (savedDaily != next) {
             savedDaily = next
-            yoga.guardPrefs.saveDaily(next)
+            yoga.guardPrefs.saveGateDaily(next)
             val blocks = next.blocks.values.sum()
             if (blocks >= 5 && snapshot == null) snapshot = runCatching { yoga.usageRepository.check() }.getOrNull()
             val over = snapshot?.evaluation?.overall?.state == RuleState.OVER
@@ -304,11 +320,12 @@ class YogaGuardService : AccessibilityService() {
         styleOverlay(this)
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    private fun showPill(text: String, description: String) {
+    private fun showPill(text: String, description: String, isPass: Boolean = false) {
+        passPill = isPass
         val view = pill ?: label().also { v ->
             pill = v
             var downY = 0f; var startY = 0; var dragging = false
-            v.setOnClickListener { collapsed = !collapsed; requests.trySend(Unit) }
+            v.setOnClickListener { if (!passPill) { collapsed = !collapsed; requests.trySend(Unit) } }
             v.setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> { downY = event.rawY; startY = pillY; dragging = false; true }
@@ -324,34 +341,52 @@ class YogaGuardService : AccessibilityService() {
             }
             windows.addView(v, params(pillY))
         }
-        view.text = if (collapsed) "🔥" else if (preferences.style == GuardStyle.BURNING) {
+        view.text = if (isPass) text else if (collapsed) "🔥" else if (preferences.style == GuardStyle.BURNING) {
             SpannableString(text).apply {
                 val start = text.indexOf(' ').let { if (it < 0) 0 else it + 1 }
                 val end = text.lastIndexOf(" burning").let { if (it < start) text.length else it }
                 setSpan(ForegroundColorSpan(overlayTokens.ember.toArgb()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
         } else text
-        view.contentDescription = description + if (collapsed) " Tap to expand." else " Tap to collapse. Drag to move."
-        val animate = preferences.style == GuardStyle.BURNING && Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
+        view.contentDescription = description + if (isPass) " Drag to move." else if (collapsed) " Tap to expand." else " Tap to collapse. Drag to move."
+        val animate = !isPass && preferences.style == GuardStyle.BURNING && Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
         if (animate && flame == null) {
             flame = ValueAnimator.ofFloat(1f, 0.86f, 1f).apply { duration = 1_800; repeatCount = ValueAnimator.INFINITE
                 addUpdateListener { view.alpha = it.animatedValue as Float }; start() }
         } else if (!animate) { flame?.cancel(); flame = null; view.alpha = 1f }
     }
-    private fun showBlockCard(surface: GuardSurface) {
+    private fun showBlockCard(surface: GuardSurface, expiredMinutes: Int? = null) {
         hideCard()
         yoga.reviewController.recordInterruption()
-        val name = if (surface == GuardSurface.YOUTUBE || surface == GuardSurface.BROWSER_YOUTUBE) "Shorts" else "Reels"
-        card = label().apply { text = "$name are off · Regular videos still work · Blocked ${(gate.daily.blocks[surface] ?: 0).let { if (it == 1) "once" else "$it times" }} today" }
+        val name = surface.shortName()
+        val headline = expiredMinutes?.let { "Your $it minutes are up" } ?: "$name are off"
+        card = label().apply { text = "$headline \u00b7 Regular videos still work \u00b7 Blocked ${(gate.daily.blocks[surface] ?: 0).let { if (it == 1) "once" else "$it times" }} today" }
         windows.addView(card, params(dp(140)))
-        cardRemoval = scope.launch { delay(2_500); hideCard() }
-        card?.let { view -> addBlockIntroduction(scope, yoga, view, surface, overlayTokens.accent.toArgb(),
-            isCurrent = { card === view }, keepVisible = {
-                cardRemoval?.cancel()
-                cardRemoval = scope.launch { delay(8_000); hideCard() }
-            }) }
+        fun keepVisible(millis: Long) {
+            cardRemoval?.cancel()
+            cardRemoval = scope.launch { delay(millis); hideCard() }
+        }
+        keepVisible(2_500)
+        card?.let { view ->
+            val strict = isStrict(preferences, LocalDate.now())
+            fun watchAnyway() {
+                if (card !== view || strict) return
+                addWatchAnyway(view, overlayTokens.accent.toArgb(), dp(48)) {
+                    startActivity(Intent(this, `in`.tuwi.yogaphone.ResistActivity::class.java)
+                        .putExtra(`in`.tuwi.yogaphone.ResistActivity.EXTRA_SURFACE, surface.name)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION))
+                    hideCard()
+                }
+                keepVisible(6_000)
+            }
+            if (strict || gate.daily.blocks.values.sum() == 1) {
+                addBlockIntroduction(scope, yoga, view, surface, overlayTokens.accent.toArgb(),
+                    isCurrent = { card === view }, keepVisible = { keepVisible(8_000) },
+                    onUnavailable = { watchAnyway() })
+            } else watchAnyway()
+        }
     }
-    private fun hidePill() { flame?.cancel(); flame = null; pill?.let { runCatching { windows.removeView(it) } }; pill = null }
+    private fun hidePill() { passPill = false; passPillSurface = null; flame?.cancel(); flame = null; pill?.let { runCatching { windows.removeView(it) } }; pill = null }
     private fun hideCard() { cardRemoval?.cancel(); cardRemoval = null; card?.let { runCatching { windows.removeView(it) } }; card = null }
     override fun onInterrupt() { generation++; detected = null; hidePill(); hideCard() }
     override fun onDestroy() { if (registered) unregisterReceiver(screenReceiver); scope.cancel(); requests.close(); hidePill(); hideCard(); super.onDestroy() }

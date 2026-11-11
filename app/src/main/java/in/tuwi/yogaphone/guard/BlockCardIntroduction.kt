@@ -14,11 +14,11 @@ import kotlinx.coroutines.launch
 
 /** The Android View overlay uses the same engine/store as Compose. No detection changes. */
 fun addBlockIntroduction(scope: CoroutineScope, app: YogaApplication, view: TextView, blocked: GuardSurface,
-    accent: Int, isCurrent: () -> Boolean, keepVisible: () -> Unit) {
+    accent: Int, isCurrent: () -> Boolean, keepVisible: () -> Unit, onUnavailable: () -> Unit = {}) {
     scope.launch {
         val signals = app.introSignals.read().copy(blockedSurface = blocked)
         if (!isCurrent()) return@launch
-        val intro = app.introStore.claim(IntroSurface.BLOCK_CARD, signals) ?: return@launch
+        val intro = app.introStore.claim(IntroSurface.BLOCK_CARD, signals) ?: run { onUnavailable(); return@launch }
         if (!isCurrent()) return@launch
         val target = intro.targetSurface ?: return@launch
         val name = if (target == GuardSurface.INSTAGRAM) "Reels" else "Shorts"
@@ -64,4 +64,25 @@ fun addBlockIntroduction(scope: CoroutineScope, app: YogaApplication, view: Text
             scope.launch { app.introStore.dismiss(intro.id); if (isCurrent()) view.text = original }
         }))
     }
+}
+
+/** Same appended-line overlay mechanism as introductions, with a 48 dp action line. */
+fun addWatchAnyway(view: TextView, accent: Int, lineHeight: Int, action: () -> Unit) {
+    val text = "${view.text}\nWatch anyway"
+    val start = text.lastIndexOf("Watch anyway")
+    view.text = SpannableString(text).apply {
+        setSpan(object : ClickableSpan() {
+            override fun onClick(widget: View) = action()
+            override fun updateDrawState(ds: TextPaint) { ds.color = accent; ds.isUnderlineText = false }
+        }, start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        setSpan(object : android.text.style.LineHeightSpan {
+            override fun chooseHeight(text: CharSequence, start: Int, end: Int, spanstartv: Int, v: Int, fm: android.graphics.Paint.FontMetricsInt) {
+                val extra = (lineHeight - (fm.descent - fm.ascent)).coerceAtLeast(0)
+                fm.descent += extra / 2
+                fm.ascent -= extra - extra / 2
+                fm.top = fm.ascent; fm.bottom = fm.descent
+            }
+        }, start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    }
+    view.movementMethod = LinkMovementMethod.getInstance()
 }
