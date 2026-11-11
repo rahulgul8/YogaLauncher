@@ -36,6 +36,7 @@ fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: Fo
     val prefs = state.preferences
     val system = viewModel.system()
     val review = (context.applicationContext as YogaApplication).reviewController
+    var loosenPause by remember { mutableStateOf<(() -> Unit)?>(null) }
     val scope = rememberCoroutineScope()
     var pauseFeedback by remember { mutableStateOf(false) }
     var dndAccess by remember { mutableStateOf(system.hasDndAccess()) }
@@ -54,8 +55,13 @@ fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: Fo
     YogaScreen("Focus and timebox", onBack) {
         item { YogaSection("Mindful pause") }
         item { YogaSwitchRow("Pause before distracting apps", prefs.delayEnabled, { enabled ->
-            viewModel.setDelayEnabled(enabled)
-            scope.launch { if (review.featureChanged(FeedbackFeature.PAUSE, enabled)) pauseFeedback = true }
+            val apply = {
+                viewModel.setDelayEnabled(enabled)
+                scope.launch { if (review.featureChanged(FeedbackFeature.PAUSE, enabled)) pauseFeedback = true }
+                Unit
+            }
+            // Turning the pause off is a loosening; turning it on is instant.
+            if (enabled) apply() else loosenPause = apply
         },
             summary = "A few seconds to choose on purpose") }
         if (pauseFeedback) item {
@@ -115,6 +121,7 @@ fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: Fo
     editing?.let { schedule -> ScheduleDialog(schedule, recentNames.value, { editing = null },
         { recordRecentEntry(context, RECENT_SCHEDULE_NAMES, recentNames, it.name); viewModel.saveSchedule(it); editing = null },
         if (schedule.id != 0L) ({ viewModel.deleteSchedule(schedule.id); editing = null }) else null) }
+    loosenPause?.let { apply -> LoosenSheet("Turn the pause off?", null, "turn it off", apply) { loosenPause = null } }
 }
 
 private fun time(minuteOfDay: Int) = "%02d:%02d".format(minuteOfDay / 60, minuteOfDay % 60)

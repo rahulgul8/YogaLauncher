@@ -29,6 +29,7 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
     var editCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     var pickCategory by remember { mutableStateOf(false) }
     var editTotal by remember { mutableStateOf(false) }
+    var loosen by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
     var selected by remember { mutableStateOf<AppModel?>(null) }
     var query by remember { mutableStateOf("") }
     var denied by remember { mutableStateOf(false) }
@@ -111,13 +112,22 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
         AllowanceEditor("${category.name} a day", current?.dailyAllowanceMinutes, { editCategory = null }) { viewModel.saveCategoryRule(category.id, it) }
     }
     if (editTotal) AllowanceEditor("Daily allowance", total?.dailyAllowanceMinutes, { editTotal = false }) { minutes ->
-        viewModel.saveRule(null, minutes)
-        val wasEnabled = total != null
-        val enabled = minutes != null
-        if (wasEnabled != enabled) scope.launch {
-            if (review.featureChanged(FeedbackFeature.ALLOWANCE, enabled)) allowanceFeedback = true
+        val apply = {
+            viewModel.saveRule(null, minutes)
+            val wasEnabled = total != null
+            val enabled = minutes != null
+            if (wasEnabled != enabled) scope.launch {
+                if (review.featureChanged(FeedbackFeature.ALLOWANCE, enabled)) allowanceFeedback = true
+            }
+            Unit
         }
+        val current = total?.dailyAllowanceMinutes
+        // Turning the allowance off or raising it is a loosening; lowering it is instant.
+        if (current != null && (minutes == null || minutes > current))
+            loosen = (if (minutes == null) "Turn the daily allowance off?" else "Raise your daily allowance?") to apply
+        else apply()
     }
+    loosen?.let { (title, apply) -> LoosenSheet(title, null, "change it", apply) { loosen = null } }
     selected?.let { UsageAppSheet(it, state, viewModel) { selected = null } }
     if (clearHistory) YogaDialog("Delete saved history?", "Delete", { viewModel.clearHistory(); clearHistory = false }, { clearHistory = false },
         text = { androidx.compose.material3.Text("Past saved days will be removed. Today and yesterday can be measured again from Android while Usage Access is on. Turn off Usage Access to stop collection.") })

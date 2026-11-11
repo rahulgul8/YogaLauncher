@@ -42,3 +42,17 @@ fun mergeGuardDaily(stored: GuardDaily, gate: GuardDaily): GuardDaily = when {
     else -> gate.copy(passes = emptyMap(), resisted = emptyMap())
 }
 
+
+/** True when [next] lets more Shorts or Reels through than [previous]: turned off, or a block became a daily allowance or a bigger one. */
+fun isLooser(previous: SurfaceSettings, next: SurfaceSettings): Boolean = when {
+    !previous.enabled -> false
+    !next.enabled -> true
+    previous.allowanceMinutes == 0 -> next.allowanceMinutes > 0
+    else -> next.allowanceMinutes > previous.allowanceMinutes
+}
+
+/** Leaving strict mode takes effect from tomorrow (D6), so it really binds today. */
+fun strictOffFrom(today: LocalDate): String = today.plusDays(1).toString()
+
+/** A pending "strict off" whose day has come should be written back as plain, non-strict preferences. */
+fun strictEnded(prefs: GuardPreferences, today: LocalDate): Boolean = prefs.strict && !isStrict(prefs, today)

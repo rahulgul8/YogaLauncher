@@ -16,6 +16,8 @@ object ResistanceLadder {
     const val SHORTS_BASE_SECONDS = 15
     const val SHORTS_CAP_SECONDS = 120
     const val PAUSE_CAP_SECONDS = 60
+    /** Wait before a rule can be made looser in Settings. */
+    const val LOOSEN_SECONDS = 10
 
     /**
      * Seconds to wait before the next way through. [passesToday] counts the ways through already taken today

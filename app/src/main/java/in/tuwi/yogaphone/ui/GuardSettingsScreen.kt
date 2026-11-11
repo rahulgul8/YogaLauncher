@@ -62,14 +62,32 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
+    val todayDate = LocalDate.parse(today)
+    val strictNow = isStrict(p, todayDate)
+    // A "strict off" that has reached its day becomes plain preferences again.
+    LaunchedEffect(p.strict, p.strictOffFrom, today) {
+        if (strictEnded(p, todayDate)) prefs.update { it.copy(strict = false, strictOffFrom = null) }
+    }
+    var loosen by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
+    var strictNote by remember { mutableStateOf(false) }
     fun updateSurface(surface: GuardSurface, transform: (SurfaceSettings) -> SurfaceSettings) {
-        scope.launch { prefs.update { it.copy(surfaces = it.surfaces + (surface to transform(it.surface(surface)))) } }
+        val previous = p.surface(surface)
+        val next = transform(previous)
+        val apply = { scope.launch { prefs.update { it.copy(surfaces = it.surfaces + (surface to transform(it.surface(surface)))) } }; Unit }
+        when {
+            !isLooser(previous, next) -> apply()
+            strictNow -> strictNote = true
+            else -> loosen = (if (!next.enabled) "Turn this block off?" else "Allow more each day?") to apply
+        }
     }
 
     YogaScreen("Shorts and live time value", onBack) {
         item {
             YogaRow("Yoga guard · ${if (enabled) "on" else "off"}", summary = "Optional accessibility service for live time value and Shorts/Reels blocking")
-            YogaTextButton(if (enabled) "Manage Yoga guard" else "Enable Yoga guard", { disclosure = true }, Modifier.padding(horizontal = TextButtonInset))
+            YogaTextButton(if (enabled) "Manage Yoga guard" else "Enable Yoga guard", {
+                // Turning the guard off happens in Android settings; going there is the loosening step.
+                if (enabled) loosen = "Turn Yoga guard off?" to { disclosure = true } else disclosure = true
+            }, Modifier.padding(horizontal = TextButtonInset))
         }
         if (guardFeedback) item {
             FeedbackQuestion(FeedbackFeature.GUARD, listOf("Blocked too much", "Didn't block enough", "Something else broke")) { guardFeedback = false }
@@ -85,6 +103,22 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
         }
         item { YogaSection("Shorts and Reels") }
         item { YogaNote("Turn on only the surfaces you want Yoga to recognise. Regular videos still work. Browser detection is optional and off by default.") }
+        item {
+            YogaSection("When I open Shorts or Reels")
+            YogaRadioRow("Let me through after a pause", !p.strict, {
+                // Leaving strict mode is a loosening: it waits until tomorrow.
+                if (p.strict && p.strictOffFrom == null) scope.launch { prefs.update { it.copy(strictOffFrom = strictOffFrom(todayDate)) } }
+            }, summary = "A wait that grows, then you choose 5, 10 or 15 minutes")
+            YogaRadioRow("Never (strict)", p.strict && p.strictOffFrom == null, {
+                scope.launch { prefs.update { it.copy(strict = true, strictOffFrom = null) } }
+            }, summary = "No way through. Looser settings wait until strict mode ends")
+            if (p.strict && p.strictOffFrom != null) {
+                YogaNote("Strict mode ends tomorrow.")
+                YogaTextButton("Keep strict mode", { scope.launch { prefs.update { it.copy(strictOffFrom = null) } } },
+                    Modifier.padding(horizontal = TextButtonInset))
+            }
+            if (strictNote) YogaNote("Strict mode is on, so looser settings wait until it ends. Choose \"Let me through after a pause\" to end it tomorrow.")
+        }
         GuardSurface.entries.forEach { surface ->
             val setting = p.surface(surface)
             val label = when (surface) {
@@ -116,6 +150,12 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
         }
         item { YogaNote("Selected browser surfaces use the address bar in Chrome, Samsung Internet and Firefox. Recognition can change after app updates.") }
         item { YogaCard { YogaStat(blocks.values.sum().toString(), "Shorts and Reels blocked today") } }
+        val resisted = daily.resisted.takeIf { daily.date == today }.orEmpty().values.sum()
+        if (resisted > 0) item { YogaNote("You said not now $resisted ${if (resisted == 1) "time" else "times"} today.") }
+    }
+    loosen?.let { (title, apply) ->
+        LoosenSheet(title, resisted(daily, today).takeIf { it > 0 }?.let { "You said not now ${if (it == 1) "once" else "$it times"} today." },
+            "change it", apply) { loosen = null }
     }
     if (disclosure) GuardDisclosureDialog(
         onConfirm = {
@@ -126,3 +166,5 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
         onDismissRequest = { disclosure = false },
     )
 }
+
+private fun resisted(daily: GuardDaily, today: String) = daily.resisted.takeIf { daily.date == today }.orEmpty().values.sum()
