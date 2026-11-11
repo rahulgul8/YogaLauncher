@@ -12,6 +12,7 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [x] **D1. Onboarding image style.** Decided 8 Nov 2026: monochrome etched line art, transparent, tinted per look (the recommended option).
 - [ ] **D2. Weekly review for free users.** Recommended: a free in-app weekly view; the Sunday notification stays Pro. *Unblocks piece G.*
 - [ ] **D3. Guard measure mode (Shorts count).** Recommended: build it after the first Play approval. *Unblocks piece I.*
+- [ ] **D4–D7. A way through with resistance** (docs/plans/bypass-with-resistance.md). Recommended: way through by default (D4), free (D5), strict changes apply tomorrow (D6), pause for apps opened outside Yoga after Play approval (D7). *D4 unblocks piece J.*
 - [ ] **Name check:** Lenovo's YOGA trademark, before public launch.
 - [ ] **Roadmap order** in docs/research/feature-roadmap.md.
 - [ ] **Learning videos:** branch `learning-videos`. Check it on the phone, then merge or park it.
@@ -68,14 +69,14 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [ ] Check the Shorts flow through Android settings and back. This needs the guard turned off first, which is the founder's call on their phone.
 - [x] Block-card line checked on the moto g31 (fake evidence `instagram=300`, which also counts Instagram as installed). Opening Shorts shows "Also turn off Reels? · Turn off Reels · Not now", and the card stays up for 8 s. The overlay takes taps: "Turn off Reels" turns Reels on and shows "Reels are off too · Undo", and Undo turns Reels off again. The phone was left as found: Reels off, Shorts blocked, preview cleared.
 
-## D. Home usage display styles
+## D. Home usage display styles [x] merged in a0abda4, shipped in 1.4 (5)
 
 - [ ] OpenSpec change `add-home-usage-styles`, ADR 0014.
 - [ ] Styles: Line (default), Number, Ring, Week, Off. "Show value of time" (Pro).
 - [ ] Settings → Appearance → "Today on home".
 - [ ] Screenshot tests for every style in all 3 looks.
 
-## E. Onboarding v3
+## E. Onboarding v3 [x] merged in b3ccccc, shipped in 1.4 (5); phone checks under "Phone checks still open"
 
 - [ ] Fewer words: titles of 6 words or fewer, and at most one line of 12 words or fewer under each.
 - [ ] New step **Your week**: real numbers, with YouTube and Instagram highlighted.
@@ -86,7 +87,10 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [ ] Existing users get a short What's-new run with only the new steps, not the full replay.
 - [ ] Check on the phone in all 3 looks.
 
-## F. Review moments and feedback
+## F. Review moments and feedback [~] merged in ebd4bc6; phone check left
+
+Built: R1–R4, the guards, Help → Send feedback, and "What didn't work?". R2 runs on leaving Usage → Last 7 days until piece G exists. Queued moments lapse after a day. Still to do: the checks below.
+
 
 - [ ] Add `review-ktx`. Moments:
   - **R1:** right after turning on Shorts or Reels blocking from usage data;
@@ -118,6 +122,14 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [ ] **I17** Hidden apps, **I18** Profiles, **I19** Widgets, **I20** Looks, **I21** Backup.
 - [ ] **I22** Learning videos (once shipped), **I23** Home basics hints, **I24** End-of-trial recap.
 
+## J. A way through, with resistance (D4–D7)
+
+- [ ] J1 `ResistanceLadder`, Shorts passes in `ShortsGate`, passes and resists in `GuardDaily`.
+- [ ] J2 Resist screen, "Watch anyway" on the block card, pass pill.
+- [ ] J3 Pause screen: growing wait, how-long chips, hold to open, cost line, time-up nudge.
+- [ ] J4 Resistance when loosening rules; strict mode.
+- [ ] J5 Pause for apps opened outside Yoga (after Play approval, D7).
+
 ## I. Guard measure mode (after first approval, D3)
 
 - [ ] Record Shorts and Reels minutes and video count without blocking.
@@ -141,4 +153,6 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 
 - [x] Sheets opened half-expanded and hid taller sheets' buttons (Timebox Start) below the screen. All sheets now open fully (fde118d).
 - [ ] Pause screen, sheets, light mode, and the Stone and Midnight Sage looks on the release build.
+- [ ] Usage screen labels (534eef2): "on distracting apps" and "in all apps" lines, Today and Last 7 days.
+- [ ] Review moments (ebd4bc6) with `--ez review_fake true`: R1 after turning on Shorts from an introduction; Help → Send feedback; "What didn't work?" after turning the pause off.
 - [ ] Turn off `svc power stayon` on the founder's phone. Wait until the founder frees up the phone.
