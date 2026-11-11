@@ -2,6 +2,18 @@
 
 One section per version code. Each language goes in its own tag; 500 characters at most.
 
+## 1.5 (7)
+
+```
+<en-US>
+Want Shorts or Reels anyway? Tap "Watch anyway", take a breath, choose 5, 10 or 15 minutes, and hold. Each pass that day waits longer. Prefer no way through? Turn on strict mode.
+The pause before distracting apps now grows each time you go through, asks how long, and counts each time you say not now.
+Turning a limit off now takes a short pause too.
+New: Help → Send feedback.
+Usage now says which apps the big number counts, and shows the total for all apps.
+</en-US>
+```
+
 ## 1.4.1 (6)
 
 ```

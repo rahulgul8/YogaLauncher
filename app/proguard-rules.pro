@@ -21,3 +21,6 @@
 #-renamesourcefileattribute SourceFile
 # Yoga stores enums by name (DataStore, Room, backups). Keep their constant names stable across releases.
 -keepclassmembers enum in.tuwi.yogaphone.** { <fields>; }
+
+# review-ktx (Play In-App Review) references an annotation from play-services-basement that is not on the classpath; it is annotation-only.
+-dontwarn com.google.android.gms.common.annotation.NoNullnessRewrite

@@ -5,6 +5,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -63,8 +65,11 @@ fun MindfulDelayScreen(
     BackHandler { onGoBack() }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        // Scrolls on small screens and with large text, so the way through is never pushed off the bottom.
+        // With an unbounded height, Column shares its weights out of the minimum height, which is the screen.
+        BoxWithConstraints(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
         Column(
-            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = ScreenMargin, vertical = 24.dp),
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(horizontal = ScreenMargin, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.weight(1f))
@@ -104,6 +109,7 @@ fun MindfulDelayScreen(
             Spacer(Modifier.height(8.dp))
             HoldToOpenButton(selectedMinutes, remaining <= 0, reducedMotion,
                 onHeld = { onContinue(purpose.trim().takeIf(String::isNotEmpty), selectedMinutes) }, modifier = Modifier.fillMaxWidth())
+        }
         }
     }
 }
