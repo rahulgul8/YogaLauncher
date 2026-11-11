@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 
@@ -253,6 +254,19 @@ class FocusRepository(
             dao.insertIntervention(InterventionEventEntity(type = type, packageName = packageName, shownAt = now(),
                 actionTaken = action, purpose = purpose?.trim()?.takeIf(String::isNotEmpty)))
         }
+
+    suspend fun interventionCountsToday(packageName: String): Pair<Int, Int> = withContext(Dispatchers.IO) {
+        val zone = ZoneId.systemDefault()
+        val since = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
+        dao.countInterventionsSince(null, "CONTINUED", packageName, since) to
+            dao.countInterventionsSince(null, "WENT_BACK", null, since)
+    }
+
+    suspend fun recordPausePass(packageName: String, label: String, minutes: Int, purpose: String?) {
+        val now = now()
+        val until = prefs.recordPausePass(packageName, minutes, purpose, now)
+        system.setPausePassAlarm(packageName, label, minutes, until)
+    }
 
     fun system() = system
 }

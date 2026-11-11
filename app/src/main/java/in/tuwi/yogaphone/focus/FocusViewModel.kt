@@ -11,6 +11,7 @@ import `in`.tuwi.yogaphone.data.db.FocusSessionEntity
 import `in`.tuwi.yogaphone.data.db.TimeboxSessionEntity
 import `in`.tuwi.yogaphone.usage.AppClassification
 import `in`.tuwi.yogaphone.usage.AppClassifier
+import `in`.tuwi.yogaphone.resist.ResistanceLadder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,7 @@ data class FocusUiState(
     val classifications: Map<String, AppClassification> = emptyMap(),
     val now: Long = System.currentTimeMillis(),
     val streak: Int = 0,
+    val resistedToday: Int = 0,
 ) {
     val focusActive: Boolean get() = focus != null
 
@@ -45,7 +47,14 @@ data class FocusUiState(
 /** What the launcher should do when the user taps an app. */
 sealed interface LaunchDecision {
     data object Open : LaunchDecision
-    data class Pause(val seconds: Int, val duringFocus: Boolean) : LaunchDecision
+    data class Pause(
+        val seconds: Int,
+        val duringFocus: Boolean,
+        val choices: List<Int>,
+        val preselected: Int,
+        val opensToday: Int,
+        val resistedToday: Int,
+    ) : LaunchDecision
 }
 
 class FocusViewModel(application: Application) : AndroidViewModel(application) {
@@ -54,6 +63,7 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
     private val classifier = AppClassifier(application)
     private val ticker = MutableStateFlow(System.currentTimeMillis())
     private val streak = MutableStateFlow(0)
+    private val resistedToday = MutableStateFlow(0)
 
     private val classifications = combine(app.appRepository.apps, app.database.appEntryDao().observeAll()) { apps, entries ->
         val byPackage = entries.associateBy { it.packageName }
@@ -62,8 +72,9 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
 
     private val sessions = combine(repository.latestTimebox, repository.activeFocus, repository.schedules) { t, f, s -> Triple(t, f, s) }
 
-    private val rawState = combine(sessions, repository.prefs.preferences, classifications, ticker, streak) { s, p, c, now, k ->
-        FocusUiState(s.first, s.second, p, s.third, c, now, k)
+    private val dailyCounts = combine(streak, resistedToday) { currentStreak, resisted -> currentStreak to resisted }
+    private val rawState = combine(sessions, repository.prefs.preferences, classifications, ticker, dailyCounts) { s, p, c, now, counts ->
+        FocusUiState(s.first, s.second, p, s.third, c, now, counts.first, counts.second)
     }
     val state: StateFlow<FocusUiState> = combine(rawState, app.proRepository.state) { raw, pro ->
         if (ProGate.allows(ProFeature.FOCUS, pro)) raw else raw.copy(focus = null, timebox = null)
@@ -84,9 +95,11 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
         }
         runCatching { app.quietRepository.reconcileGreyscale() }
         streak.value = runCatching { repository.streak() }.getOrDefault(0)
+        resistedToday.value = runCatching { repository.interventionCountsToday("").second }.getOrDefault(0)
     }
 
-    suspend fun decide(app: AppModel): LaunchDecision {
+    /** [overLimit] comes from the usage state the caller already holds; a fresh usage scan would delay every tap. */
+    suspend fun decide(app: AppModel, overLimit: Boolean = false): LaunchDecision {
         val current = state.value
         val pkg = app.appPackage
         val prefs = repository.prefs.preferences.first()
@@ -96,18 +109,28 @@ class FocusViewModel(application: Application) : AndroidViewModel(application) {
         val pauseAllowed = ProGate.allows(ProFeature.EXTRA_MINDFUL_APPS, pro) || pkg in freeQuota(eligible, 3)
         val delayPause = pauseAllowed && prefs.delayEnabled && current.isDistracting(pkg) && pkg !in prefs.delayOptOut
         if (!focusPause && !delayPause) return LaunchDecision.Open
-        if (!DelayGate.shouldPause(repository.prefs.lastContinuedAt(pkg), System.currentTimeMillis(), prefs.dontAskMinutes)) {
+        val now = System.currentTimeMillis()
+        if (repository.prefs.hasActivePausePass(pkg, now)) {
             return LaunchDecision.Open
         }
-        return LaunchDecision.Pause(prefs.delaySeconds + if (focusPause) 5 else 0, focusPause)
+        val (opensToday, resisted) = repository.interventionCountsToday(pkg)
+        resistedToday.value = resisted
+        val choices = ResistanceLadder.choices(opensToday, overLimit)
+        val selected = PausePassGate.preselect(repository.prefs.lastPassMinutes(pkg), prefs.dontAskMinutes, choices)
+        val seconds = ResistanceLadder.waitSeconds(
+            prefs.delaySeconds, opensToday, ResistanceLadder.PAUSE_CAP_SECONDS, overLimit,
+        ) + if (focusPause) 5 else 0
+        return LaunchDecision.Pause(seconds, focusPause, choices, selected, opensToday, resisted)
     }
 
-    fun pauseOutcome(app: AppModel, continued: Boolean, duringFocus: Boolean, purpose: String?) = viewModelScope.launch {
+    fun pauseOutcome(app: AppModel, continued: Boolean, duringFocus: Boolean, purpose: String?, minutes: Int? = null) = viewModelScope.launch {
         repository.recordIntervention(if (duringFocus) "FOCUS_OVERRIDE" else "DELAY", app.appPackage,
             if (continued) "CONTINUED" else "WENT_BACK", purpose)
         if (continued) {
-            repository.prefs.recordDelayContinue(app.appPackage, purpose, System.currentTimeMillis())
+            minutes?.let { repository.recordPausePass(app.appPackage, app.displayLabel, it, purpose) }
             if (duringFocus) repository.recordFocusOverride()
+        } else {
+            resistedToday.value += 1
         }
     }
 

@@ -65,11 +65,7 @@ fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: Fo
             YogaRow("Pause length", summary = "${prefs.delaySeconds} seconds · 5 more during focus")
             YogaSlider(prefs.delaySeconds.toFloat(), { viewModel.setDelaySeconds(it.toInt()) },
                 Modifier.padding(horizontal = ScreenMargin), valueRange = 2f..10f, steps = 7)
-            YogaNote("After you continue, don't ask again for that app for")
-            YogaChipRow { listOf(0, 5, 15, 30).forEach { minutes ->
-                YogaChip(if (minutes == 0) "Always ask" else "$minutes min", prefs.dontAskMinutes == minutes,
-                    onClick = { viewModel.setDontAskMinutes(minutes) })
-            } }
+            YogaNote("Each time, choose a 5, 10 or 15 minute pass.")
             YogaNote("Apps opened from notifications or other apps skip this pause.")
         }
         if (!access.allows(ProFeature.FOCUS)) {

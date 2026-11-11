@@ -46,6 +46,7 @@ import `in`.tuwi.yogaphone.focus.FocusSystem
 import `in`.tuwi.yogaphone.focus.FocusUiState
 import `in`.tuwi.yogaphone.focus.FocusViewModel
 import `in`.tuwi.yogaphone.focus.LaunchDecision
+import `in`.tuwi.yogaphone.resist.ResistanceLadder
 import `in`.tuwi.yogaphone.ui.FocusControlSheet
 import `in`.tuwi.yogaphone.ui.FocusSettingsScreen
 import `in`.tuwi.yogaphone.ui.FocusStartSheet
@@ -156,7 +157,16 @@ private const val ADVANCED = "settings/advanced"
 private const val LEAVE = "settings/advanced/leave"
 private const val WIDGET_PICKER = "settings/widgets/add"
 
-private data class PendingPause(val app: AppModel, val query: String, val seconds: Int, val duringFocus: Boolean)
+private data class PendingPause(
+    val app: AppModel,
+    val query: String,
+    val seconds: Int,
+    val duringFocus: Boolean,
+    val choices: List<Int>,
+    val preselected: Int,
+    val opensToday: Int,
+    val resistedToday: Int,
+)
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -471,9 +481,12 @@ private fun LauncherNavigation(
     // Every launch from Yoga goes through the mindful-pause gate.
     fun requestLaunch(app: AppModel, query: String = "") {
         scope.launch {
-            when (val decision = focusViewModel.decide(app)) {
+            when (val decision = focusViewModel.decide(app, usageState.snapshot.evaluation.overall?.state == RuleState.OVER)) {
                 LaunchDecision.Open -> viewModel.launchApp(app, query)
-                is LaunchDecision.Pause -> pendingPause = PendingPause(app, query, decision.seconds, decision.duringFocus)
+                is LaunchDecision.Pause -> pendingPause = PendingPause(
+                    app, query, decision.seconds, decision.duringFocus, decision.choices,
+                    decision.preselected, decision.opensToday, decision.resistedToday,
+                )
             }
         }
     }
@@ -626,7 +639,7 @@ private fun LauncherNavigation(
             val blockedToday = if (guardDaily.date == guardDate) guardDaily.blocks.values.sum() else 0
             UsageDashboardScreen(usageState, usageViewModel, { navController.popBackStack() },
                 { navController.navigate("settings/usage") }, entry.arguments?.getString("details") == "true",
-                uiState.categories.associate { it.id to it.name }, blockedToday,
+                uiState.categories.associate { it.id to it.name }, blockedToday, focusState.resistedToday,
                 onWeeklyReviewLeave = { within, known, minutes ->
                     yoga.reviewController.onGoodWeek(activity, within, known, minutes)
                 })
@@ -937,18 +950,27 @@ private fun LauncherNavigation(
 
     pendingPause?.let { pause ->
         val overall = usageState.snapshot.evaluation.overall
-        val usageLine = overall?.takeIf { usageState.snapshot.available }?.let {
+        val allowanceLine = overall?.takeIf { usageState.snapshot.available }?.let {
             if (it.state == RuleState.OVER) "You're ${it.excessMinutes} minutes past today's limit."
             else "You've used ${it.used} of ${it.allowance} minutes today."
+        }
+        val appMinutes = usageState.snapshot.today.filter { it.packageName == pause.app.appPackage }.sumOf { it.foregroundMinutes }
+        val costLine = buildString {
+            append(ResistanceLadder.ordinal(pause.opensToday + 1)).append(" open today")
+            if (usageState.snapshot.available) append(" · $appMinutes min in ${pause.app.displayLabel} today")
         }
         MindfulDelayScreen(
             app = pause.app,
             seconds = pause.seconds,
             duringFocus = pause.duringFocus,
-            usageLine = usageLine,
+            costLine = costLine,
+            allowanceLine = allowanceLine,
+            resistedToday = pause.resistedToday,
+            choices = pause.choices,
+            preselected = pause.preselected,
             recentPurposes = focusState.preferences.delayPurposes,
-            onContinue = { purpose ->
-                focusViewModel.pauseOutcome(pause.app, continued = true, duringFocus = pause.duringFocus, purpose = purpose)
+            onContinue = { purpose, minutes ->
+                focusViewModel.pauseOutcome(pause.app, continued = true, duringFocus = pause.duringFocus, purpose = purpose, minutes = minutes)
                 viewModel.launchApp(pause.app, pause.query)
                 pendingPause = null
             },

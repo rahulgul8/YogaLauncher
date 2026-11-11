@@ -97,6 +97,13 @@ interface FocusDao {
     @Query("SELECT * FROM focus_schedules") suspend fun schedules(): List<FocusScheduleEntity>
 
     @Insert suspend fun insertIntervention(event: InterventionEventEntity)
+    @Query("""
+        SELECT COUNT(*) FROM intervention_events
+        WHERE actionTaken = :action AND shownAt >= :since
+          AND (:type IS NULL OR type = :type)
+          AND (:packageName IS NULL OR packageName = :packageName)
+    """)
+    suspend fun countInterventionsSince(type: String?, action: String, packageName: String?, since: Long): Int
     @Query("SELECT * FROM focus_sessions WHERE startAt >= :since") suspend fun focusSince(since: Long): List<FocusSessionEntity>
     @Query("SELECT * FROM timebox_sessions WHERE startedAt >= :since") suspend fun timeboxesSince(since: Long): List<TimeboxSessionEntity>
     @Query("SELECT * FROM focus_sessions WHERE status = 'COMPLETED' ORDER BY id DESC LIMIT 1") suspend fun latestCompletedFocus(): FocusSessionEntity?

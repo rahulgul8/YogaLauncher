@@ -6,6 +6,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import `in`.tuwi.yogaphone.resist.ResistanceLadder
 
 private const val MINUTE_MS = 60_000L
 
@@ -115,6 +116,30 @@ object DelayGate {
     /** Drops entries older than a day so the stored set stays small. */
     fun record(continued: Map<String, Long>, packageName: String, now: Long): Map<String, Long> =
         continued.filterValues { now - it < 24 * 60 * MINUTE_MS } + (packageName to now)
+}
+
+/** Pure persistence and selection rules for a mindful-pause pass. */
+object PausePassGate {
+    fun isActive(until: Long?, now: Long): Boolean = until != null && until > now
+
+    fun encode(passes: Map<String, Long>): Set<String> =
+        passes.map { (pkg, until) -> "$pkg|$until" }.toSet()
+
+    fun decode(raw: Set<String>): Map<String, Long> = raw.mapNotNull { entry ->
+        val split = entry.lastIndexOf('|')
+        if (split <= 0) return@mapNotNull null
+        entry.substring(split + 1).toLongOrNull()?.let { entry.substring(0, split) to it }
+    }.toMap()
+
+    fun active(passes: Map<String, Long>, now: Long): Map<String, Long> =
+        passes.filterValues { it > now }
+
+    fun record(passes: Map<String, Long>, packageName: String, until: Long, now: Long): Map<String, Long> =
+        active(passes, now) + (packageName to until)
+
+    /** The saved per-app choice wins; the old global setting is only a first-use migration fallback. */
+    fun preselect(lastMinutes: Int?, legacyMinutes: Int, choices: List<Int>): Int =
+        ResistanceLadder.preselect(lastMinutes ?: legacyMinutes, choices)
 }
 
 /** Newest first, case-insensitively de-duplicated, capped (default 3). */

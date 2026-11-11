@@ -42,6 +42,9 @@ class FocusPrefs(private val context: Context) {
         val lastFocus = intPreferencesKey("focus_last_minutes")
         val timeboxPurposes = stringPreferencesKey("timebox_purposes")
         val delayPurposes = stringPreferencesKey("delay_purposes")
+        val pausePasses = stringSetPreferencesKey("pause_passes")
+        val lastPassMinutes = stringSetPreferencesKey("pause_last_pass_minutes")
+        // Kept readable for migration and old backups; new gating uses pausePasses.
         val continued = stringSetPreferencesKey("delay_continued_at")
         val dndChangedByYoga = booleanPreferencesKey("focus_dnd_changed")
         val previousFilter = intPreferencesKey("focus_previous_filter")
@@ -89,6 +92,35 @@ class FocusPrefs(private val context: Context) {
             updateRecentList(it[Keys.delayPurposes].split(), purpose).joinToString(SEPARATOR)
     }
     suspend fun lastContinuedAt(pkg: String): Long? = DelayGate.decode(context.dataStore.data.first()[Keys.continued].orEmpty())[pkg]
+
+    /** Returns live passes and prunes expired ones from storage. */
+    suspend fun pausePasses(now: Long): Map<String, Long> {
+        var live = emptyMap<String, Long>()
+        edit {
+            live = PausePassGate.active(PausePassGate.decode(it[Keys.pausePasses].orEmpty()), now)
+            it[Keys.pausePasses] = PausePassGate.encode(live)
+        }
+        return live
+    }
+
+    suspend fun hasActivePausePass(pkg: String, now: Long): Boolean =
+        PausePassGate.isActive(pausePasses(now)[pkg], now)
+
+    suspend fun lastPassMinutes(pkg: String): Int? =
+        PausePassGate.decode(context.dataStore.data.first()[Keys.lastPassMinutes].orEmpty())[pkg]?.toInt()
+
+    suspend fun recordPausePass(pkg: String, minutes: Int, purpose: String?, now: Long): Long {
+        val until = now + minutes * 60_000L
+        edit {
+            val passes = PausePassGate.decode(it[Keys.pausePasses].orEmpty())
+            it[Keys.pausePasses] = PausePassGate.encode(PausePassGate.record(passes, pkg, until, now))
+            val choices = PausePassGate.decode(it[Keys.lastPassMinutes].orEmpty()) + (pkg to minutes.toLong())
+            it[Keys.lastPassMinutes] = PausePassGate.encode(choices)
+            if (!purpose.isNullOrBlank()) it[Keys.delayPurposes] =
+                updateRecentList(it[Keys.delayPurposes].split(), purpose).joinToString(SEPARATOR)
+        }
+        return until
+    }
 
     suspend fun dndState(): Pair<Boolean, Int?> = context.dataStore.data.first().let { (it[Keys.dndChangedByYoga] == true) to it[Keys.previousFilter] }
     suspend fun setDndState(changed: Boolean, previous: Int?) = edit {
