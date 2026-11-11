@@ -1,6 +1,6 @@
 # Plan: let people through, but make them choose it
 
-Status: draft for the founder, 11 Nov 2026. Nothing built yet.
+Status: decided 11 Nov 2026 with the recommended answers: D4 a way through by default, D5 all free, D6 strict changes apply tomorrow, D7 Part 4 after the first Play approval. Building J1–J4 for 1.5.
 
 ## What happens today
 
