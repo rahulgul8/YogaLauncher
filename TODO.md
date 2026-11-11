@@ -12,7 +12,7 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [x] **D1. Onboarding image style.** Decided 8 Nov 2026: monochrome etched line art, transparent, tinted per look (the recommended option).
 - [ ] **D2. Weekly review for free users.** Recommended: a free in-app weekly view; the Sunday notification stays Pro. *Unblocks piece G.*
 - [ ] **D3. Guard measure mode (Shorts count).** Recommended: build it after the first Play approval. *Unblocks piece I.*
-- [ ] **D4–D7. A way through with resistance** (docs/plans/bypass-with-resistance.md). Recommended: way through by default (D4), free (D5), strict changes apply tomorrow (D6), pause for apps opened outside Yoga after Play approval (D7). *D4 unblocks piece J.*
+- [x] **D4–D7. A way through with resistance** Decided 11 Nov 2026: the recommended answers. (docs/plans/bypass-with-resistance.md). Recommended: way through by default (D4), free (D5), strict changes apply tomorrow (D6), pause for apps opened outside Yoga after Play approval (D7). *D4 unblocks piece J.*
 - [ ] **Name check:** Lenovo's YOGA trademark, before public launch.
 - [ ] **Roadmap order** in docs/research/feature-roadmap.md.
 - [ ] **Learning videos:** branch `learning-videos`. Check it on the phone, then merge or park it.
@@ -122,12 +122,12 @@ Built: R1–R4, the guards, Help → Send feedback, and "What didn't work?". R2 
 - [ ] **I17** Hidden apps, **I18** Profiles, **I19** Widgets, **I20** Looks, **I21** Backup.
 - [ ] **I22** Learning videos (once shipped), **I23** Home basics hints, **I24** End-of-trial recap.
 
-## J. A way through, with resistance (D4–D7)
+## J. A way through, with resistance (D4–D7) [~] J1–J4 in 1.5 (7) on internal testing; phone check left
 
-- [ ] J1 `ResistanceLadder`, Shorts passes in `ShortsGate`, passes and resists in `GuardDaily`.
-- [ ] J2 Resist screen, "Watch anyway" on the block card, pass pill.
-- [ ] J3 Pause screen: growing wait, how-long chips, hold to open, cost line, time-up nudge.
-- [ ] J4 Resistance when loosening rules; strict mode.
+- [x] J1 (522c689) `ResistanceLadder`, Shorts passes in `ShortsGate`, passes and resists in `GuardDaily`.
+- [x] J2 (522c689) Resist screen, "Watch anyway" on the block card, pass pill.
+- [x] J3 (d1c7c79) Pause screen: growing wait, how-long chips, hold to open, cost line, time-up nudge.
+- [x] J4 (aff24c1) Resistance when loosening rules; strict mode.
 - [ ] J5 Pause for apps opened outside Yoga (after Play approval, D7).
 
 ## I. Guard measure mode (after first approval, D3)
@@ -155,4 +155,7 @@ Built: R1–R4, the guards, Help → Send feedback, and "What didn't work?". R2 
 - [ ] Pause screen, sheets, light mode, and the Stone and Midnight Sage looks on the release build.
 - [ ] Usage screen labels (534eef2): "on distracting apps" and "in all apps" lines, Today and Last 7 days.
 - [ ] Review moments (ebd4bc6) with `--ez review_fake true`: R1 after turning on Shorts from an introduction; Help → Send feedback; "What didn't work?" after turning the pause off.
+- [x] 1.5 (7) on internal testing, 11 Nov (v1.5-7): a way through Shorts/Reels and the pause, resistance when loosening, review moments, feedback. Emulator check: pause wait, chips, hold, pass, Keep-it sheet.
+- [ ] 1.5 on a real phone: "Watch anyway" on the block card, the resist screen, a pass on YouTube and on Instagram (pill, expiry, "Your N minutes are up"), strict mode and "ends tomorrow", the pause time-up notification, TalkBack on the hold buttons.
+- [ ] Privacy policy now mentions passes and "not now" counts: redeploy yogaphone.tuwi.in before the next open-testing release.
 - [ ] Turn off `svc power stayon` on the founder's phone. Wait until the founder frees up the phone.
