@@ -268,8 +268,21 @@ class YogaGuardService : AccessibilityService() {
         usedMillis = GuardSurface.entries.associateWith { value.usedMillis[it] ?: 0L })
     private suspend fun saveDailyIfChanged() {
         val next = canonical(gate.daily)
-        if (savedDaily != next) { savedDaily = next; yoga.guardPrefs.saveDaily(next) }
+        if (savedDaily != next) {
+            savedDaily = next
+            yoga.guardPrefs.saveDaily(next)
+            val blocks = next.blocks.values.sum()
+            if (blocks >= 5 && snapshot == null) snapshot = runCatching { yoga.usageRepository.check() }.getOrNull()
+            val over = snapshot?.evaluation?.overall?.state == RuleState.OVER
+            // Usage time changes every tick; the review moment only cares about blocks and the limit.
+            val report = Triple(next.date, blocks, over)
+            if (report != reportedStrongDay) {
+                reportedStrongDay = report
+                yoga.reviewController.recordStrongBlockDay(next.date, blocks, over)
+            }
+        }
     }
+    private var reportedStrongDay: Triple<String, Int, Boolean>? = null
     private fun today() = LocalDate.now().toString()
     private fun packagesFor(intent: Intent): Set<String> = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY).map { it.activityInfo.packageName }.toSet()
     private fun params(y: Int) = WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
@@ -327,6 +340,7 @@ class YogaGuardService : AccessibilityService() {
     }
     private fun showBlockCard(surface: GuardSurface) {
         hideCard()
+        yoga.reviewController.recordInterruption()
         val name = if (surface == GuardSurface.YOUTUBE || surface == GuardSurface.BROWSER_YOUTUBE) "Shorts" else "Reels"
         card = label().apply { text = "$name are off · Regular videos still work · Blocked ${(gate.daily.blocks[surface] ?: 0).let { if (it == 1) "once" else "$it times" }} today" }
         windows.addView(card, params(dp(140)))

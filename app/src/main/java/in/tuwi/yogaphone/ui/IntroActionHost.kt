@@ -1,6 +1,7 @@
 package `in`.tuwi.yogaphone.ui
 
 import android.content.Intent
+import android.app.Activity
 import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Snackbar
@@ -14,6 +15,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import `in`.tuwi.yogaphone.YogaApplication
 import `in`.tuwi.yogaphone.ui.theme.*
+import `in`.tuwi.yogaphone.review.ReviewMoment
 
 @Composable
 fun IntroActionHost(content: @Composable () -> Unit) {
@@ -31,6 +33,12 @@ fun IntroActionHost(content: @Composable () -> Unit) {
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
     LaunchedEffect(Unit) { actions.launch { resume() } }
+    LaunchedEffect(Unit) {
+        actions.reviewMoments.collect {
+            kotlinx.coroutines.delay(3_000)
+            (context as? Activity)?.let { app.reviewController.onMoment(it, ReviewMoment.R1_BLOCK_FROM_DATA) }
+        }
+    }
     // Confirmations clear themselves; Undo stays reachable for a few seconds.
     LaunchedEffect(notice) { val shown = notice ?: return@LaunchedEffect; kotlinx.coroutines.delay(6_000); if (actions.notice.value === shown) actions.clearNotice() }
     Box(Modifier.fillMaxSize()) {

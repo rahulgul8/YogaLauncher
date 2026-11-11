@@ -19,6 +19,9 @@ import `in`.tuwi.yogaphone.data.AppModel
 import `in`.tuwi.yogaphone.data.db.CategoryEntity
 import `in`.tuwi.yogaphone.ui.theme.*
 import `in`.tuwi.yogaphone.usage.*
+import `in`.tuwi.yogaphone.YogaApplication
+import `in`.tuwi.yogaphone.review.FeedbackFeature
+import kotlinx.coroutines.launch
 
 @Composable
 fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: () -> Unit, onDashboard: () -> Unit, onValue: () -> Unit,
@@ -30,9 +33,12 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
     var query by remember { mutableStateOf("") }
     var denied by remember { mutableStateOf(false) }
     var clearHistory by remember { mutableStateOf(false) }
+    var allowanceFeedback by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val access = LocalProAccess.current
     fun canEdit(id: String) = access.allows(ProFeature.EXTRA_ALLOWANCES) || state.rules.none { it.enabled } || id in freeQuota(state.rules.filter { it.enabled }.map { it.id }, 1)
     val context = LocalContext.current
+    val review = (context.applicationContext as YogaApplication).reviewController
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         denied = !granted; viewModel.preferences { it.copy(reminders = granted) }
     }
@@ -41,6 +47,9 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
         item { UsageAccessCard() }
         item { YogaTextButton("Open usage dashboard", onDashboard, Modifier.padding(horizontal = TextButtonInset)) }
         item { YogaRow("Daily allowance", summary = total?.let { "${it.dailyAllowanceMinutes} min a day" } ?: "Off · suggested 90 minutes", onClick = { if (canEdit("total")) editTotal = true else access.open() }) }
+        if (allowanceFeedback) item {
+            FeedbackQuestion(FeedbackFeature.ALLOWANCE, listOf("Too strict", "Numbers looked wrong", "Didn't need it")) { allowanceFeedback = false }
+        }
         item { YogaSection("Allowance counts") }
         items(AllowanceCounts.entries) { option ->
             YogaRadioRow(if (option == AllowanceCounts.DISTRACTING) "Distracting apps" else "All apps except essential",
@@ -101,7 +110,14 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
         val current = state.rules.firstOrNull { it.scope == "CATEGORY" && it.targetPackage == category.id }
         AllowanceEditor("${category.name} a day", current?.dailyAllowanceMinutes, { editCategory = null }) { viewModel.saveCategoryRule(category.id, it) }
     }
-    if (editTotal) AllowanceEditor("Daily allowance", total?.dailyAllowanceMinutes, { editTotal = false }) { viewModel.saveRule(null, it) }
+    if (editTotal) AllowanceEditor("Daily allowance", total?.dailyAllowanceMinutes, { editTotal = false }) { minutes ->
+        viewModel.saveRule(null, minutes)
+        val wasEnabled = total != null
+        val enabled = minutes != null
+        if (wasEnabled != enabled) scope.launch {
+            if (review.featureChanged(FeedbackFeature.ALLOWANCE, enabled)) allowanceFeedback = true
+        }
+    }
     selected?.let { UsageAppSheet(it, state, viewModel) { selected = null } }
     if (clearHistory) YogaDialog("Delete saved history?", "Delete", { viewModel.clearHistory(); clearHistory = false }, { clearHistory = false },
         text = { androidx.compose.material3.Text("Past saved days will be removed. Today and yesterday can be measured again from Android while Usage Access is on. Turn off Usage Access to stop collection.") })

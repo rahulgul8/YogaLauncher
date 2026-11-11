@@ -48,6 +48,7 @@ import `in`.tuwi.yogaphone.data.ThemeMode
 import `in`.tuwi.yogaphone.guard.GuardPreferences
 import `in`.tuwi.yogaphone.guard.GuardSurface
 import `in`.tuwi.yogaphone.guard.YogaGuardService
+import `in`.tuwi.yogaphone.review.FeedbackFeature
 import `in`.tuwi.yogaphone.logic.SearchableApp
 import `in`.tuwi.yogaphone.logic.rankAppSearch
 import `in`.tuwi.yogaphone.pro.ProFeature
@@ -297,9 +298,15 @@ private fun ColumnScope.AllowanceStep(
     initial: OnboardingInitial,
     actions: OnboardingActions,
 ) {
+    val app = LocalContext.current.applicationContext as YogaApplication
+    val scope = rememberCoroutineScope()
     val startOn = initial.allowanceMinutes != null || !initial.returning
     var minutes by remember { mutableIntStateOf(initial.allowanceMinutes ?: allowancePrefill(usage)) }
     var enabled by remember { mutableStateOf(startOn) }
+    var allowanceFeedback by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (startOn && initial.allowanceMinutes == null) app.reviewController.featureChanged(FeedbackFeature.ALLOWANCE, true)
+    }
     val apps = ui.drawerApps.distinctBy { it.appPackage }.filterNot { isEssential(it.appPackage) }
     var distracting by remember { mutableStateOf(apps.filter { isDistracting(it.appPackage) }.map { it.appPackage }.toSet()) }
     // Write only what differs from today's setting, so replaying setup never overwrites a choice silently.
@@ -313,7 +320,12 @@ private fun ColumnScope.AllowanceStep(
         .verticalScroll(rememberScrollState())) {
         OnboardingImage(R.drawable.onboarding_allowance, compact = true)
         StepTitle("How much is enough?")
-        YogaSwitchRow(if (enabled) "${formatAllowance(minutes)} a day" else "No allowance for now", enabled, { enabled = it })
+        YogaSwitchRow(if (enabled) "${formatAllowance(minutes)} a day" else "No allowance for now", enabled, {
+            enabled = it
+            scope.launch { if (app.reviewController.featureChanged(FeedbackFeature.ALLOWANCE, it)) allowanceFeedback = true }
+        })
+        if (allowanceFeedback) FeedbackQuestion(FeedbackFeature.ALLOWANCE,
+            listOf("Too strict", "Numbers looked wrong", "Didn't need it")) { allowanceFeedback = false }
         if (enabled) Slider(
             minutes.toFloat(), { minutes = (it / 15).toInt() * 15 }, valueRange = 15f..240f, steps = 14,
             colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary,
@@ -366,8 +378,11 @@ private fun ColumnScope.DisplayStep(usage: UsageUiState, usageGranted: Boolean, 
 
 @Composable
 private fun ColumnScope.InterventionsStep(initial: OnboardingInitial, actions: OnboardingActions) {
+    val app = LocalContext.current.applicationContext as YogaApplication
+    val scope = rememberCoroutineScope()
     var reminders by remember { mutableStateOf(initial.reminders) }
     var pause by remember { mutableStateOf(initial.mindfulPause) }
+    var pauseFeedback by remember { mutableStateOf(false) }
     var grey by remember { mutableStateOf(initial.greyOverLimit) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         reminders = granted; actions.setReminders(granted)
@@ -378,8 +393,13 @@ private fun ColumnScope.InterventionsStep(initial: OnboardingInitial, actions: O
         reminders = it
         if (it && Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS) else actions.setReminders(it)
     }, summary = "At 80% and past your allowance")
-    YogaSwitchRow("A short pause before distracting apps", pause, { pause = it; actions.setMindfulPause(it) },
+    YogaSwitchRow("A short pause before distracting apps", pause, {
+        pause = it
+        actions.setMindfulPause(it)
+        scope.launch { if (app.reviewController.featureChanged(FeedbackFeature.PAUSE, it)) pauseFeedback = true }
+    },
         summary = "A few seconds to choose on purpose")
+    if (pauseFeedback) FeedbackQuestion(FeedbackFeature.PAUSE, listOf("Too slow", "Annoying", "Didn't help")) { pauseFeedback = false }
     YogaSwitchRow("Turn grey past my limit", grey, { grey = it; actions.setGreyOverLimit(it) },
         summary = "Colour returns tomorrow")
 }
@@ -506,6 +526,8 @@ private fun ColumnScope.BlocksStep(usage: UsageUiState, youtube: Boolean, instag
             GuardSurface.YOUTUBE in surfaces -> "Shorts are off"
             else -> "Reels are off"
         }
+        // The global policy forbids asking while onboarding is showing; home evaluates this queued moment after setup.
+        app.reviewController.queueOnboardingR1()
     }
     DisposableEffect(owner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -518,7 +540,10 @@ private fun ColumnScope.BlocksStep(usage: UsageUiState, youtube: Boolean, instag
                     if (guardEnabled) {
                         val surfaces = wanted.map(GuardSurface::valueOf)
                         wanted = arrayListOf()
-                        if (surfaces.isNotEmpty()) scope.launch { enable(surfaces) }
+                        if (surfaces.isNotEmpty()) scope.launch {
+                            app.reviewController.featureChanged(FeedbackFeature.GUARD, true)
+                            enable(surfaces)
+                        }
                     }
                 }
             }

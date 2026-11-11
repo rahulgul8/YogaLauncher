@@ -18,8 +18,10 @@ private fun minutesLabel(minutes: Long): String = if (minutes >= 60) "${minutes 
 
 @Composable
 fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: () -> Unit, onSettings: () -> Unit,
-    openDetails: Boolean = false, categoryNames: Map<String, String> = emptyMap(), blockedToday: Int = 0) {
+    openDetails: Boolean = false, categoryNames: Map<String, String> = emptyMap(), blockedToday: Int = 0,
+    onWeeklyReviewLeave: (daysWithin: Int, knownDays: Int, minutes: Long) -> Unit = { _, _, _ -> }) {
     var weekly by remember { mutableStateOf(false) }
+    var weeklyOpened by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<AppModel?>(null) }
     var details by remember(openDetails) { mutableStateOf(openDetails) }
     val access = LocalProAccess.current
@@ -36,6 +38,12 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
     val excessWeek = allowance?.let { rule -> s.knownDays.sumOf { day ->
         (s.week.filter { it.date == day && it.eligible }.sumOf { it.foregroundMinutes } - rule.dailyAllowanceMinutes).coerceAtLeast(0)
     } } ?: 0
+    val daysWithin = allowance?.let { rule -> s.knownDays.count { day ->
+        s.week.filter { it.date == day && it.eligible }.sumOf { it.foregroundMinutes } <= rule.dailyAllowanceMinutes
+    } } ?: 0
+    val weeklyFacts by rememberUpdatedState(Triple(daysWithin, s.knownDays.size, s.week.filter { it.eligible }.sumOf { it.foregroundMinutes }))
+    val weeklyExit by rememberUpdatedState(onWeeklyReviewLeave)
+    DisposableEffect(Unit) { onDispose { if (weeklyOpened) weeklyFacts.let { weeklyExit(it.first, it.second, it.third) } } }
 
     YogaScreen("Usage", onBack) {
         item(key = "feature-introduction") { UsageIntroduction() }
@@ -77,7 +85,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
                 }
             }
         }
-        item { YogaChipRow { YogaChip("Today", !weekly, onClick = { weekly = false }); YogaChip("Last 7 days", weekly, onClick = { weekly = true }) } }
+        item { YogaChipRow { YogaChip("Today", !weekly, onClick = { weekly = false }); YogaChip("Last 7 days", weekly, onClick = { weekly = true; weeklyOpened = true }) } }
         item { YogaTextButton("Edit usage rules", onSettings, Modifier.padding(horizontal = TextButtonInset)) }
         if (blockedToday > 0) item { YogaNote("Shorts and Reels blocked $blockedToday ${if (blockedToday == 1) "time" else "times"} today.") }
         when {

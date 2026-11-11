@@ -40,6 +40,7 @@ class UsageNotifications(private val context: Context) {
                 val text = if (label == null) copy else "$label: $copy"
                 try {
                     manager.notify("usage:${result.rule.id}", REMINDER, builder().setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text)).setAutoCancel(true).build())
+                    (context.applicationContext as YogaApplication).reviewController.recordInterruption()
                     prefs.markSent(date, result.rule.id, result.state)
                 } catch (_: SecurityException) { /* Permission can be revoked during a check. */ }
             }
@@ -51,6 +52,7 @@ class UsageNotifications(private val context: Context) {
             try {
                 manager.notify(ONGOING, builder().setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
                     .setOngoing(true).addAction(0, "Snooze for today", snooze).build())
+                (context.applicationContext as YogaApplication).reviewController.recordInterruption()
             } catch (_: SecurityException) { }
         } else cancelOngoing()
     }

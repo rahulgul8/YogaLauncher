@@ -21,10 +21,13 @@ import `in`.tuwi.yogaphone.data.AppModel
 import `in`.tuwi.yogaphone.data.db.FocusScheduleEntity
 import `in`.tuwi.yogaphone.focus.FocusUiState
 import `in`.tuwi.yogaphone.focus.FocusViewModel
+import `in`.tuwi.yogaphone.YogaApplication
+import `in`.tuwi.yogaphone.review.FeedbackFeature
 import `in`.tuwi.yogaphone.ui.theme.*
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 @Composable
 fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: FocusViewModel, onBack: () -> Unit) {
@@ -32,6 +35,9 @@ fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: Fo
     val access = LocalProAccess.current
     val prefs = state.preferences
     val system = viewModel.system()
+    val review = (context.applicationContext as YogaApplication).reviewController
+    val scope = rememberCoroutineScope()
+    var pauseFeedback by remember { mutableStateOf(false) }
     var dndAccess by remember { mutableStateOf(system.hasDndAccess()) }
     var exact by remember { mutableStateOf(system.canScheduleExact()) }
     val owner = LocalLifecycleOwner.current
@@ -47,8 +53,14 @@ fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: Fo
 
     YogaScreen("Focus and timebox", onBack) {
         item { YogaSection("Mindful pause") }
-        item { YogaSwitchRow("Pause before distracting apps", prefs.delayEnabled, viewModel::setDelayEnabled,
+        item { YogaSwitchRow("Pause before distracting apps", prefs.delayEnabled, { enabled ->
+            viewModel.setDelayEnabled(enabled)
+            scope.launch { if (review.featureChanged(FeedbackFeature.PAUSE, enabled)) pauseFeedback = true }
+        },
             summary = "A few seconds to choose on purpose") }
+        if (pauseFeedback) item {
+            FeedbackQuestion(FeedbackFeature.PAUSE, listOf("Too slow", "Annoying", "Didn't help")) { pauseFeedback = false }
+        }
         item {
             YogaRow("Pause length", summary = "${prefs.delaySeconds} seconds · 5 more during focus")
             YogaSlider(prefs.delaySeconds.toFloat(), { viewModel.setDelaySeconds(it.toInt()) },

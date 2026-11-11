@@ -120,6 +120,8 @@ dependencies {
     implementation(libs.play.billing)
     // In-app updates (Play Core); talks only to the Play Store app on the phone.
     implementation(libs.play.app.update.ktx)
+    // In-app review card (Play Core); Play decides whether it shows.
+    implementation(libs.play.review.ktx)
     // Play Core brings in fragment 1.1.0; the Activity Result API needs 1.3+ (lint InvalidFragmentVersionForActivityResult).
     implementation("androidx.fragment:fragment-ktx:1.8.9")
     implementation(libs.androidx.room.runtime)

@@ -20,6 +20,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import `in`.tuwi.yogaphone.data.AppModel
+import `in`.tuwi.yogaphone.YogaApplication
 import `in`.tuwi.yogaphone.ui.theme.*
 import kotlinx.coroutines.delay
 
@@ -39,6 +40,7 @@ fun MindfulDelayScreen(
     }
     var remaining by remember(app.appPackage) { mutableIntStateOf(seconds) }
     var purpose by remember(app.appPackage) { mutableStateOf("") }
+    LaunchedEffect(app.appPackage) { (context.applicationContext as YogaApplication).reviewController.recordInterruption() }
     LaunchedEffect(app.appPackage) { while (remaining > 0) { delay(1_000); remaining-- } }
     BackHandler { onGoBack() }
 

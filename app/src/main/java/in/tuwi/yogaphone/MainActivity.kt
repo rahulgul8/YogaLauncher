@@ -191,6 +191,7 @@ class MainActivity : ComponentActivity() {
             @Suppress("DEPRECATION") registerReceiver(workProfileReceiver, workProfileFilter())
         }
         readIntroPreview(intent)
+        readReviewPreview(intent)
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
         if (intent.action == QuietRepository.ACTION_OPEN_DIGEST) digestRequest++
         if (intent.action == InsightsRepository.ACTION_OPEN_INSIGHTS) insightsRequest++
@@ -201,6 +202,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         readIntroPreview(intent)
+        readReviewPreview(intent)
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
         if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) {
             if (stoppedSinceResume) homeRequest++ else homeAgainRequest++
@@ -214,6 +216,12 @@ class MainActivity : ComponentActivity() {
     private fun readIntroPreview(intent: Intent) {
         if (!BuildConfig.INTRO_PREVIEW) return
         intent.getStringExtra("intro_preview")?.let { (application as YogaApplication).introSignals.setPreview(it) }
+    }
+
+    /** Debug only: `adb shell am start -n <pkg>/.MainActivity --ez review_fake true`. */
+    private fun readReviewPreview(intent: Intent) {
+        if (!BuildConfig.DEBUG) return
+        (application as YogaApplication).reviewController.setFakeReview(intent.getBooleanExtra("review_fake", false))
     }
 
     /** Widget configuration activities report back here (AppWidgetHost uses startActivityForResult). */
@@ -234,6 +242,7 @@ class MainActivity : ComponentActivity() {
         stoppedSinceResume = false
         viewModel.refreshWorkApps()
         (application as YogaApplication).proRepository.onResume()
+        (application as YogaApplication).reviewController.recordHomeResume()
         (application as YogaApplication).updateController.onHomeResume(this)
     }
 
@@ -392,6 +401,15 @@ private fun LauncherNavigation(
         if (usageRequest > 0) navController.navigate("usage?details=true") { launchSingleTop = true }
     }
     val route = navController.currentBackStackEntryAsState().value?.destination?.route
+    LaunchedEffect(resumed, route, onboardingVersion, usageState.snapshot.evaluation.overall?.state) {
+        if (resumed && onboardingVersion != null) {
+            yoga.reviewController.updateEnvironment(
+                onboarding = onboardingVersion < ONBOARDING_VERSION || route == ONBOARDING || route?.startsWith("$ONBOARDING?") == true,
+                overLimitToday = usageState.snapshot.evaluation.overall?.state == RuleState.OVER,
+            )
+            if (route == HOME) yoga.reviewController.onHomeReady(activity)
+        }
+    }
     val drawer = rememberDrawerController()
     // Read the drawer position only through this, so a slide doesn't recompose the whole home screen.
     val drawerClosed by remember { androidx.compose.runtime.derivedStateOf { drawer.isClosed } }
@@ -608,7 +626,10 @@ private fun LauncherNavigation(
             val blockedToday = if (guardDaily.date == guardDate) guardDaily.blocks.values.sum() else 0
             UsageDashboardScreen(usageState, usageViewModel, { navController.popBackStack() },
                 { navController.navigate("settings/usage") }, entry.arguments?.getString("details") == "true",
-                uiState.categories.associate { it.id to it.name }, blockedToday)
+                uiState.categories.associate { it.id to it.name }, blockedToday,
+                onWeeklyReviewLeave = { within, known, minutes ->
+                    yoga.reviewController.onGoodWeek(activity, within, known, minutes)
+                })
         }
         composable("settings/usage") {
             UsageSettingsScreen(usageState, usageViewModel, { navController.popBackStack() },

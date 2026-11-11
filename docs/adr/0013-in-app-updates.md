@@ -27,3 +27,21 @@ Google Play remains the update authority and owns all download and installation 
 sideloaded installation or a device without Play, and those cases must never affect launcher availability. Priority 5
 is intentionally disruptive and requires a release-time decision. Real update flows, background installation, and
 Play-unavailable behavior still require validation with internal app sharing on a phone.
+
+## Reviews and feedback
+
+Yoga uses Play's In-App Review API only after a positive product moment: enabling Shorts or Reels blocking from an
+introduction, leaving a good seven-day view, returning home after the third completed focus session or timebox, or an
+evening home return after a strong blocking day. A pure local policy also requires three installed days, five home
+sessions, default-home status, completed onboarding, no recent interruption, staying within today's allowance, a
+90-day cooldown, and fewer than three attempts. Yoga records an attempt before launching Play because Play neither
+guarantees that its card appears nor reports whether it did. Each moment is used at most once. A moment that
+fails the policy is not kept for later: a queued moment (onboarding's Shorts step, the third session) lapses
+after a day, and a strong blocking day is asked about only on the following evening, so an ask never lands at a
+random time.
+
+The review selection never asks whether someone likes Yoga. Feedback remains available to everyone through Help as a
+prefilled email that the person reviews before sending. Short, optional "What didn't work?" prompts appear after a
+recently enabled guard, allowance, or mindful pause is turned off. Their last three answers remain on-device and are
+included only when the person chooses to open the feedback email. Review timing and feedback data share the existing
+preferences DataStore; no telemetry or automatic feedback transmission is added.

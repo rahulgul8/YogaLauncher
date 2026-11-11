@@ -117,6 +117,7 @@ class FocusRepository(
         val now = now()
         if (session.status == TimeboxStatus.RUNNING && session.endAt <= now) {
             dao.saveTimebox(session.copy(status = TimeboxStatus.COMPLETED, endedAt = session.endAt))
+            (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).reviewController.recordCompletedSession()
             system.cancelAlarm(FocusSystem.ACTION_TIMEBOX_END)
             system.showTimeboxDone(session.label, session.plannedMinutes + session.extendedMinutes)
             return
@@ -165,6 +166,7 @@ class FocusRepository(
         // Held notifications are summarised as soon as focus ends.
         runCatching { (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).quietRepository.deliverDigest() }
         if (!early) {
+            (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).reviewController.recordCompletedSession()
             val minutes = ((end - session.startAt) / 60_000).coerceAtLeast(1)
             val streak = streak()
             system.showFocusDone("$minutes minutes of focus done." + if (streak > 1) " $streak-day streak." else "")

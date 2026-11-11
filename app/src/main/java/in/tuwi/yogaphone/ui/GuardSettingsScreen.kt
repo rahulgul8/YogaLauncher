@@ -22,6 +22,8 @@ import `in`.tuwi.yogaphone.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import `in`.tuwi.yogaphone.YogaApplication
+import `in`.tuwi.yogaphone.review.FeedbackFeature
 
 @Composable
 internal fun rememberGuardDate(): String {
@@ -42,11 +44,21 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
     val today = rememberGuardDate()
     val blocks = daily.blocks.takeIf { daily.date == today }.orEmpty()
     var enabled by remember { mutableStateOf(YogaGuardService.isEnabled(context)) }
+    var lastEnabled by remember { mutableStateOf(enabled) }
+    var guardFeedback by remember { mutableStateOf(false) }
+    val review = (context.applicationContext as YogaApplication).reviewController
     var disclosure by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner, context) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) enabled = YogaGuardService.isEnabled(context) }
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) {
+            val next = YogaGuardService.isEnabled(context)
+            if (next != lastEnabled) scope.launch {
+                if (review.featureChanged(FeedbackFeature.GUARD, next)) guardFeedback = true
+            }
+            lastEnabled = next
+            enabled = next
+        } }
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
@@ -58,6 +70,9 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
         item {
             YogaRow("Yoga guard · ${if (enabled) "on" else "off"}", summary = "Optional accessibility service for live time value and Shorts/Reels blocking")
             YogaTextButton(if (enabled) "Manage Yoga guard" else "Enable Yoga guard", { disclosure = true }, Modifier.padding(horizontal = TextButtonInset))
+        }
+        if (guardFeedback) item {
+            FeedbackQuestion(FeedbackFeature.GUARD, listOf("Blocked too much", "Didn't block enough", "Something else broke")) { guardFeedback = false }
         }
         if (Build.VERSION.SDK_INT >= 33) item { YogaNote("If Yoga was not installed from Play, you may first need App info → ⋮ → Allow restricted settings.") }
         error?.let { message -> item { YogaNote(message) } }

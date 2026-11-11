@@ -35,6 +35,7 @@ import `in`.tuwi.yogaphone.usage.UsageAccess
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import `in`.tuwi.yogaphone.review.buildFeedbackEmailBody
 
 private data class PermissionRow(val name: String, val purpose: String, val granted: Boolean, val intent: Intent?)
 
@@ -129,17 +130,35 @@ fun PrivacyScreen(prefs: InsightsPreferences, insights: InsightsRepository, back
 @Composable
 fun HelpScreen(onReplaySetup: () -> Unit, onSuggestions: () -> Unit = {}, onBack: () -> Unit) {
     val context = LocalContext.current
-    val updateController = (context.applicationContext as YogaApplication).updateController
+    val yoga = context.applicationContext as YogaApplication
+    val updateController = yoga.updateController
     val updateNote by updateController.checkNote.collectAsState()
+    val scope = rememberCoroutineScope()
+    var notice by remember { mutableStateOf<String?>(null) }
     val faqs = listOf(
         "Why do some apps open without the pause?" to "Yoga can only pause apps you open from Yoga itself. Apps opened from a notification, another app or the recents screen skip it.",
         "Why are my numbers different from Digital Wellbeing?" to "Yoga counts the time apps are in the foreground, from Android's usage events, and leaves out essential apps. Digital Wellbeing may count screen time differently or include apps Yoga excludes.",
         "How do I stop using Yoga as my home screen?" to "Settings → Advanced → Leave Yoga Launcher opens Android's home-app setting, where you can pick another launcher.",
         "Reminders or timebox endings arrive late" to "Some phones pause background work to save battery. Letting Yoga run without battery restrictions makes reminders more reliable.",
     )
+    Box(Modifier.fillMaxSize()) {
     YogaScreen("Help", onBack) {
         item { YogaRow("Suggestions", summary = "Ideas based on your phone", onClick = onSuggestions) }
         item { YogaRow("Replay setup", summary = "Walk through the first-run steps again", onClick = onReplaySetup) }
+        item { YogaRow("Send feedback", summary = "Open an email you can review before sending", onClick = {
+            scope.launch {
+                val answers = runCatching { yoga.reviewController.store.read().feedbackAnswers }.getOrDefault(emptyList())
+                val body = buildFeedbackEmailBody(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE,
+                    Build.VERSION.RELEASE, "${Build.MANUFACTURER} ${Build.MODEL}".trim(), answers)
+                val uri = Uri.parse("mailto:tuwi.developer@gmail.com").buildUpon()
+                    .appendQueryParameter("subject", "Yoga Phone feedback")
+                    .appendQueryParameter("body", body).build()
+                val intent = Intent(Intent.ACTION_SENDTO, uri)
+                if (intent.resolveActivity(context.packageManager) != null) runCatching { context.startActivity(intent) }
+                    .onFailure { notice = "No email app found" }
+                else notice = "No email app found"
+            }
+        }) }
         item {
             YogaRow(
                 "Check for updates",
@@ -158,5 +177,8 @@ fun HelpScreen(onReplaySetup: () -> Unit, onSuggestions: () -> Unit = {}, onBack
         }) }
         item { YogaSection("Questions") }
         faqs.forEach { (q, a) -> item(key = q) { YogaRow(q, summary = a) } }
+    }
+        notice?.let { message -> Snackbar(action = { YogaTextButton("OK", { notice = null }) },
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(ScreenMargin)) { Text(message) } }
     }
 }

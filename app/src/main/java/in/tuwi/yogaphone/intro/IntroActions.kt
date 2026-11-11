@@ -2,6 +2,7 @@ package `in`.tuwi.yogaphone.intro
 
 import `in`.tuwi.yogaphone.YogaApplication
 import `in`.tuwi.yogaphone.guard.*
+import `in`.tuwi.yogaphone.review.FeedbackFeature
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +21,8 @@ class IntroActions(private val app: YogaApplication) {
     val disclosure = mutableDisclosure.asStateFlow()
     private val mutableNotice = MutableStateFlow<IntroNotice?>(null)
     val notice = mutableNotice.asStateFlow()
+    private val mutableReviewMoments = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val reviewMoments = mutableReviewMoments.asSharedFlow()
     // Actions outlive the card that started them: a card leaves the screen as soon as its action lands.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -51,6 +54,7 @@ class IntroActions(private val app: YogaApplication) {
             mutableNotice.value = IntroNotice("Yoga guard isn't on yet", "Try again") { mutableDisclosure.value = id }
             return@withLock
         }
+        app.reviewController.featureChanged(FeedbackFeature.GUARD, true)
         val target = if (id == IntroId.SHORTS_BLOCK) GuardSurface.YOUTUBE else GuardSurface.INSTAGRAM
         val intro = Intro(id, IntroSurface.USAGE, "", "", impactMinutesPerWeek = 0, targetSurface = target)
         apply(intro)
@@ -93,6 +97,7 @@ class IntroActions(private val app: YogaApplication) {
                 val minutes = intro.targetMinutes ?: return
                 val previous = app.database.usageDao().rules().firstOrNull { it.id == "total" }
                 app.usageRepository.saveRule(null, minutes)
+                app.reviewController.featureChanged(FeedbackFeature.ALLOWANCE, true)
                 undo = { app.usageRepository.restoreTotalRule(previous); app.usageRepository.check() }
                 confirmation = "Daily allowance set to ${introDuration(minutes)}"
                 runCatching { app.usageRepository.check() }
@@ -111,5 +116,6 @@ class IntroActions(private val app: YogaApplication) {
         app.introStore.acted(intro.id)
         app.introSignals.refresh()
         mutableNotice.value = IntroNotice(confirmation, "Undo") { undo(); app.introSignals.refresh() }
+        if (intro.id == IntroId.SHORTS_BLOCK || intro.id == IntroId.REELS_BLOCK) mutableReviewMoments.emit(Unit)
     }
 }
