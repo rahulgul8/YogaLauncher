@@ -28,6 +28,9 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
     val allowance = state.rules.firstOrNull { it.scope == "TOTAL" && it.enabled }
     val rows = if (weekly) s.week else s.today
     val eligible = rows.filter { it.eligible }.sumOf { it.foregroundMinutes }
+    val total = rows.sumOf { it.foregroundMinutes }
+    // The headline counts only allowance apps, so say which, and give the all-apps total beside it.
+    val scope = if (p.counts == AllowanceCounts.DISTRACTING) "on distracting apps" else "on apps except essentials"
     val byApp = rows.groupBy { it.packageName }.mapValues { (_, values) -> values.sumOf { it.foregroundMinutes } }.entries.sortedByDescending { it.value }
     val maximum = byApp.firstOrNull()?.value?.coerceAtLeast(1) ?: 1
     val excessWeek = allowance?.let { rule -> s.knownDays.sumOf { day ->
@@ -44,17 +47,17 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
                 val muted = MaterialTheme.colorScheme.onSurfaceVariant
                 val body = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "lnum, tnum")
                 when {
-                    allowance == null -> Text("Daily allowance is off", style = body, color = muted)
+                    allowance == null -> Text("$scope · daily allowance is off", style = body, color = muted)
                     weekly -> {
                         // A week's total is never compared against a daily allowance: count the days that went over instead.
                         val overDays = s.knownDays.count { day ->
                             s.week.filter { it.date == day && it.eligible }.sumOf { it.foregroundMinutes } > allowance.dailyAllowanceMinutes
                         }
-                        Text("${minutesLabel(allowance.dailyAllowanceMinutes.toLong())} daily allowance · $overDays over-limit ${if (overDays == 1) "day" else "days"}",
+                        Text("$scope · ${minutesLabel(allowance.dailyAllowanceMinutes.toLong())} daily allowance · $overDays over-limit ${if (overDays == 1) "day" else "days"}",
                             style = body, color = muted)
                     }
                     else -> {
-                        Text("of ${minutesLabel(allowance.dailyAllowanceMinutes.toLong())} allowance", style = body, color = muted)
+                        Text("$scope · of ${minutesLabel(allowance.dailyAllowanceMinutes.toLong())} allowance", style = body, color = muted)
                         YogaProgress(eligible.toFloat() / allowance.dailyAllowanceMinutes.coerceAtLeast(1),
                             Modifier.padding(top = 16.dp), overLimit = eligible > allowance.dailyAllowanceMinutes)
                         val result = s.evaluation.overall
@@ -66,6 +69,8 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
                             modifier = Modifier.padding(top = 10.dp))
                     }
                 }
+                if (s.access && total > 0) Text("${minutesLabel(total)} in all apps", style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "lnum, tnum"),
+                    color = muted, modifier = Modifier.padding(top = 10.dp))
                 if (!weekly) s.unlocksToday?.let {
                     Text("$it ${if (it == 1) "unlock" else "unlocks"} today", style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "lnum, tnum"),
                         color = muted, modifier = Modifier.padding(top = 6.dp))
@@ -86,7 +91,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
                     Text("Time value · ${TimeValueCalculator().format(minutes, p.hourlyAmount(), p.currency)}",
                         style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "lnum, tnum"), color = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.padding(horizontal = ScreenMargin, vertical = 18.dp))
-                    YogaNote(TIME_VALUE_EXPLANATION)
+                    YogaNote("Counts only time past your daily allowance. $TIME_VALUE_EXPLANATION")
                     YogaTextButton("How this is calculated", { details = true }, Modifier.padding(horizontal = TextButtonInset), muted = true)
                 }
                 val categories = rows.groupBy { s.categoryOf[it.packageName] }
