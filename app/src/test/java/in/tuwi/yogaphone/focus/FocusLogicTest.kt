@@ -101,6 +101,23 @@ class StreakAndDelayTest {
         assertEquals(mapOf("a|b" to day, "x.app" to day + 1), DelayGate.decode(DelayGate.encode(stored)))
     }
 
+    @Test fun pausePassRoundTripsDropsExpiredAndDetectsLivePasses() {
+        val now = 10_000L
+        val passes = PausePassGate.record(mapOf("old.app" to now, "a|b" to now + 1), "x.app", now + 5_000, now)
+        assertEquals(mapOf("a|b" to now + 1, "x.app" to now + 5_000), PausePassGate.decode(PausePassGate.encode(passes)))
+        assertTrue(PausePassGate.isActive(passes["x.app"], now))
+        assertFalse(PausePassGate.isActive(passes["old.app"], now))
+        assertFalse(PausePassGate.isActive(null, now))
+    }
+
+    @Test fun pausePassSelectionUsesPerAppThenLegacyThenLadderDefault() {
+        val choices = listOf(5, 10, 15)
+        assertEquals(15, PausePassGate.preselect(15, 5, choices))
+        assertEquals(5, PausePassGate.preselect(null, 5, choices))
+        assertEquals(10, PausePassGate.preselect(null, 30, choices))
+        assertEquals(5, PausePassGate.preselect(15, 30, listOf(5)))
+    }
+
     @Test fun recentListIsNewestFirstDedupedAndCapped() {
         assertEquals(listOf("Read", "Email", "Plan"), updateRecentList(listOf("Email", "read", "Plan", "Walk"), " Read "))
         assertEquals(listOf("a", "b"), updateRecentList(listOf("a", "b"), "  "))

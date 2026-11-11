@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -31,8 +32,8 @@ class FocusSystem(private val context: Context) {
     fun exactAlarmSettingsIntent(): Intent? = if (Build.VERSION.SDK_INT >= 31)
         Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, android.net.Uri.parse("package:${context.packageName}")) else null
 
-    fun setAlarm(action: String, at: Long, exactIfAllowed: Boolean) {
-        val pending = alarmIntent(action)
+    fun setAlarm(action: String, at: Long, exactIfAllowed: Boolean, extras: Bundle? = null) {
+        val pending = alarmIntent(action, extras)
         runCatching {
             if (exactIfAllowed && canScheduleExact()) alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending)
             else alarms.setWindow(AlarmManager.RTC_WAKEUP, at, 60_000, pending)
@@ -41,8 +42,19 @@ class FocusSystem(private val context: Context) {
 
     fun cancelAlarm(action: String) = alarms.cancel(alarmIntent(action))
 
-    private fun alarmIntent(action: String): PendingIntent = PendingIntent.getBroadcast(
-        context, action.hashCode(), Intent(context, FocusReceiver::class.java).setAction(action),
+    /** One replaceable, inexact pass-ending alarm per package. */
+    fun setPausePassAlarm(packageName: String, label: String, minutes: Int, at: Long) {
+        val action = ACTION_PAUSE_PASS_END_PREFIX + packageName
+        setAlarm(action, at, exactIfAllowed = false, extras = Bundle().apply {
+            putString(EXTRA_APP_LABEL, label)
+            putInt(EXTRA_PASS_MINUTES, minutes)
+        })
+    }
+
+    private fun alarmIntent(action: String, extras: Bundle? = null): PendingIntent = PendingIntent.getBroadcast(
+        context, action.hashCode(), Intent(context, FocusReceiver::class.java).setAction(action).apply {
+            if (extras != null) putExtras(extras)
+        },
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
@@ -53,6 +65,13 @@ class FocusSystem(private val context: Context) {
 
     private fun openLauncher(): PendingIntent = PendingIntent.getActivity(
         context, 40, Intent(context, MainActivity::class.java).setAction(ACTION_OPEN_TIMEBOX)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
+    private fun openHome(): PendingIntent = PendingIntent.getActivity(
+        context, 45, Intent(context, MainActivity::class.java).setAction(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_HOME)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
@@ -119,6 +138,18 @@ class FocusSystem(private val context: Context) {
         runCatching { notifications.notify(ID_FOCUS_DONE, notification) }
     }
 
+    fun showPausePassDone(packageName: String, label: String, minutes: Int) {
+        if (!canPost()) return
+        ensureChannels()
+        val notification = NotificationCompat.Builder(context, CHANNEL_DONE)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Your $minutes minutes on $label are up")
+            .setAutoCancel(true)
+            .setContentIntent(openHome())
+            .build()
+        runCatching { notifications.notify(ID_PAUSE_PASS_BASE xor packageName.hashCode(), notification) }
+    }
+
     fun hasDndAccess(): Boolean = context.getSystemService(NotificationManager::class.java).isNotificationPolicyAccessGranted
 
     /** Returns the filter that was active before, or null when nothing was changed. */
@@ -145,6 +176,7 @@ class FocusSystem(private val context: Context) {
         const val ID_TIMEBOX = 3101
         const val ID_TIMEBOX_DONE = 3102
         const val ID_FOCUS_DONE = 3103
+        const val ID_PAUSE_PASS_BASE = 3200
         const val ACTION_TIMEBOX_END = "in.tuwi.yogaphone.TIMEBOX_END"
         const val ACTION_FOCUS_END = "in.tuwi.yogaphone.FOCUS_END"
         const val ACTION_SCHEDULE = "in.tuwi.yogaphone.FOCUS_SCHEDULE"
@@ -154,6 +186,9 @@ class FocusSystem(private val context: Context) {
         const val ACTION_EXTEND_5 = "in.tuwi.yogaphone.TIMEBOX_EXTEND_5"
         const val ACTION_DONE = "in.tuwi.yogaphone.TIMEBOX_DONE"
         const val ACTION_OPEN_TIMEBOX = "in.tuwi.yogaphone.OPEN_TIMEBOX"
+        const val ACTION_PAUSE_PASS_END_PREFIX = "in.tuwi.yogaphone.PAUSE_PASS_END."
+        const val EXTRA_APP_LABEL = "pause_app_label"
+        const val EXTRA_PASS_MINUTES = "pause_pass_minutes"
     }
 }
 
@@ -164,12 +199,19 @@ class FocusReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                when (intent.action) {
-                    FocusSystem.ACTION_PAUSE -> repository.pauseTimebox()
-                    FocusSystem.ACTION_RESUME -> repository.resumeTimebox()
-                    FocusSystem.ACTION_STOP -> repository.stopTimebox()
-                    FocusSystem.ACTION_EXTEND_5 -> repository.extendTimebox(5)
-                    FocusSystem.ACTION_DONE -> repository.acknowledgeTimebox()
+                val action = intent.action
+                when {
+                    action == FocusSystem.ACTION_PAUSE -> repository.pauseTimebox()
+                    action == FocusSystem.ACTION_RESUME -> repository.resumeTimebox()
+                    action == FocusSystem.ACTION_STOP -> repository.stopTimebox()
+                    action == FocusSystem.ACTION_EXTEND_5 -> repository.extendTimebox(5)
+                    action == FocusSystem.ACTION_DONE -> repository.acknowledgeTimebox()
+                    action != null && action.startsWith(FocusSystem.ACTION_PAUSE_PASS_END_PREFIX) -> {
+                        val packageName = action.removePrefix(FocusSystem.ACTION_PAUSE_PASS_END_PREFIX)
+                        val label = intent.getStringExtra(FocusSystem.EXTRA_APP_LABEL) ?: "this app"
+                        val minutes = intent.getIntExtra(FocusSystem.EXTRA_PASS_MINUTES, 0)
+                        if (minutes > 0) repository.system().showPausePassDone(packageName, label, minutes)
+                    }
                     // Alarm firings, boot, time and timezone changes all re-check state and reschedule.
                     else -> {
                         repository.reconcile()

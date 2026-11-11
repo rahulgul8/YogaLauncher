@@ -19,6 +19,7 @@ private fun minutesLabel(minutes: Long): String = if (minutes >= 60) "${minutes 
 @Composable
 fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: () -> Unit, onSettings: () -> Unit,
     openDetails: Boolean = false, categoryNames: Map<String, String> = emptyMap(), blockedToday: Int = 0,
+    resistedToday: Int = 0,
     onWeeklyReviewLeave: (daysWithin: Int, knownDays: Int, minutes: Long) -> Unit = { _, _, _ -> }) {
     var weekly by remember { mutableStateOf(false) }
     var weeklyOpened by remember { mutableStateOf(false) }
@@ -88,6 +89,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
         item { YogaChipRow { YogaChip("Today", !weekly, onClick = { weekly = false }); YogaChip("Last 7 days", weekly, onClick = { weekly = true; weeklyOpened = true }) } }
         item { YogaTextButton("Edit usage rules", onSettings, Modifier.padding(horizontal = TextButtonInset)) }
         if (blockedToday > 0) item { YogaNote("Shorts and Reels blocked $blockedToday ${if (blockedToday == 1) "time" else "times"} today.") }
+        if (resistedToday > 0) item { YogaNote("Resisted the pause $resistedToday times today.") }
         when {
             state.loading -> item { YogaNote("Reading usage…") }
             !s.access -> item { UsageAccessCard() }

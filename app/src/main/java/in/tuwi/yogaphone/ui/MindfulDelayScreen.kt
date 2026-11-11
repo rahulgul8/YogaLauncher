@@ -3,35 +3,52 @@ package `in`.tuwi.yogaphone.ui
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import `in`.tuwi.yogaphone.data.AppModel
 import `in`.tuwi.yogaphone.YogaApplication
+import `in`.tuwi.yogaphone.resist.ResistanceLadder
 import `in`.tuwi.yogaphone.ui.theme.*
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun MindfulDelayScreen(
     app: AppModel,
     seconds: Int,
     duringFocus: Boolean,
-    usageLine: String?,
+    costLine: String,
+    allowanceLine: String?,
+    resistedToday: Int,
+    choices: List<Int>,
+    preselected: Int,
     recentPurposes: List<String>,
-    onContinue: (purpose: String?) -> Unit,
+    onContinue: (purpose: String?, minutes: Int) -> Unit,
     onGoBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -40,6 +57,7 @@ fun MindfulDelayScreen(
     }
     var remaining by remember(app.appPackage) { mutableIntStateOf(seconds) }
     var purpose by remember(app.appPackage) { mutableStateOf("") }
+    var selectedMinutes by remember(app.appPackage, preselected) { mutableIntStateOf(preselected) }
     LaunchedEffect(app.appPackage) { (context.applicationContext as YogaApplication).reviewController.recordInterruption() }
     LaunchedEffect(app.appPackage) { while (remaining > 0) { delay(1_000); remaining-- } }
     BackHandler { onGoBack() }
@@ -65,17 +83,84 @@ fun MindfulDelayScreen(
                     },
                 )
             }
-            usageLine?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "lnum, tnum")) }
+            Text(costLine, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "lnum, tnum"))
+            allowanceLine?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "lnum, tnum"), modifier = Modifier.padding(top = 4.dp)) }
+            if (resistedToday > 0) Text("Resisted $resistedToday ${if (resistedToday == 1) "time" else "times"} today",
+                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "lnum, tnum"), modifier = Modifier.padding(top = 6.dp))
             YogaTextField(purpose, { purpose = it.take(40) }, "What for? (optional)", Modifier.padding(top = 16.dp))
             if (recentPurposes.isNotEmpty()) YogaChipRow {
                 recentPurposes.take(3).forEach { recent -> YogaChip(recent, purpose == recent, onClick = { purpose = recent }) }
             }
+            Text("For how long?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
+            YogaChipRow(Modifier.padding(horizontal = 0.dp)) {
+                choices.forEach { minutes -> YogaChip("$minutes min", selectedMinutes == minutes, onClick = { selectedMinutes = minutes }) }
+            }
             Spacer(Modifier.weight(1f))
             YogaPrimaryButton("Not now", onGoBack, Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
-            YogaSecondaryButton("Open ${app.displayLabel}", { onContinue(purpose) },
-                Modifier.fillMaxWidth(), enabled = remaining <= 0)
+            HoldToOpenButton(selectedMinutes, remaining <= 0, reducedMotion,
+                onHeld = { onContinue(purpose.trim().takeIf(String::isNotEmpty), selectedMinutes) }, modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun HoldToOpenButton(
+    minutes: Int,
+    enabled: Boolean,
+    reducedMotion: Boolean,
+    onHeld: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val progress = remember { Animatable(0f) }
+    val currentOnHeld by rememberUpdatedState(onHeld)
+    val colours = MaterialTheme.colorScheme
+    val gesture = Modifier.pointerInput(enabled, reducedMotion, minutes) {
+        detectTapGestures(onPress = press@{
+            if (!enabled) return@press
+            coroutineScope {
+                var completed = false
+                val hold = launch {
+                    if (reducedMotion) delay(ResistanceLadder.HOLD_MILLIS)
+                    else progress.animateTo(1f, tween(ResistanceLadder.HOLD_MILLIS.toInt()))
+                    completed = true
+                    currentOnHeld()
+                }
+                tryAwaitRelease()
+                if (!completed) {
+                    hold.cancel()
+                    progress.snapTo(0f)
+                }
+            }
+        })
+    }
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.background,
+        border = BorderStroke(1.dp, colours.outline),
+        modifier = modifier.heightIn(min = 52.dp)
+            .then(gesture)
+            .semantics {
+                role = Role.Button
+                if (!enabled) disabled()
+                customActions = listOf(CustomAccessibilityAction("Open for $minutes minutes") {
+                    if (enabled) { currentOnHeld(); true } else false
+                })
+            },
+    ) {
+        Box(Modifier.fillMaxWidth().heightIn(min = 52.dp), contentAlignment = Alignment.Center) {
+            Text(
+                "Hold to open for $minutes min",
+                style = MaterialTheme.typography.labelLarge,
+                color = if (enabled) colours.onBackground else colours.onSurfaceVariant,
+            )
+            if (!reducedMotion) Box(
+                Modifier.align(Alignment.BottomStart).fillMaxWidth(progress.value).height(2.dp).background(colours.primary),
+            )
         }
     }
 }
