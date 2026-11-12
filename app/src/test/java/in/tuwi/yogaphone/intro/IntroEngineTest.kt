@@ -225,4 +225,29 @@ class IntroEngineTest {
         assertEquals("1 h", introDuration(60))
         assertEquals("6 h 40 m", introDuration(400))
     }
+    @Test fun statusRequiresThreeHoursInstalledAndNotAlreadyEnabled() {
+        val s = IntroSignals(whatsappInstalled = true, whatsappMinutes7d = 180)
+        val intro = pick(s)!!
+        assertEquals(IntroId.STATUS_BLOCK, intro.id)
+        assertEquals("3 h on WhatsApp this week", intro.evidence)
+        assertEquals("Chats and calls still work.", intro.note)
+        assertEquals("Turn off Status", intro.actionLabel)
+        assertEquals(GuardSurface.WHATSAPP_STATUS, intro.targetSurface)
+        assertNotNull(pick(s, surface = IntroSurface.HOME))
+        assertNotNull(pick(s.copy(whatsappMinutes7d = 181)))
+        assertNull(pick(s.copy(whatsappMinutes7d = 179, recordedDays = 3)))
+        assertNull(pick(s.copy(whatsappInstalled = false)))
+        assertNull(pick(s.copy(surfacesEnabled = setOf(GuardSurface.WHATSAPP_STATUS))))
+        assertNull(pick(s.copy(allowed = emptySet())))
+    }
+    @Test fun statusHasNoBlockCardSiblingInEitherDirection() {
+        val s = IntroSignals(guardEnabled = true, whatsappInstalled = true, whatsappMinutes7d = 300,
+            youtubeInstalled = true, youtubeMinutes7d = 300, instagramInstalled = true, instagramMinutes7d = 300)
+        assertNull(pick(s.copy(blockedSurface = GuardSurface.WHATSAPP_STATUS), surface = IntroSurface.BLOCK_CARD))
+        GuardSurface.entries.forEach { blocked ->
+            assertFalse(IntroEngine.candidates(IntroSurface.BLOCK_CARD, s.copy(blockedSurface = blocked))
+                .any { it.id == IntroId.STATUS_BLOCK })
+        }
+    }
+
 }

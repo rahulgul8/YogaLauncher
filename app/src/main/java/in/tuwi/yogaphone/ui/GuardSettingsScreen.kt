@@ -82,9 +82,9 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
         }
     }
 
-    YogaScreen("Shorts and live time value", onBack) {
+    YogaScreen("Shorts, Status and live time value", onBack) {
         item {
-            YogaRow("Yoga guard · ${if (enabled) "on" else "off"}", summary = "Optional accessibility service for live time value and Shorts/Reels blocking")
+            YogaRow("Yoga guard · ${if (enabled) "on" else "off"}", summary = "Optional accessibility service for live time value and Shorts, Reels and Status blocking")
             YogaTextButton(if (enabled) "Manage Yoga guard" else "Enable Yoga guard", {
                 // Turning the guard off happens in Android settings; going there is the loosening step.
                 if (enabled) loosen = "Turn Yoga guard off?" to { disclosure = true } else disclosure = true
@@ -102,11 +102,11 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
             if (!timeValueEnabled) YogaNote("Value of time is currently off.")
             ProRow("Value, style and start counting", ProFeature.VALUE_OF_TIME, onClick = onValueOfTime)
         }
-        item { YogaSection("Shorts and Reels") }
+        item { YogaSection("Shorts, Reels and Status") }
         item { ProRow("Learning videos", ProFeature.LEARNING_VIDEOS, "Allow chosen YouTube channels without using allowance", onClick = onLearning) }
         item { YogaNote("Turn on only the surfaces you want Yoga to recognise. Regular videos still work. Browser detection is optional and off by default.") }
         item {
-            YogaSection("When I open Shorts or Reels")
+            YogaSection("When I open Shorts, Reels or Status")
             YogaRadioRow("Let me through after a pause", !p.strict, {
                 // Leaving strict mode is a loosening: it waits until tomorrow.
                 if (p.strict && p.strictOffFrom == null) scope.launch { prefs.update { it.copy(strictOffFrom = strictOffFrom(todayDate)) } }
@@ -128,6 +128,7 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
                 GuardSurface.INSTAGRAM -> "Instagram Reels"
                 GuardSurface.BROWSER_YOUTUBE -> "YouTube Shorts in browsers"
                 GuardSurface.BROWSER_INSTAGRAM -> "Instagram Reels in browsers"
+                GuardSurface.WHATSAPP_STATUS -> "WhatsApp Status"
             }
             item(key = surface.name) {
                 YogaSwitchRow(label, setting.enabled, { value -> updateSurface(surface) { it.copy(enabled = value) } })
@@ -151,7 +152,7 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
             }
         }
         item { YogaNote("Selected browser surfaces use the address bar in Chrome, Samsung Internet and Firefox. Recognition can change after app updates.") }
-        item { YogaCard { YogaStat(blocks.values.sum().toString(), "Shorts and Reels blocked today") } }
+        item { YogaCard { YogaStat(blocks.values.sum().toString(), "Shorts, Reels and Status blocked today") } }
         val resisted = daily.resisted.takeIf { daily.date == today }.orEmpty().values.sum()
         if (resisted > 0) item { YogaNote("You said not now $resisted ${if (resisted == 1) "time" else "times"} today.") }
     }

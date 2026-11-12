@@ -51,6 +51,7 @@ class YogaGuardService : AccessibilityService() {
     private val windows get() = getSystemService(WindowManager::class.java)
     private var preferences = GuardPreferences()
     private var foreground = ""
+    private var foregroundActivity: String? = null
     private var obstructed = false
     private var keyboards = emptySet<String>()
     private var homePackages = emptySet<String>()
@@ -175,8 +176,13 @@ class YogaGuardService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
         val pkg = event.packageName?.toString() ?: return
+        val activityClass = event.className?.toString()?.takeUnless {
+            it.startsWith("android.widget.") || it.startsWith("android.view.")
+        }
         if (!serviceActive()) {
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                if (pkg != foreground) foregroundActivity = null
+                if (activityClass != null) foregroundActivity = activityClass
                 foreground = pkg; foregroundSince = SystemClock.elapsedRealtime(); generation++; obstructed = false
             }
             return
@@ -193,9 +199,11 @@ class YogaGuardService : AccessibilityService() {
             }
             obstructed = false
             if (pkg != foreground) {
+                foregroundActivity = null
                 foreground = pkg; foregroundSince = SystemClock.elapsedRealtime(); generation++
                 detected = null; hidePill()
             }
+            if (activityClass != null) foregroundActivity = activityClass
             if (serviceActive()) { inspect = true; requests.trySend(Unit) }
         } else if (serviceActive() && event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
             pkg == foreground) {
@@ -212,6 +220,7 @@ class YogaGuardService : AccessibilityService() {
         val active = rootInActiveWindow?.let { root -> root.packageName?.toString().also { recycle(root) } }
         if (active != null && active != foreground && active != "com.android.systemui" && active !in keyboards) {
             if (active !in homePackages) refreshPackageRoles()
+            foregroundActivity = null
             foreground = active; foregroundSince = now; generation++; obstructed = false
             detected = null; hidePill(); inspect = true
         }
@@ -244,7 +253,7 @@ class YogaGuardService : AccessibilityService() {
             lastInspection = now
             val detectionSurfaces = enabled + if (learningOn()) setOf(GuardSurface.YOUTUBE) else emptySet()
             detected = if (!sensitive && pkg in ShortsDetector.supportedPackages(detectionSurfaces)) {
-                rootInActiveWindow?.let { root ->
+                ShortsDetector.detectByClass(pkg, foregroundActivity, detectionSurfaces) ?: rootInActiveWindow?.let { root ->
                     if (root.packageName?.toString() == pkg) ShortsDetector.detect(pkg, AndroidNode(root), detectionSurfaces)
                     else { recycle(root); null }
                 }
@@ -462,8 +471,9 @@ class YogaGuardService : AccessibilityService() {
         hideCard()
         yoga.reviewController.recordInterruption()
         val name = surface.shortName()
-        val headline = expiredMinutes?.let { "Your $it minutes are up" } ?: "$name are off"
-        card = label().apply { text = "$headline \u00b7 Regular videos still work \u00b7 Blocked ${(gate.daily.blocks[surface] ?: 0).let { if (it == 1) "once" else "$it times" }} today" }
+        val headline = expiredMinutes?.let { "Your $it minutes are up" } ?: if (surface == GuardSurface.WHATSAPP_STATUS) "Status is off" else "$name are off"
+        val available = if (surface == GuardSurface.WHATSAPP_STATUS) "Chats and calls still work" else "Regular videos still work"
+        card = label().apply { text = "$headline \u00b7 $available \u00b7 Blocked ${(gate.daily.blocks[surface] ?: 0).let { if (it == 1) "once" else "$it times" }} today" }
         windows.addView(card, params(dp(140)))
         fun keepVisible(millis: Long) {
             cardRemoval?.cancel()

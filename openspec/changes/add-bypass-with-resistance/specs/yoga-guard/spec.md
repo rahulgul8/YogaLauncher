@@ -39,3 +39,41 @@ Strict mode SHALL be opt-in and SHALL hide the way through without changing gate
 #### Scenario: Tightening a rule
 - **WHEN** the person tightens a guard rule in settings
 - **THEN** apply it immediately without a cooling-off period
+
+
+### Requirement: WhatsApp Status as a separate guard family
+Yoga SHALL offer an opt-in WhatsApp Status block for com.whatsapp and com.whatsapp.w4b as a third independent family. It SHALL recognise only the full-screen Status viewer by a StatusPlayback activity class, with package-scoped status_playback_container, status_playback_page and playback_container view ids as fallback. Chats, calls, groups, the Updates list and camera SHALL remain available. The new GuardSurface entry SHALL be appended, preserving old four-surface history ordinals and decoding absent Status counts as zero.
+
+#### Scenario: Viewing Status with the block enabled
+- **WHEN** either WhatsApp package opens a StatusPlayback activity or a viewer-specific fallback id is detected
+- **THEN** use the existing Back action and repeated-attempt Home escalation
+- **AND** show Status is off, Chats and calls still work and today's block count
+- **AND** offer Watch anyway unless strict mode is active
+
+#### Scenario: Ordinary WhatsApp use
+- **WHEN** the person opens chats, calls, groups, the Updates list or camera
+- **THEN** do not detect Status from tab labels or ordinary screen content
+- **AND** replace the remembered activity when a new activity arrives, ignoring framework dialog and toast classes and clearing it when the foreground package changes
+
+#### Scenario: A Status pass
+- **WHEN** the person completes the existing resistance screen for Status
+- **THEN** grant a pass for Status only and show Status with minutes left
+- **AND** keep Shorts and Reels passes and counters independent
+- **AND** resume blocking when the Status pass expires
+
+#### Scenario: Settings and onboarding
+- **WHEN** the person opens guard settings
+- **THEN** offer WhatsApp Status with the existing switch, Block or Allow daily choices, minute choices and strict/loosening rules
+- **AND** when WhatsApp or WhatsApp Business is installed, offer the Status switch in onboarding's blocks step with real weekly minutes and Chats and calls still work
+
+#### Scenario: Status introduction
+- **WHEN** WhatsApp or WhatsApp Business is installed, combined weekly WhatsApp usage is at least 180 minutes, Status is not enabled and guard functionality is available
+- **THEN** offer Turn off Status on Usage and home with the weekly duration and Chats and calls still work
+- **AND** use the existing disclosure, Android settings, confirmation with Undo and R1 review path
+- **AND** make dismissed introductions available through Suggestions
+- **AND** never offer a sibling introduction between Status and Shorts or Reels
+
+#### Scenario: Disclosure and local data
+- **WHEN** the person considers enabling Yoga guard
+- **THEN** disclose WhatsApp Status and transient YouTube channel/title access for Learning videos, retaining the statement that screen content is never stored, logged or sent anywhere
+- **AND** list local settings, chosen learning channels, learning totals, allowance time, timed passes and aggregate counters

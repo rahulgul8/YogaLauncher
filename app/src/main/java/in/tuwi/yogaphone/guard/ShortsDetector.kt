@@ -17,6 +17,9 @@ interface NodeView {
 object ShortsDetector {
     val youtubeIds = setOf("reel_recycler", "reel_watch_player", "reel_player_page_container", "shorts_container")
     val instagramIds = setOf("clips_viewer_view_pager", "clips_viewer_pager", "clips_video_container", "root_clips_layout")
+    val whatsappPackages = setOf("com.whatsapp", "com.whatsapp.w4b")
+    // Only Status-specific ids: a generic "playback" id could match a video inside a chat and block WhatsApp itself.
+    val whatsappStatusIds = setOf("status_playback_container", "status_playback_page")
     val browserAddressIds = mapOf(
         "com.android.chrome" to setOf("url_bar"),
         "com.sec.android.app.sbrowser" to setOf("location_bar_edit_text", "location_bar_text"),
@@ -25,12 +28,18 @@ object ShortsDetector {
     private val nativeSurfaces = mapOf(
         "com.google.android.youtube" to (GuardSurface.YOUTUBE to youtubeIds),
         "com.instagram.android" to (GuardSurface.INSTAGRAM to instagramIds),
+        "com.whatsapp" to (GuardSurface.WHATSAPP_STATUS to whatsappStatusIds),
+        "com.whatsapp.w4b" to (GuardSurface.WHATSAPP_STATUS to whatsappStatusIds),
     )
 
     fun supportedPackages(enabled: Set<GuardSurface>): Set<String> =
         nativeSurfaces.filterValues { it.first in enabled }.keys +
             if (GuardSurface.BROWSER_YOUTUBE in enabled || GuardSurface.BROWSER_INSTAGRAM in enabled)
                 browserAddressIds.keys else emptySet()
+
+    fun detectByClass(packageName: String, className: String?, enabled: Set<GuardSurface>): GuardSurface? =
+        if (GuardSurface.WHATSAPP_STATUS in enabled && packageName in whatsappPackages &&
+            className?.contains("StatusPlayback") == true) GuardSurface.WHATSAPP_STATUS else null
 
     fun detect(packageName: String, root: NodeView, enabled: Set<GuardSurface>): GuardSurface? {
         var visited = 0

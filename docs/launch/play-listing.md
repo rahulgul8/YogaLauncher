@@ -39,7 +39,7 @@ Yoga replaces a busy home screen with a quiet, text-first launcher and gives you
 • Focus sessions and schedules that tuck distracting apps away
 • Greyscale on your terms — over the limit, during focus or at bedtime
 • Quiet notifications: hold chosen apps' notifications and read them in a digest
-• Yoga guard: turn off YouTube Shorts and Instagram Reels, or give each a daily allowance
+• Yoga guard: turn off YouTube Shorts, Instagram Reels and WhatsApp Status, or give each a daily allowance
 • Learning videos: choose YouTube channels whose watch time is tracked as learning instead of using your allowance
 
 **Private by design**
@@ -47,7 +47,7 @@ Your usage data stays on your phone. No Yoga account, no server, no ads, no trac
 
 Yoga measures app foreground time from Android's usage data; it can differ from other screen-time tools. Apps opened from notifications or other apps skip the mindful pause.
 
-Yoga guard optionally uses Android's Accessibility API to identify the open app for the live time-value indicator, recognise Shorts/Reels, and read YouTube channel names and titles in memory for Learning videos. It goes Back (or Home if needed) when a selected surface is blocked. Titles are never stored or sent; only channels the user adds and aggregate daily learning time are retained. You choose whether to enable it after an in-app disclosure and can turn it off at any time.
+Yoga guard optionally uses Android's Accessibility API to identify the open app for the live time-value indicator, recognise Shorts, Reels and WhatsApp Status, and read YouTube channel names and titles in memory for Learning videos. It goes Back (or Home if needed) when a selected surface is blocked. Titles are never stored or sent; only channels the user adds and aggregate daily learning time are retained. You choose whether to enable it after an in-app disclosure and can turn it off at any time.
 
 ## Category and tags
 
@@ -74,11 +74,11 @@ Category: Personalization (alternative: Productivity). Tags: launcher, minimalis
 
 Service: `com.tuwi.yogaphone/in.tuwi.yogaphone.guard.YogaGuardService` (app id `com.tuwi.yogaphone`; code namespace stays `in.tuwi.yogaphone`), protected by `BIND_ACCESSIBILITY_SERVICE`, with `isAccessibilityTool=false`.
 
-**Core-functionality justification:** Yoga is a launcher and digital-wellbeing app. The optional guard implements user-selected limits on short-form feeds, allows user-chosen learning channels during focus, and provides live feedback on eligible app time. Usage Access alone cannot distinguish a Shorts screen, a YouTube watch page or its channel, or navigate away. Accessibility window events identify the open app; bounded node inspection runs in YouTube and for enabled surfaces in Instagram, Chrome, Samsung Internet and Firefox. Deterministic user-configured rules issue Back and, after two unsuccessful attempts, Home. Titles are processed transiently and never retained.
+**Core-functionality justification:** Yoga is a launcher and digital-wellbeing app. The optional guard implements user-selected limits on short-form feeds and the WhatsApp Status viewer, allows user-chosen learning channels during focus, and provides live feedback on eligible app time. Usage Access alone cannot distinguish a Shorts screen, a WhatsApp Status viewer, a YouTube watch page or its channel, or navigate away. Accessibility window events identify the open app; bounded node inspection runs in YouTube and for enabled surfaces in Instagram, WhatsApp (including WhatsApp Business), Chrome, Samsung Internet and Firefox. Deterministic user-configured rules issue Back and, after two unsuccessful attempts, Home. Titles are processed transiently and never retained. WhatsApp detection matches only the full-screen Status viewer by activity class or viewer-specific view ids; chats, calls, groups, the Updates list and camera remain available.
 
-**Disclosure and consent:** A dedicated in-app dialog explains the open-app and screen-structure access, both purposes, on-device processing, non-retention/non-transmission of screen content and how to disable the service. Only **Agree and open settings** opens Android accessibility settings; **Not now** cancels. Feature toggles default off. Daily block counts and allowance usage are local aggregates, separate from transient screen content.
+**Disclosure and consent:** A dedicated in-app dialog explains the open-app and screen-structure access, these purposes, on-device processing, non-retention/non-transmission of screen content and how to disable the service. Only **Agree and open settings** opens Android accessibility settings; **Not now** cancels. Feature toggles default off. Daily block counts and allowance usage are local aggregates, separate from transient screen content.
 
-Submit the permission declaration and a demonstration video showing disclosure, consent, Android activation, both guard features and disabling before release. Store approval remains a release task. Review against [Google Play's AccessibilityService API policy](https://support.google.com/googleplay/android-developer/answer/10964491?hl=en) and [prominent disclosure guidance](https://support.google.com/googleplay/android-developer/answer/11150561?hl=en).
+Submit the permission declaration and a demonstration video showing disclosure, consent, Android activation, Shorts, Reels, WhatsApp Status, live time value, Learning videos and disabling before the next open-testing review. Store approval remains a release task. Review against [Google Play's AccessibilityService API policy](https://support.google.com/googleplay/android-developer/answer/10964491?hl=en) and [prominent disclosure guidance](https://support.google.com/googleplay/android-developer/answer/11150561?hl=en).
 
 ## Data safety form (answers)
 

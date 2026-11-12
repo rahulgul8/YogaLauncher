@@ -2,6 +2,18 @@
 
 One section per version code. Each language goes in its own tag; 500 characters at most.
 
+## 1.6 (8)
+
+```
+<en-US>
+New: turn off WhatsApp Status. Chats and calls still work.
+New for Pro: learning videos. Add YouTube channels you learn from; that time doesn't count against your allowance.
+Want Shorts, Reels or Status anyway? Take a breath, choose 5, 10 or 15 minutes, and hold. Prefer no way through? Turn on strict mode.
+The pause before apps grows each time you go through. Turning a limit off takes a short pause too.
+New: Help → Send feedback.
+</en-US>
+```
+
 ## 1.5 (7)
 
 ```

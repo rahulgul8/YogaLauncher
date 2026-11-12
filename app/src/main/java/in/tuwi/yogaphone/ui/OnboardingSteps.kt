@@ -9,10 +9,11 @@ internal fun onboardingSteps(
     youtube: Boolean,
     instagram: Boolean,
     replay: Boolean,
+    whatsapp: Boolean = false,
 ): List<Step> {
     val additions = buildList {
         if (usageGranted) add(Step.WEEK)
-        if (guardAvailable && (youtube || instagram)) add(Step.BLOCKS)
+        if (guardAvailable && (youtube || instagram || whatsapp)) add(Step.BLOCKS)
     }
     // The home display choice is new in v3 too, so people who finished v2 always get a short run.
     if (previousVersion == 2 && !replay) return additions + Step.DISPLAY + Step.DONE

@@ -56,7 +56,7 @@ fun ValueOfTimeSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, gu
             item { YogaSwitchRow("Show live indicator over apps", guard.liveIndicator, { value -> scope.launch { guardPrefs.update { it.copy(liveIndicator = value) } } }) }
             item {
                 YogaNote("Needs Yoga guard and Value of time. Illustrative, not money lost or spent. You can turn it off any time.")
-                YogaTextButton("Shorts and live time value · Yoga guard", onGuard, Modifier.padding(horizontal = TextButtonInset))
+                YogaTextButton("Shorts, Status and live time value · Yoga guard", onGuard, Modifier.padding(horizontal = TextButtonInset))
             }
             item { YogaSection("Style") }
             item { YogaChipRow {

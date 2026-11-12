@@ -12,6 +12,8 @@ Offer a way through by default, free for everyone. Use the shared resistance lad
 
 Passes cover an app family (native and browser YouTube, or native and browser Instagram), never the other family. The guard continues existing allowance accounting and resumes blocking at expiry. A pass pill takes precedence over the paid value-of-time pill. Persist each family's duration so expiry wording remains accurate when families overlap.
 
+WhatsApp Status is a third, independent family covering WhatsApp and WhatsApp Business. Only the full-screen Status viewer is detected, primarily by its StatusPlayback activity and secondarily by a small package-scoped set of viewer ids. Chats, calls, groups, the Updates list and camera remain available. Status uses the same resistance, timed pass, allowance and strict-mode rules; its pass never opens Shorts or Reels. The enum is appended so historical four-surface rows retain their meaning. Status has no sibling introduction on a block card; it is offered through Settings, onboarding, Usage, home and Suggestions instead.
+
 Strict mode is opt-in and hides the way through. Its pending off date is honoured from that local day; J4 supplies controls and tomorrow-effective loosening. Tightening is immediate. J3 strengthens the launcher pause; outside-launcher pauses remain deferred until after Play approval.
 
 ## Consequences

@@ -53,4 +53,34 @@ class ShortsDetectorTest {
         assertEquals(GuardSurface.YOUTUBE, ShortsDetector.detect("com.google.android.youtube", parent, enabled))
         assertTrue(parent.recycled && hit.recycled)
     }
+    @Test fun statusActivityOnlyMatchesEnabledWhatsAppViewers() {
+        ShortsDetector.whatsappPackages.forEach { pkg ->
+            assertEquals(GuardSurface.WHATSAPP_STATUS, ShortsDetector.detectByClass(pkg,
+                "com.whatsapp.status.playback.StatusPlaybackActivity", enabled))
+            listOf<String?>(null, "com.whatsapp.HomeActivity", "com.whatsapp.Conversation",
+                "com.whatsapp.camera.CameraActivity", "android.widget.Toast", "android.view.View").forEach { name ->
+                assertNull(ShortsDetector.detectByClass(pkg, name, enabled))
+            }
+            assertNull(ShortsDetector.detectByClass(pkg, "StatusPlaybackActivity", emptySet()))
+        }
+        assertNull(ShortsDetector.detectByClass("com.instagram.android", "StatusPlaybackActivity", enabled))
+    }
+    @Test fun statusIdsAreScopedAndDoNotMatchOrdinaryWhatsAppScreens() {
+        ShortsDetector.whatsappPackages.forEach { pkg ->
+            ShortsDetector.whatsappStatusIds.forEach { id ->
+                val node = Node("$pkg:id/$id")
+                assertEquals(GuardSurface.WHATSAPP_STATUS, ShortsDetector.detect(pkg, node, enabled))
+                assertTrue(node.recycled)
+                assertNull(ShortsDetector.detect(pkg, Node("other.package:id/$id"), enabled))
+                assertNull(ShortsDetector.detect(pkg, Node(id), emptySet()))
+                assertNull(ShortsDetector.detect("com.google.android.youtube", Node(id), enabled))
+            }
+            listOf("updates_list", "status_list", "conversation", "calls", "camera").forEach { id ->
+                assertNull(ShortsDetector.detect(pkg, Node(id, "Status"), enabled))
+            }
+        }
+        assertTrue(ShortsDetector.supportedPackages(setOf(GuardSurface.WHATSAPP_STATUS)).containsAll(ShortsDetector.whatsappPackages))
+        assertTrue(ShortsDetector.supportedPackages(emptySet()).intersect(ShortsDetector.whatsappPackages).isEmpty())
+    }
+
 }

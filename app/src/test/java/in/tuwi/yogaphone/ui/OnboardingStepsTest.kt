@@ -48,4 +48,9 @@ class OnboardingStepsTest {
         assertEquals(90, onboardingAllowancePrefill(300.0, 0))
         assertEquals(90, onboardingAllowancePrefill(300.0, 2))
     }
+    @Test fun whatsappAloneOffersBlocksWhenGuardAvailable() {
+        assertEquals(full, onboardingSteps(0, true, true, false, false, false, whatsapp = true))
+        assertFalse(Step.BLOCKS in onboardingSteps(0, true, false, false, false, false, whatsapp = true))
+    }
+
 }

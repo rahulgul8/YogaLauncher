@@ -96,7 +96,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
             YogaRow("Learning time", summary = "Last 7 days", trailing = { Text(minutesLabel(s.learningSecondsWeek / 60),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary) })
         }
-        if (blockedToday > 0) item { YogaNote("Shorts and Reels blocked $blockedToday ${if (blockedToday == 1) "time" else "times"} today.") }
+        if (blockedToday > 0) item { YogaNote("Shorts, Reels and Status blocked $blockedToday ${if (blockedToday == 1) "time" else "times"} today.") }
         if (resistedToday > 0) item { YogaNote("Resisted the pause $resistedToday times today.") }
         when {
             state.loading -> item { YogaNote("Reading usage…") }

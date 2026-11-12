@@ -21,7 +21,7 @@ class IntroSignalsReader(private val app: YogaApplication) {
     @Volatile private var preview: Map<String, Int> = emptyMap()
 
     /**
-     * `youtube=400,instagram=300,browser=90,days=7,avg=200`, or `off`. Keys left out keep real values.
+     * `youtube=400,instagram=300,whatsapp=300,browser=90,days=7,avg=200`, or `off`. Keys left out keep real values.
      * `reset=1` also forgets every introduction shown, snoozed or acted on, so one can be checked again today.
      */
     fun setPreview(spec: String) {
@@ -41,6 +41,8 @@ class IntroSignalsReader(private val app: YogaApplication) {
             youtubeInstalled = real.youtubeInstalled || "youtube" in p,
             instagramMinutes7d = p["instagram"] ?: real.instagramMinutes7d,
             instagramInstalled = real.instagramInstalled || "instagram" in p,
+            whatsappMinutes7d = p["whatsapp"] ?: real.whatsappMinutes7d,
+            whatsappInstalled = real.whatsappInstalled || "whatsapp" in p,
             browserMinutes7d = p["browser"] ?: real.browserMinutes7d,
             recordedDays = p["days"] ?: real.recordedDays,
             avgDistractingPerDay = p["avg"]?.toDouble() ?: real.avgDistractingPerDay,
@@ -83,7 +85,7 @@ class IntroSignalsReader(private val app: YogaApplication) {
         val history = app.guardPrefs.weeklyBlocks.first().filterKeys { !it.isBefore(today.minusDays(6)) && !it.isAfter(today) }
         val allowed = IntroId.entries.toMutableSet()
         if (!BuildConfig.GUARD || !ProGate.allows(ProFeature.SHORTS_BLOCKING, pro)) {
-            allowed.removeAll(setOf(IntroId.SHORTS_BLOCK, IntroId.REELS_BLOCK, IntroId.BROWSER_SURFACES))
+            allowed.removeAll(setOf(IntroId.SHORTS_BLOCK, IntroId.REELS_BLOCK, IntroId.STATUS_BLOCK, IntroId.BROWSER_SURFACES))
         }
         // A free app allowance can occupy the one active rule slot. Do not offer an ineffective TOTAL.
         if (!extra && rules.any { it.enabled && it.id != "total" }) allowed.remove(IntroId.DAILY_ALLOWANCE)
@@ -93,6 +95,8 @@ class IntroSignalsReader(private val app: YogaApplication) {
             instagramMinutes7d = minutes(setOf("com.instagram.android")),
             browserMinutes7d = minutes(ShortsDetector.browserAddressIds.keys), recordedDays = weekDays.size,
             youtubeInstalled = installed("com.google.android.youtube"), instagramInstalled = installed("com.instagram.android"),
+            whatsappMinutes7d = minutes(ShortsDetector.whatsappPackages),
+            whatsappInstalled = ShortsDetector.whatsappPackages.any(::installed),
             guardEnabled = enabled,
             surfacesEnabled = if (enabled) guard.surfaces.filterValues { it.enabled }.keys else emptySet(),
             blockedSurfaces = if (enabled) guard.surfaces.filterValues { it.enabled && it.allowanceMinutes == 0 }.keys else emptySet(),

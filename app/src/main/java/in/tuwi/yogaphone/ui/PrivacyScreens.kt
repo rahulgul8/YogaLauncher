@@ -98,7 +98,7 @@ fun PrivacyScreen(prefs: InsightsPreferences, insights: InsightsRepository, back
             if (`in`.tuwi.yogaphone.BuildConfig.GUARD) item {
                 refresh
                 val allowed = YogaGuardService.isEnabled(context)
-                YogaRow("Yoga guard", summary = "Optional live time value and Shorts/Reels recognition · ${if (allowed) "allowed" else "not allowed"}",
+                YogaRow("Yoga guard", summary = "Optional live time value and Shorts, Reels and Status recognition · ${if (allowed) "allowed" else "not allowed"}",
                     trailing = { YogaTextButton("Manage", onGuard) })
             }
             permissions.forEach { row -> item(key = "perm:${row.name}") { YogaRow(row.name,
@@ -150,10 +150,12 @@ fun HelpScreen(onReplaySetup: () -> Unit, onSuggestions: () -> Unit = {}, onBack
                 val answers = runCatching { yoga.reviewController.store.read().feedbackAnswers }.getOrDefault(emptyList())
                 val body = buildFeedbackEmailBody(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE,
                     Build.VERSION.RELEASE, "${Build.MANUFACTURER} ${Build.MODEL}".trim(), answers)
-                val uri = Uri.parse("mailto:tuwi.developer@gmail.com").buildUpon()
-                    .appendQueryParameter("subject", "Yoga Phone feedback")
-                    .appendQueryParameter("body", body).build()
-                val intent = Intent(Intent.ACTION_SENDTO, uri)
+                // Gmail ignores the address in a mailto: link that carries query parameters, so the address,
+                // subject and body also travel as extras (found on the moto g31: "To" came up empty).
+                val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"))
+                    .putExtra(Intent.EXTRA_EMAIL, arrayOf("tuwi.developer@gmail.com"))
+                    .putExtra(Intent.EXTRA_SUBJECT, "Yoga Phone feedback")
+                    .putExtra(Intent.EXTRA_TEXT, body)
                 if (intent.resolveActivity(context.packageManager) != null) runCatching { context.startActivity(intent) }
                     .onFailure { notice = "No email app found" }
                 else notice = "No email app found"

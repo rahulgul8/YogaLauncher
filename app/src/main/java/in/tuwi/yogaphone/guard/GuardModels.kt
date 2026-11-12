@@ -4,12 +4,17 @@ import java.time.LocalDate
 
 enum class GuardStyle { BURNING, GENTLE }
 enum class StartCounting { AFTER_LIMIT, FROM_FIRST_MINUTE }
-enum class GuardSurface { YOUTUBE, INSTAGRAM, BROWSER_YOUTUBE, BROWSER_INSTAGRAM }
+enum class GuardSurface { YOUTUBE, INSTAGRAM, BROWSER_YOUTUBE, BROWSER_INSTAGRAM, WHATSAPP_STATUS }
 fun GuardSurface.family(): Set<GuardSurface> = when (this) {
     GuardSurface.YOUTUBE, GuardSurface.BROWSER_YOUTUBE -> setOf(GuardSurface.YOUTUBE, GuardSurface.BROWSER_YOUTUBE)
-    else -> setOf(GuardSurface.INSTAGRAM, GuardSurface.BROWSER_INSTAGRAM)
+    GuardSurface.INSTAGRAM, GuardSurface.BROWSER_INSTAGRAM -> setOf(GuardSurface.INSTAGRAM, GuardSurface.BROWSER_INSTAGRAM)
+    GuardSurface.WHATSAPP_STATUS -> setOf(GuardSurface.WHATSAPP_STATUS)
 }
-fun GuardSurface.shortName() = if (GuardSurface.YOUTUBE in family()) "Shorts" else "Reels"
+fun GuardSurface.shortName() = when (this) {
+    GuardSurface.YOUTUBE, GuardSurface.BROWSER_YOUTUBE -> "Shorts"
+    GuardSurface.INSTAGRAM, GuardSurface.BROWSER_INSTAGRAM -> "Reels"
+    GuardSurface.WHATSAPP_STATUS -> "Status"
+}
 fun isStrict(prefs: GuardPreferences, today: LocalDate): Boolean = prefs.strict &&
     (prefs.strictOffFrom?.let { runCatching { LocalDate.parse(it) }.getOrNull() }?.let { today.isBefore(it) } ?: true)
 fun GuardPreferences.passExpiry(surface: GuardSurface): Long = surface.family().maxOf { passUntil[it] ?: 0L }
@@ -43,7 +48,7 @@ fun mergeGuardDaily(stored: GuardDaily, gate: GuardDaily): GuardDaily = when {
 }
 
 
-/** True when [next] lets more Shorts or Reels through than [previous]: turned off, or a block became a daily allowance or a bigger one. */
+/** True when [next] lets more Shorts, Reels or Status through than [previous]: turned off, or a block became a daily allowance or a bigger one. */
 fun isLooser(previous: SurfaceSettings, next: SurfaceSettings): Boolean = when {
     !previous.enabled -> false
     !next.enabled -> true

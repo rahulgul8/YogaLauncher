@@ -62,6 +62,11 @@ fun MindfulDelayScreen(
     var selectedMinutes by remember(app.appPackage, preselected) { mutableIntStateOf(preselected) }
     LaunchedEffect(app.appPackage) { (context.applicationContext as YogaApplication).reviewController.recordInterruption() }
     LaunchedEffect(app.appPackage) { while (remaining > 0) { delay(1_000); remaining-- } }
+    // Opened from search, the drawer's keyboard is still up and covers the buttons, so the first hold
+    // landed on the keyboard (found on the moto g31). Close it as the pause appears.
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    LaunchedEffect(app.appPackage) { focus.clearFocus(force = true); keyboard?.hide() }
     BackHandler { onGoBack() }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {

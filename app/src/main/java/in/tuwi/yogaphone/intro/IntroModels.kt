@@ -3,11 +3,12 @@ package `in`.tuwi.yogaphone.intro
 import `in`.tuwi.yogaphone.guard.GuardSurface
 import java.time.LocalDate
 
-enum class IntroId { SHORTS_BLOCK, REELS_BLOCK, BROWSER_SURFACES, DAILY_ALLOWANCE, LOWER_ALLOWANCE, GREY_PAST_LIMIT }
+enum class IntroId { SHORTS_BLOCK, REELS_BLOCK, BROWSER_SURFACES, DAILY_ALLOWANCE, LOWER_ALLOWANCE, GREY_PAST_LIMIT, STATUS_BLOCK }
 enum class IntroSurface { USAGE, HOME, BLOCK_CARD }
 data class IntroSignals(
     val youtubeMinutes7d: Int = 0, val instagramMinutes7d: Int = 0, val browserMinutes7d: Int = 0,
     val recordedDays: Int = 0, val youtubeInstalled: Boolean = false, val instagramInstalled: Boolean = false,
+    val whatsappMinutes7d: Int = 0, val whatsappInstalled: Boolean = false,
     val guardEnabled: Boolean = false,
     /** Effective enabled surfaces, including a daily Shorts/Reels allowance. */
     val surfacesEnabled: Set<GuardSurface> = emptySet(),

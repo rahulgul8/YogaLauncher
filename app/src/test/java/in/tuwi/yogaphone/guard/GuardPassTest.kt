@@ -75,4 +75,12 @@ class GuardPassTest {
         gate.evaluate(youtube, 2_000, date, settings, mapOf(youtube to 4_000L), 2_000)
         assertEquals(GateAction.BACK, gate.evaluate(youtube, 4_000, date, settings, mapOf(youtube to 4_000L), 4_000))
     }
+    @Test fun statusIsItsOwnFamilyAndHasItsOwnName() {
+        assertEquals(setOf(GuardSurface.WHATSAPP_STATUS), GuardSurface.WHATSAPP_STATUS.family())
+        assertEquals("Status", GuardSurface.WHATSAPP_STATUS.shortName())
+        assertEquals("Shorts", GuardSurface.BROWSER_YOUTUBE.shortName())
+        assertEquals("Reels", GuardSurface.BROWSER_INSTAGRAM.shortName())
+        assertEquals(4, GuardSurface.WHATSAPP_STATUS.ordinal)
+    }
+
 }

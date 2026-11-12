@@ -122,7 +122,7 @@ fun SettingsScreen(
                 if (`in`.tuwi.yogaphone.BuildConfig.GUARD)
                     GatedRow("Learning videos", YogaIcons.Play, ProFeature.LEARNING_VIDEOS, "Channels that don't count", onLearning)
                 if (`in`.tuwi.yogaphone.BuildConfig.GUARD)
-                    YogaGroupRow("Yoga guard", YogaIcons.Shield, summary = "Shorts, Reels, live pill", divider = false, onClick = onGuard)
+                    YogaGroupRow("Yoga guard", YogaIcons.Shield, summary = "Shorts, Reels, Status, live pill", divider = false, onClick = onGuard)
             }
         }
         item { YogaSection("Focus") }

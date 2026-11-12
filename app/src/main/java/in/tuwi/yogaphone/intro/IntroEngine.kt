@@ -23,7 +23,7 @@ object IntroEngine {
             val sibling = when (s.blockedSurface) {
                 GuardSurface.YOUTUBE, GuardSurface.BROWSER_YOUTUBE -> target == GuardSurface.INSTAGRAM
                 GuardSurface.INSTAGRAM, GuardSurface.BROWSER_INSTAGRAM -> target == GuardSurface.YOUTUBE
-                null -> false
+                GuardSurface.WHATSAPP_STATUS, null -> false
             }
             val threshold = minutes >= 180 || (s.recordedDays >= 3 && minutes.toDouble() / s.recordedDays >= 30)
             if (installed && target !in s.surfacesEnabled &&
@@ -35,6 +35,12 @@ object IntroEngine {
         }
         app(IntroId.SHORTS_BLOCK, GuardSurface.YOUTUBE, s.youtubeInstalled, s.youtubeMinutes7d, "YouTube", "Shorts")
         app(IntroId.REELS_BLOCK, GuardSurface.INSTAGRAM, s.instagramInstalled, s.instagramMinutes7d, "Instagram", "Reels")
+        // Status is a separate family with no sibling introduction on block cards.
+        if (surface != IntroSurface.BLOCK_CARD && s.whatsappInstalled && s.whatsappMinutes7d >= 180 &&
+            GuardSurface.WHATSAPP_STATUS !in s.surfacesEnabled) {
+            list += Intro(IntroId.STATUS_BLOCK, surface, "${introDuration(s.whatsappMinutes7d)} on WhatsApp this week",
+                "Turn off Status", "Chats and calls still work.", s.whatsappMinutes7d / 2, true, GuardSurface.WHATSAPP_STATUS)
+        }
         if (surface != IntroSurface.BLOCK_CARD) {
             listOf(GuardSurface.YOUTUBE to GuardSurface.BROWSER_YOUTUBE,
                 GuardSurface.INSTAGRAM to GuardSurface.BROWSER_INSTAGRAM).forEach { (app, browser) ->

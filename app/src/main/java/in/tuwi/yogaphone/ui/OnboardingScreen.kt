@@ -47,6 +47,8 @@ import `in`.tuwi.yogaphone.data.AppModel
 import `in`.tuwi.yogaphone.data.ThemeMode
 import `in`.tuwi.yogaphone.guard.GuardPreferences
 import `in`.tuwi.yogaphone.guard.GuardSurface
+import `in`.tuwi.yogaphone.guard.ShortsDetector
+import `in`.tuwi.yogaphone.guard.shortName
 import `in`.tuwi.yogaphone.guard.YogaGuardService
 import `in`.tuwi.yogaphone.review.FeedbackFeature
 import `in`.tuwi.yogaphone.logic.SearchableApp
@@ -114,10 +116,11 @@ fun OnboardingScreen(
     val usageGranted = remember(resumed) { UsageAccess.granted(context) }
     val youtube = remember(resumed) { installed(context, YOUTUBE) }
     val instagram = remember(resumed) { installed(context, INSTAGRAM) }
-    val steps by remember(initial.previousVersion, usageGranted, pro, youtube, instagram, replay) {
+    val whatsapp = remember(resumed) { ShortsDetector.whatsappPackages.any { installed(context, it) } }
+    val steps by remember(initial.previousVersion, usageGranted, pro, youtube, instagram, whatsapp, replay) {
         derivedStateOf {
             onboardingSteps(initial.previousVersion, usageGranted,
-                BuildConfig.GUARD && ProGate.allows(ProFeature.SHORTS_BLOCKING, pro), youtube, instagram, replay)
+                BuildConfig.GUARD && ProGate.allows(ProFeature.SHORTS_BLOCKING, pro), youtube, instagram, replay, whatsapp)
         }
     }
     var current by rememberSaveable { mutableStateOf(steps.firstOrNull() ?: Step.DONE) }
@@ -153,7 +156,7 @@ fun OnboardingScreen(
                     Step.APPS -> HomeAppsStep(ui, usage, isDistracting, actions)
                     Step.USAGE -> UsageStep(usageGranted)
                     Step.WEEK -> WeekStep(ui, usage)
-                    Step.BLOCKS -> BlocksStep(usage, youtube, instagram)
+                    Step.BLOCKS -> BlocksStep(usage, youtube, instagram, whatsapp)
                     Step.ALLOWANCE -> AllowanceStep(ui, usage, isDistracting, isEssential, initial, actions)
                     Step.VALUE -> TimeValueStep(initial, actions)
                     Step.DISPLAY -> DisplayStep(usage, usageGranted, actions)
@@ -504,7 +507,7 @@ private fun ColumnScope.WeekStep(ui: MainUiState, usage: UsageUiState) {
 }
 
 @Composable
-private fun ColumnScope.BlocksStep(usage: UsageUiState, youtube: Boolean, instagram: Boolean) {
+private fun ColumnScope.BlocksStep(usage: UsageUiState, youtube: Boolean, instagram: Boolean, whatsapp: Boolean) {
     val context = LocalContext.current
     val app = context.applicationContext as YogaApplication
     val preferences by app.guardPrefs.preferences.collectAsState(initial = GuardPreferences())
@@ -521,11 +524,8 @@ private fun ColumnScope.BlocksStep(usage: UsageUiState, youtube: Boolean, instag
         app.guardPrefs.update { p -> p.copy(surfaces = p.surfaces + surfaces.associateWith { surface ->
             p.surface(surface).copy(enabled = true, allowanceMinutes = 0)
         }) }
-        done = when {
-            GuardSurface.YOUTUBE in surfaces && GuardSurface.INSTAGRAM in surfaces -> "Shorts and Reels are off"
-            GuardSurface.YOUTUBE in surfaces -> "Shorts are off"
-            else -> "Reels are off"
-        }
+        done = if (surfaces == listOf(GuardSurface.WHATSAPP_STATUS)) "Status is off. Chats and calls still work."
+            else surfaces.joinToString(" and ") { it.shortName() } + " are off"
         // The global policy forbids asking while onboarding is showing; home evaluates this queued moment after setup.
         app.reviewController.queueOnboardingR1()
     }
@@ -552,18 +552,21 @@ private fun ColumnScope.BlocksStep(usage: UsageUiState, youtube: Boolean, instag
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
     OnboardingImage(if (youtube) R.drawable.onboarding_shorts else R.drawable.onboarding_reels)
-    StepTitle("Keep videos. Lose the scroll.", "Shorts and Reels off. Everything else works.")
+    StepTitle(if (whatsapp) "Shorts, Reels and Status" else "Keep videos. Lose the scroll.",
+        if (whatsapp) "Turn off the scroll. Chats and calls still work." else "Shorts and Reels off. Everything else works.")
     val surfaces = buildList {
         if (youtube) add(GuardSurface.YOUTUBE)
         if (instagram) add(GuardSurface.INSTAGRAM)
+        if (whatsapp) add(GuardSurface.WHATSAPP_STATUS)
     }
     surfaces.forEach { surface ->
         val isYoutube = surface == GuardSurface.YOUTUBE
-        val pkg = if (isYoutube) YOUTUBE else INSTAGRAM
-        val rows = usage.snapshot.week.filter { it.packageName == pkg }
-        val name = if (isYoutube) "YouTube" else "Instagram"
+        val isStatus = surface == GuardSurface.WHATSAPP_STATUS
+        val packages = if (isStatus) ShortsDetector.whatsappPackages else setOf(if (isYoutube) YOUTUBE else INSTAGRAM)
+        val rows = usage.snapshot.week.filter { it.packageName in packages }
+        val name = if (isStatus) "WhatsApp" else if (isYoutube) "YouTube" else "Instagram"
         val settings = preferences.surface(surface)
-        YogaSwitchRow(if (isYoutube) "YouTube Shorts" else "Instagram Reels",
+        YogaSwitchRow(if (isStatus) "WhatsApp Status" else if (isYoutube) "YouTube Shorts" else "Instagram Reels",
             (!returnedFromSettings || guardEnabled) && settings.enabled && settings.allowanceMinutes == 0,
             { checked ->
                 done = null
@@ -579,7 +582,9 @@ private fun ColumnScope.BlocksStep(usage: UsageUiState, youtube: Boolean, instag
                     wanted = ArrayList((wanted + surface.name).distinct())
                     disclosure = true
                 }
-            }, summary = if (rows.isNotEmpty()) "${duration(rows.sumOf { it.foregroundMinutes })} on $name this week"
+            }, summary = if (isStatus) "Chats and calls still work" +
+                (if (rows.isNotEmpty()) " \u00b7 ${duration(rows.sumOf { it.foregroundMinutes })} on WhatsApp this week" else "")
+                else if (rows.isNotEmpty()) "${duration(rows.sumOf { it.foregroundMinutes })} on $name this week"
                 else if (isYoutube) "Regular videos still work" else "Posts and messages still work")
     }
     done?.let { DoneLine(it) }

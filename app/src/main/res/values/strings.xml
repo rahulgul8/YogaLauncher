@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">Yoga Phone</string>
     <string name="yoga_guard_name">Yoga guard</string>
-    <string name="yoga_guard_description">Optional live time value over apps and Shorts/Reels blocking. Reads which app is open and, only for selected YouTube, Instagram and browsers, screen structure to recognise Shorts and Reels. Screen content is never stored or sent. Turn off any time.</string>
+    <string name="yoga_guard_description">Optional live time value over apps and Shorts, Reels and WhatsApp Status blocking. Reads which app is open and, only for selected YouTube, Instagram, WhatsApp and browsers, screen structure to recognise Shorts, Reels and Status. Screen content is never stored or sent. Turn off any time.</string>
 </resources>

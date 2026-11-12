@@ -55,7 +55,12 @@ class IntroActions(private val app: YogaApplication) {
             return@withLock
         }
         app.reviewController.featureChanged(FeedbackFeature.GUARD, true)
-        val target = if (id == IntroId.SHORTS_BLOCK) GuardSurface.YOUTUBE else GuardSurface.INSTAGRAM
+        val target = when (id) {
+            IntroId.SHORTS_BLOCK -> GuardSurface.YOUTUBE
+            IntroId.REELS_BLOCK -> GuardSurface.INSTAGRAM
+            IntroId.STATUS_BLOCK -> GuardSurface.WHATSAPP_STATUS
+            else -> return@withLock
+        }
         val intro = Intro(id, IntroSurface.USAGE, "", "", impactMinutesPerWeek = 0, targetSurface = target)
         apply(intro)
         app.introStore.setPending(null)
@@ -67,7 +72,7 @@ class IntroActions(private val app: YogaApplication) {
             it.id == intro.id && it.targetSurface == intro.targetSurface && it.targetMinutes == intro.targetMinutes
         } ?: return@withLock
         if (intro.targetSurface != null && !signals.guardEnabled) {
-            if (intro.id == IntroId.SHORTS_BLOCK || intro.id == IntroId.REELS_BLOCK) mutableDisclosure.value = intro.id
+            if (intro.id == IntroId.SHORTS_BLOCK || intro.id == IntroId.REELS_BLOCK || intro.id == IntroId.STATUS_BLOCK) mutableDisclosure.value = intro.id
             return@withLock
         }
         apply(current)
@@ -78,7 +83,7 @@ class IntroActions(private val app: YogaApplication) {
         val undo: suspend () -> Unit
         val confirmation: String
         when (intro.id) {
-            IntroId.SHORTS_BLOCK, IntroId.REELS_BLOCK, IntroId.BROWSER_SURFACES -> {
+            IntroId.SHORTS_BLOCK, IntroId.REELS_BLOCK, IntroId.STATUS_BLOCK, IntroId.BROWSER_SURFACES -> {
                 if (!signals.guardEnabled) return
                 val surface = intro.targetSurface ?: return
                 var previous = SurfaceSettings()
@@ -90,6 +95,7 @@ class IntroActions(private val app: YogaApplication) {
                 confirmation = when (intro.id) {
                     IntroId.SHORTS_BLOCK -> "Shorts are off. Regular videos still work."
                     IntroId.REELS_BLOCK -> "Reels are off. Posts and messages still work."
+                    IntroId.STATUS_BLOCK -> "Status is off. Chats and calls still work."
                     else -> "Browser blocking is on."
                 }
             }
@@ -116,6 +122,6 @@ class IntroActions(private val app: YogaApplication) {
         app.introStore.acted(intro.id)
         app.introSignals.refresh()
         mutableNotice.value = IntroNotice(confirmation, "Undo") { undo(); app.introSignals.refresh() }
-        if (intro.id == IntroId.SHORTS_BLOCK || intro.id == IntroId.REELS_BLOCK) mutableReviewMoments.emit(Unit)
+        if (intro.id == IntroId.SHORTS_BLOCK || intro.id == IntroId.REELS_BLOCK || intro.id == IntroId.STATUS_BLOCK) mutableReviewMoments.emit(Unit)
     }
 }

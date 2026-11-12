@@ -92,7 +92,7 @@ fun TrialEndingCard(blockedToday: Int, hourlyValue: String?) {
             Text("Your Yoga Pro trial ends in ${state.trialDaysLeft} days", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             IconButton(onClick = repository::dismissTrialCard) { Icon(YogaIcons.Close, contentDescription = "Dismiss trial reminder") }
         }
-        if (blockedToday > 0) Text("Shorts and Reels blocked $blockedToday times today.", style = MaterialTheme.typography.bodyMedium)
+        if (blockedToday > 0) Text("Shorts, Reels and Status blocked $blockedToday times today.", style = MaterialTheme.typography.bodyMedium)
         hourlyValue?.let { Text("Your time value: $it per hour.", style = MaterialTheme.typography.bodySmall) }
         YogaTextButton("Keep Yoga Pro", access.open)
     }
