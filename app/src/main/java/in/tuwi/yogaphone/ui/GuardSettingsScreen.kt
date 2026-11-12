@@ -36,7 +36,8 @@ internal fun rememberGuardDate(): String {
 }
 
 @Composable
-fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfTime: () -> Unit, onBack: () -> Unit) {
+fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfTime: () -> Unit,
+    onLearning: () -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val p by prefs.preferences.collectAsState(initial = GuardPreferences())
@@ -102,6 +103,7 @@ fun GuardSettingsScreen(prefs: GuardPrefs, timeValueEnabled: Boolean, onValueOfT
             ProRow("Value, style and start counting", ProFeature.VALUE_OF_TIME, onClick = onValueOfTime)
         }
         item { YogaSection("Shorts and Reels") }
+        item { ProRow("Learning videos", ProFeature.LEARNING_VIDEOS, "Allow chosen YouTube channels without using allowance", onClick = onLearning) }
         item { YogaNote("Turn on only the surfaces you want Yoga to recognise. Regular videos still work. Browser detection is optional and off by default.") }
         item {
             YogaSection("When I open Shorts or Reels")

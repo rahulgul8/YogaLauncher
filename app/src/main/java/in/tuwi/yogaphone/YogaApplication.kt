@@ -19,6 +19,7 @@ class YogaApplication : Application() {
     val introStore by lazy { `in`.tuwi.yogaphone.intro.IntroStore(this) }
     val introSignals by lazy { `in`.tuwi.yogaphone.intro.IntroSignalsReader(this) }
     val guardPrefs by lazy { `in`.tuwi.yogaphone.guard.GuardPrefs(this) }
+    val learningPrefs by lazy { `in`.tuwi.yogaphone.guard.LearningPrefs(this) }
     val usagePrefs by lazy { UsagePrefs(this) }
     val usageRepository by lazy { UsageRepository(this, database, usagePrefs) }
     override fun onCreate() { super.onCreate(); proRepository; UsageWorker.schedule(this) }

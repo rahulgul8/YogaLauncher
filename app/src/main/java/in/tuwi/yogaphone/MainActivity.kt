@@ -33,6 +33,7 @@ import `in`.tuwi.yogaphone.ui.UsageDashboardScreen
 import `in`.tuwi.yogaphone.ui.UsageSettingsScreen
 import `in`.tuwi.yogaphone.ui.ValueOfTimeSettingsScreen
 import `in`.tuwi.yogaphone.ui.GuardSettingsScreen
+import `in`.tuwi.yogaphone.ui.LearningChannelsScreen
 import `in`.tuwi.yogaphone.ui.rememberGuardDate
 import `in`.tuwi.yogaphone.guard.GuardDaily
 import `in`.tuwi.yogaphone.ui.HomeUsageIndicator
@@ -139,6 +140,7 @@ private const val HOME = "home"
 private const val PRO = "settings/pro"
 private const val SETTINGS = "settings"
 private const val GUARD = "settings/guard"
+private const val LEARNING = "settings/learning"
 private const val HIDDEN_APPS = "settings/hidden_apps"
 private const val APPEARANCE = "settings/appearance"
 private const val FOCUS_SETTINGS = "settings/focus"
@@ -627,6 +629,7 @@ private fun LauncherNavigation(
                 onHelp = { navController.navigate(HELP) },
                 onWidgets = { navController.navigate(WIDGETS) },
                 onAdvanced = { navController.navigate(ADVANCED) },
+                onLearning = { openProFeature(ProFeature.LEARNING_VIDEOS, LEARNING) },
             )
         }
         composable(ADVANCED) {
@@ -655,7 +658,12 @@ private fun LauncherNavigation(
         }
         composable(GUARD) {
             GuardSettingsScreen(yoga.guardPrefs, usageState.preferences.timeValueEnabled,
-                { navController.navigate("settings/value") }, { navController.popBackStack() })
+                { navController.navigate("settings/value") },
+                { openProFeature(ProFeature.LEARNING_VIDEOS, LEARNING) }, { navController.popBackStack() })
+        }
+        composable(LEARNING) {
+            if (!access.allows(ProFeature.LEARNING_VIDEOS)) { ProScreen(yoga.proRepository) { navController.popBackStack() }; return@composable }
+            LearningChannelsScreen(yoga.learningPrefs) { navController.popBackStack() }
         }
         composable(APPEARANCE) {
             AppearanceSettingsScreen(
@@ -694,7 +702,8 @@ private fun LauncherNavigation(
         composable(INSIGHTS) {
             if (!access.allows(ProFeature.INSIGHTS)) { ProScreen(yoga.proRepository) { navController.popBackStack() }; return@composable }
             insightsPrefs?.let { prefs ->
-                InsightsScreen(insights, prefs, onAcceptSuggestion = { usageViewModel.saveRule(null, it) }) { navController.popBackStack() }
+                InsightsScreen(insights, prefs, usageState.snapshot.learningSecondsToday,
+                    onAcceptSuggestion = { usageViewModel.saveRule(null, it) }) { navController.popBackStack() }
             }
         }
         composable(PRIVACY) {

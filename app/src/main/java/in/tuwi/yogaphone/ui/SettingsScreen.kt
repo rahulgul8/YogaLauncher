@@ -84,6 +84,7 @@ fun SettingsScreen(
     onHelp: () -> Unit,
     onWidgets: () -> Unit,
     onAdvanced: () -> Unit,
+    onLearning: () -> Unit,
 ) {
     val context = LocalContext.current
     var isDefault by remember { mutableStateOf(isDefaultHome(context)) }
@@ -119,6 +120,8 @@ fun SettingsScreen(
                 GatedRow("Value of time", YogaIcons.Coin, ProFeature.VALUE_OF_TIME, "Your hour, priced", onValueOfTime,
                     divider = `in`.tuwi.yogaphone.BuildConfig.GUARD)
                 if (`in`.tuwi.yogaphone.BuildConfig.GUARD)
+                    GatedRow("Learning videos", YogaIcons.Play, ProFeature.LEARNING_VIDEOS, "Channels that don't count", onLearning)
+                if (`in`.tuwi.yogaphone.BuildConfig.GUARD)
                     YogaGroupRow("Yoga guard", YogaIcons.Shield, summary = "Shorts, Reels, live pill", divider = false, onClick = onGuard)
             }
         }
@@ -142,8 +145,7 @@ fun SettingsScreen(
             YogaGroup {
                 GatedRow("Profiles", YogaIcons.Layers, ProFeature.PROFILES, "Homes for work and rest", onProfiles)
                 YogaGroupRow("Categories", YogaIcons.Tag, summary = "Drawer groups", onClick = onCategories)
-                YogaGroupRow("Hidden apps", YogaIcons.EyeOff, summary = "Review and unhide", onClick = onHiddenApps)
-                GatedRow("Learning videos", YogaIcons.Play, ProFeature.LEARNING_VIDEOS, "Coming soon", {}, divider = false)
+                YogaGroupRow("Hidden apps", YogaIcons.EyeOff, summary = "Review and unhide", divider = false, onClick = onHiddenApps)
             }
         }
         item { YogaSection("Privacy and help") }

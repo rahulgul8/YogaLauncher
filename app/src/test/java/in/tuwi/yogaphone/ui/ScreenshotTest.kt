@@ -44,7 +44,7 @@ class ScreenshotTest {
 
     @Composable private fun settings() = SettingsScreen(
         onBack = {}, onAppearance = {}, onHiddenApps = {}, onResetNames = {}, onUsage = {}, onUsageRules = {},
-        onValueOfTime = {}, onGuard = {}, onFocus = {}, onProfiles = {}, onCategories = {}, onVisual = {}, onQuiet = {},
+        onValueOfTime = {}, onLearning = {}, onGuard = {}, onFocus = {}, onProfiles = {}, onCategories = {}, onVisual = {}, onQuiet = {},
         onInsights = {}, onPrivacy = {}, onHelp = {}, onWidgets = {}, onAdvanced = {},
     )
 

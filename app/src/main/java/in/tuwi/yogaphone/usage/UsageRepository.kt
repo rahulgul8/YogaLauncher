@@ -11,6 +11,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
+import `in`.tuwi.yogaphone.guard.LearningAccounting
+import `in`.tuwi.yogaphone.guard.LearningDetector
 
 data class UsageSnapshot(
     val date: LocalDate = LocalDate.now(),
@@ -25,6 +27,8 @@ data class UsageSnapshot(
     val categoryOf: Map<String, String> = emptyMap(),
     val appLabels: Map<String, String> = emptyMap(),
     val unlocksToday: Int? = null,
+    val learningSecondsToday: Long = 0,
+    val learningSecondsWeek: Long = 0,
     val error: String? = null,
 )
 
@@ -80,14 +84,21 @@ class UsageRepository(private val context: Context, private val database: YogaDa
                 return@withLock UsageSnapshot(date = today, access = true, error = "Usage measuring is off in Privacy and data.")
             }
             val pro = app.proRepository.current()
+            val learningAllowed = ProGate.allows(ProFeature.LEARNING_VIDEOS, pro)
+            val learningTotals = if (learningAllowed) app.learningPrefs.dailyTotals.first() else emptyMap()
             val saved = prefs.preferences.first()
             val p = if (ProGate.allows(ProFeature.REMINDERS, pro)) saved else saved.copy(reminders = false, timeValueEnabled = false)
             if (archiveYesterday) { collect(today.minusDays(1), p); runCatching { app.insightsRepository.prune() } }
             val rows = collect(today, p)
             val weekStart = today.minusDays(6).toString()
             val excluded = excludedPackages()
-            val week = dao.aggregates(weekStart, today.toString()).filterNot { it.packageName in excluded }
-            val visibleRows = rows.orEmpty().filterNot { it.packageName in excluded }
+            fun withoutLearning(row: UsageAggregateEntity): UsageAggregateEntity {
+                if (row.packageName != LearningDetector.YOUTUBE_PACKAGE) return row
+                val seconds = learningTotals["${row.date}|${row.packageName}"] ?: 0L
+                return row.copy(foregroundMinutes = LearningAccounting.effectiveMinutes(row.foregroundMinutes, seconds))
+            }
+            val week = dao.aggregates(weekStart, today.toString()).filterNot { it.packageName in excluded }.map(::withoutLearning)
+            val visibleRows = rows.orEmpty().filterNot { it.packageName in excluded }.map(::withoutLearning)
             val known = dao.days(weekStart, today.toString()).map { it.date }.toSet()
             val essential = (week.map { it.packageName }.toSet() + classifier.mandatoryEssential()).filter {
                 classifier.classify(it, database.appEntryDao().get(it)).essential
@@ -115,6 +126,8 @@ class UsageRepository(private val context: Context, private val database: YogaDa
             else UsageNotifications(context).cancelOngoing()
             val unlocksToday = dao.days(today.toString(), today.toString()).firstOrNull()?.unlocks
             val labels = week.map { it.packageName }.toSet().associateWith(::labelOf)
+            val learningToday = learningTotals["$today|${LearningDetector.YOUTUBE_PACKAGE}"] ?: 0L
+            val learningWeek = learningTotals.filterKeys { key -> key.substringBefore('|') in weekStart..today.toString() }.values.sum()
             UsageSnapshot(
                 date = today,
                 access = true,
@@ -128,6 +141,8 @@ class UsageRepository(private val context: Context, private val database: YogaDa
                 categoryOf = categoryOf,
                 appLabels = labels,
                 unlocksToday = unlocksToday,
+                learningSecondsToday = learningToday,
+                learningSecondsWeek = learningWeek,
                 error = if (rows == null) "Android usage data is not available yet. Try again after using an app." else null,
             )
         }
@@ -163,5 +178,6 @@ class UsageRepository(private val context: Context, private val database: YogaDa
     }
     suspend fun clearHistory() = mutex.withLock {
         database.withTransaction { dao.clearHistory(); dao.clearDays(); dao.clearAllHours() }
+        (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).learningPrefs.clearHistory()
     }
 }

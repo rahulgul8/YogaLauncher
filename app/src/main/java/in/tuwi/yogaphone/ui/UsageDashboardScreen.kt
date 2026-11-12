@@ -88,6 +88,14 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
         }
         item { YogaChipRow { YogaChip("Today", !weekly, onClick = { weekly = false }); YogaChip("Last 7 days", weekly, onClick = { weekly = true; weeklyOpened = true }) } }
         item { YogaTextButton("Edit usage rules", onSettings, Modifier.padding(horizontal = TextButtonInset)) }
+        if (!weekly && access.allows(ProFeature.LEARNING_VIDEOS)) item {
+            YogaRow("Learning time today", trailing = { Text(minutesLabel(s.learningSecondsToday / 60),
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary) })
+        }
+        if (weekly && access.allows(ProFeature.LEARNING_VIDEOS)) item {
+            YogaRow("Learning time", summary = "Last 7 days", trailing = { Text(minutesLabel(s.learningSecondsWeek / 60),
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary) })
+        }
         if (blockedToday > 0) item { YogaNote("Shorts and Reels blocked $blockedToday ${if (blockedToday == 1) "time" else "times"} today.") }
         if (resistedToday > 0) item { YogaNote("Resisted the pause $resistedToday times today.") }
         when {

@@ -69,6 +69,12 @@ class YogaGuardService : AccessibilityService() {
     private var snapshot: UsageSnapshot? = null
     private var baselineSince = 0L
     private var detected: GuardSurface? = null
+    private var watchInfo = WatchInfo()
+    private var learningPreferences = LearningPreferences()
+    private var learningPro = false
+    private var learningNow = false
+    private var learningTickAt: Long? = null
+    private var focusGate = LearningFocusGate()
     private var gate = ShortsGate()
     private var ticker: Job? = null
     private var pill: TextView? = null
@@ -79,20 +85,21 @@ class YogaGuardService : AccessibilityService() {
     private var cardRemoval: Job? = null
     private var flame: ValueAnimator? = null
     private var collapsed = false
+    private var pillAction: (() -> Unit)? = null
     private var pillY = 80
     private var registered = false
     private var overlayTokens: Tokens = specOf(`in`.tuwi.yogaphone.data.Palette.OBSIDIAN_BRASS).dark
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (!preferences.active) return
+            if (!serviceActive()) return
             // Never bridge a screen-off/locked interval with the local live-seconds clock.
             foregroundSince = SystemClock.elapsedRealtime()
             liveSuspended = true
             if (intent?.action == Intent.ACTION_SCREEN_OFF) {
-                generation++; detected = null; hidePill(); hideCard()
+                generation++; detected = null; watchInfo = WatchInfo(); learningNow = false; learningTickAt = null; hidePill(); hideCard()
                 gate.evaluate(null, SystemClock.elapsedRealtime(), today(), preferences.surfaces)
             }
-            if (preferences.active) requests.trySend(Unit)
+            if (serviceActive()) requests.trySend(Unit)
         }
     }
 
@@ -103,8 +110,18 @@ class YogaGuardService : AccessibilityService() {
         else @Suppress("DEPRECATION") registerReceiver(screenReceiver, filter)
         registered = true
         scope.launch {
-            yoga.proRepository.current()
-            launch { yoga.proRepository.state.collect { if (!ProGate.allows(ProFeature.VALUE_OF_TIME, it) && !passPill) hidePill() } }
+            learningPro = ProGate.allows(ProFeature.LEARNING_VIDEOS, yoga.proRepository.current())
+            launch { yoga.proRepository.state.collect {
+                learningPro = ProGate.allows(ProFeature.LEARNING_VIDEOS, it)
+                if (!ProGate.allows(ProFeature.VALUE_OF_TIME, it) && !learningOn() && !passPill) hidePill()
+                restartTicker()
+            } }
+            launch { yoga.learningPrefs.preferences.collect {
+                val wasOn = learningOn()
+                learningPreferences = it
+                if (learningOn() != wasOn) restartTicker()
+                inspect = true; requests.trySend(Unit)
+            } }
             gate = ShortsGate(yoga.guardPrefs.daily.first())
             savedDaily = canonical(gate.daily)
             launch {
@@ -127,7 +144,7 @@ class YogaGuardService : AccessibilityService() {
                     generation++
                     preferences = p; pillY = p.positionY
                     ticker?.cancel()
-                    if (p.active) {
+                    if (serviceActive()) {
                         refreshPackageRoles()
                         inspect = true
                         ticker = launch { while (isActive) { requests.trySend(Unit); delay(1_000) } }
@@ -138,15 +155,27 @@ class YogaGuardService : AccessibilityService() {
                 }
             }
             for (ignored in requests) {
-                if (preferences.active) runCatching { update() }.onFailure { hidePill(); hideCard() }
+                if (serviceActive()) runCatching { update() }.onFailure { hidePill(); hideCard() }
             }
         }
+    }
+
+    // Learning videos is opt-in: it acts only for Pro users who have added at least one channel.
+    private fun learningOn() = learningPro && learningPreferences.channels.isNotEmpty()
+    private fun serviceActive() = preferences.active || learningOn()
+    private fun restartTicker() {
+        ticker?.cancel()
+        if (serviceActive()) {
+            refreshPackageRoles()
+            inspect = true
+            ticker = scope.launch { while (isActive) { requests.trySend(Unit); delay(1_000) } }
+        } else { hidePill(); hideCard() }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
         val pkg = event.packageName?.toString() ?: return
-        if (!preferences.active) {
+        if (!serviceActive()) {
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                 foreground = pkg; foregroundSince = SystemClock.elapsedRealtime(); generation++; obstructed = false
             }
@@ -159,7 +188,7 @@ class YogaGuardService : AccessibilityService() {
             if (pkg != foreground) refreshPackageRoles()
             if (pkg == "com.android.systemui" || pkg in keyboards) {
                 obstructed = true; generation++; foregroundSince = SystemClock.elapsedRealtime(); liveSuspended = true; detected = null; hidePill(); hideCard()
-                if (preferences.active) requests.trySend(Unit)
+                if (serviceActive()) requests.trySend(Unit)
                 return
             }
             obstructed = false
@@ -167,8 +196,8 @@ class YogaGuardService : AccessibilityService() {
                 foreground = pkg; foregroundSince = SystemClock.elapsedRealtime(); generation++
                 detected = null; hidePill()
             }
-            if (preferences.active) { inspect = true; requests.trySend(Unit) }
-        } else if (preferences.active && event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+            if (serviceActive()) { inspect = true; requests.trySend(Unit) }
+        } else if (serviceActive() && event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
             pkg == foreground) {
             // Some keyboards close without another activity/window-state event.
             obstructed = false
@@ -195,7 +224,7 @@ class YogaGuardService : AccessibilityService() {
         if (!screenOn || locked || inCall || obstructed) {
             foregroundSince = now
             liveSuspended = true
-            detected = null; hidePill(); hideCard()
+            detected = null; watchInfo = WatchInfo(); learningNow = false; learningTickAt = null; hidePill(); hideCard()
             gate.evaluate(null, now, today(), preferences.surfaces)
             saveDailyIfChanged()
             return
@@ -207,51 +236,95 @@ class YogaGuardService : AccessibilityService() {
         val sensitive = classification.essential || category == Categories.FINANCE || pkg in cameraPackages ||
             pkg == getSystemService(TelecomManager::class.java).defaultDialerPackage || pkg.contains("incall", true)
         if (token != generation) return
-        if (sensitive) { hidePill(); hideCard(); detected = null }
+        if (sensitive) { hidePill(); hideCard(); detected = null; watchInfo = WatchInfo() }
         // Keep the trailing content change, but never act on an obsolete detection while waiting.
         if (inspect && now - lastInspection < 500) return
         if (inspect && now - lastInspection >= 500) {
             inspect = false
-            detected = if (!sensitive && pkg in ShortsDetector.supportedPackages(enabled)) {
-                lastInspection = now
+            lastInspection = now
+            val detectionSurfaces = enabled + if (learningOn()) setOf(GuardSurface.YOUTUBE) else emptySet()
+            detected = if (!sensitive && pkg in ShortsDetector.supportedPackages(detectionSurfaces)) {
                 rootInActiveWindow?.let { root ->
-                    if (root.packageName?.toString() == pkg) ShortsDetector.detect(pkg, AndroidNode(root), enabled)
+                    if (root.packageName?.toString() == pkg) ShortsDetector.detect(pkg, AndroidNode(root), detectionSurfaces)
                     else { recycle(root); null }
                 }
             } else null
+            watchInfo = if (!sensitive && learningOn() && pkg == LearningDetector.YOUTUBE_PACKAGE) {
+                rootInActiveWindow?.let { root ->
+                    if (root.packageName?.toString() == pkg) LearningDetector.read(pkg, AndroidNode(root))
+                    else { recycle(root); WatchInfo() }
+                } ?: WatchInfo()
+            } else WatchInfo()
         }
-        val action = gate.evaluate(detected, now, today(), preferences.surfaces, preferences.passUntil, System.currentTimeMillis())
+        val learningEnabled = learningOn()
+        val focusActive = learningEnabled && yoga.focusRepository.activeFocus.first() != null
+        val channelKey = watchInfo.channel?.let(LearningChannels::normalize)?.takeIf(String::isNotEmpty)
+        val learningKeys = learningPreferences.channels.map(LearningChannel::key).toSet()
+        learningNow = learningEnabled && detected != GuardSurface.YOUTUBE && LearningPolicy.isLearning(watchInfo, learningKeys)
+        val focusDecision = if (pkg == LearningDetector.YOUTUBE_PACKAGE && learningEnabled) LearningFocusPolicy.decide(
+            focusActive, detected == GuardSurface.YOUTUBE, watchInfo, channelKey, learningKeys,
+            learningPreferences.allowYouTubeHomeDuringFocus) else YouTubeFocusAction.ALLOW
+        val surfaceSettings = if (focusActive && detected == GuardSurface.YOUTUBE) preferences.surfaces +
+            (GuardSurface.YOUTUBE to preferences.surface(GuardSurface.YOUTUBE).copy(enabled = true, allowanceMinutes = 0))
+            else preferences.surfaces
+        // Focus keeps Shorts blocked even during a pass.
+        val action = gate.evaluate(detected, now, today(), surfaceSettings,
+            if (focusActive) emptyMap() else preferences.passUntil, System.currentTimeMillis())
+        val focusAction = focusGate.evaluate(focusDecision != YouTubeFocusAction.ALLOW, now)
+        updateLearningClock(now, learningNow, today())
         saveDailyIfChanged()
-        if (token != generation || !preferences.active) return
-        if (action != GateAction.NONE) {
-            performGlobalAction(if (action == GateAction.HOME) GLOBAL_ACTION_HOME else GLOBAL_ACTION_BACK)
-            detected?.let { showBlockCard(it, yoga.guardPrefs.consumeExpiredPass(it, System.currentTimeMillis())) }
+        if (token != generation || !serviceActive()) return
+        val effectiveAction = if (action != GateAction.NONE) action else focusAction
+        if (effectiveAction != GateAction.NONE) {
+            performGlobalAction(if (effectiveAction == GateAction.HOME) GLOBAL_ACTION_HOME else GLOBAL_ACTION_BACK)
+            if (action != GateAction.NONE) detected?.let { showBlockCard(it, yoga.guardPrefs.consumeExpiredPass(it, System.currentTimeMillis())) }
+            else showLearningBlockCard(watchInfo.channel)
             // Verify the destination before the next decision (including first-screen/deep-link fallback).
             inspect = true
+            if (action == GateAction.NONE) { hidePill(); return }
         }
         val passSurface = detected
         val left = passSurface?.let { preferences.passExpiry(it) - System.currentTimeMillis() } ?: 0L
         if (passSurface != null && left > 0 && !sensitive && pkg != packageName && pkg !in homePackages) {
             val text = "${passSurface.shortName()} \u00b7 ${(left + 59_999) / 60_000} min left"
             if (!passPill || passPillSurface != passSurface || now - passPillUpdatedAt >= 30_000) {
-                showPill(text, text, isPass = true)
+                showPill(text, text, calm = true, isPass = true)
                 passPillUpdatedAt = now
                 passPillSurface = passSurface
             }
             return
         }
         if (passPill) hidePill()
-        if (!preferences.liveIndicator || !yoga.proRepository.allows(ProFeature.VALUE_OF_TIME)) { hidePill(); return }
+        if (learningNow) {
+            val seconds = yoga.learningPrefs.seconds(today(), LearningDetector.YOUTUBE_PACKAGE) + learningPendingMillis / 1_000
+            showPill("Learning · ${seconds / 60} min", "Learning video, ${seconds / 60} minutes today.", calm = true)
+            return
+        }
+        // "Count as learning": shown prominently when the title suggests study or work; otherwise only
+        // when no live time-value pill would show, so it never hides the value pill.
+        val offerChannel = watchInfo.channel?.takeIf { learningEnabled && watchInfo.isWatchPage }
+        fun showOffer(prominent: Boolean) {
+            val channel = offerChannel ?: return
+            showPill(if (prominent) "Is this learning? · Count as learning" else "Count as learning · $channel",
+                "Add $channel to learning channels.", calm = true) {
+                scope.launch { yoga.learningPrefs.add(channel); showAddedCard(channel); inspect = true; requests.trySend(Unit) }
+            }
+        }
+        fun idle() { if (offerChannel != null) showOffer(false) else hidePill() }
+        if (offerChannel != null && learningPreferences.titleHints && LearningChannels.suggestsLearning(watchInfo.title)) {
+            showOffer(true); return
+        }
+        if (!preferences.liveIndicator || !yoga.proRepository.allows(ProFeature.VALUE_OF_TIME)) { idle(); return }
         val usage = yoga.usagePrefs.preferences.first()
         if (!usage.timeValueEnabled || !yoga.insightsRepository.preferences.first().usageTracking ||
-            yoga.usagePrefs.isSnoozed(today())) { hidePill(); return }
+            yoga.usagePrefs.isSnoozed(today())) { idle(); return }
         val eligible = !classification.essential && (usage.counts == AllowanceCounts.ALL_EXCEPT_ESSENTIAL || classification.distracting)
         val allowed = OverlayPolicy.shouldShow(eligible, essential = classification.essential,
             dialer = pkg == getSystemService(TelecomManager::class.java).defaultDialerPackage || pkg.contains("incall", true),
             camera = pkg in cameraPackages, finance = category == Categories.FINANCE,
             inCall = inCall, locked = locked, screenOn = screenOn, ownApp = pkg == packageName,
             systemUi = pkg == "com.android.systemui" || pkg == "android", keyboard = pkg in keyboards, launcher = pkg in homePackages)
-        if (!allowed) { hidePill(); return }
+        if (!allowed) { idle(); return }
         if (now - lastRefresh >= 60_000) {
             lastRefresh = now
             snapshot = yoga.usageRepository.check()
@@ -259,13 +332,13 @@ class YogaGuardService : AccessibilityService() {
         }
         if (token != generation || !preferences.liveIndicator) return
         if (!yoga.usagePrefs.preferences.first().timeValueEnabled || !yoga.insightsRepository.preferences.first().usageTracking ||
-            yoga.usagePrefs.isSnoozed(today())) { hidePill(); return }
+            yoga.usagePrefs.isSnoozed(today())) { idle(); return }
         if (token != generation || !preferences.liveIndicator) return
-        val data = snapshot?.takeIf { it.available && it.date.toString() == today() } ?: run { hidePill(); return }
+        val data = snapshot?.takeIf { it.available && it.date.toString() == today() } ?: run { idle(); return }
         val seconds = ((SystemClock.elapsedRealtime() - maxOf(foregroundSince, baselineSince)) / 1_000).coerceAtLeast(0)
         val amount = BurnMeter.amount(preferences.startCounting, data.evaluation.overall,
             data.today.filter { it.eligible }.sumOf { it.foregroundMinutes }, seconds, usage.hourlyAmount())
-            ?: run { hidePill(); return }
+            ?: run { idle(); return }
         // Recheck sensitive state after the suspending usage refresh.
         if (getSystemService(KeyguardManager::class.java).isKeyguardLocked || !getSystemService(PowerManager::class.java).isInteractive ||
             getSystemService(AudioManager::class.java).mode in setOf(AudioManager.MODE_IN_CALL, AudioManager.MODE_IN_COMMUNICATION)) {
@@ -275,6 +348,29 @@ class YogaGuardService : AccessibilityService() {
         val currencyName = if (usage.currency == "INR") "rupees" else runCatching { Currency.getInstance(usage.currency).displayName }.getOrDefault(usage.currency)
         showPill(if (preferences.style == GuardStyle.BURNING) "🔥 $formatted burning" else "$formatted of time past your limit",
             "Time value past your limit, ${amount.setScale(BurnMeter.fractionDigits(usage.hourlyAmount(), usage.currency), java.math.RoundingMode.HALF_UP)} $currencyName. Illustrative, not money spent.")
+    }
+
+    // Updates arrive both from the 1 s ticker and from content-change events, so intervals are often
+    // well under a second: accumulate milliseconds and write whole seconds in batches.
+    private var learningPendingMillis = 0L
+    private var learningPendingDate: String? = null
+    private suspend fun updateLearningClock(now: Long, learning: Boolean, date: String) {
+        val previous = learningTickAt
+        learningTickAt = if (learning) now else null
+        if (learningPendingDate != null && learningPendingDate != date) flushLearning(keepRemainder = false)
+        if (learning && previous != null) {
+            learningPendingDate = date
+            learningPendingMillis += (now - previous).coerceIn(0, 2_000)
+        }
+        if (!learning) flushLearning(keepRemainder = false)
+        else if (learningPendingMillis >= 15_000) flushLearning(keepRemainder = true)
+    }
+    private suspend fun flushLearning(keepRemainder: Boolean) {
+        val date = learningPendingDate ?: return
+        val seconds = learningPendingMillis / 1_000
+        if (seconds > 0) yoga.learningPrefs.addSeconds(date, LearningDetector.YOUTUBE_PACKAGE, seconds)
+        learningPendingMillis = if (keepRemainder) learningPendingMillis % 1_000 else 0
+        if (!keepRemainder) learningPendingDate = null
     }
 
     private var savedDaily: GuardDaily? = null
@@ -320,12 +416,18 @@ class YogaGuardService : AccessibilityService() {
         styleOverlay(this)
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
-    private fun showPill(text: String, description: String, isPass: Boolean = false) {
+    private fun showPill(text: String, description: String, calm: Boolean = false, isPass: Boolean = false, action: (() -> Unit)? = null) {
         passPill = isPass
+        pillAction = action
         val view = pill ?: label().also { v ->
             pill = v
             var downY = 0f; var startY = 0; var dragging = false
-            v.setOnClickListener { if (!passPill) { collapsed = !collapsed; requests.trySend(Unit) } }
+            v.setOnClickListener {
+                val currentAction = pillAction
+                if (passPill) Unit
+                else if (!collapsed && currentAction != null) currentAction()
+                else { collapsed = !collapsed; requests.trySend(Unit) }
+            }
             v.setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> { downY = event.rawY; startY = pillY; dragging = false; true }
@@ -341,15 +443,16 @@ class YogaGuardService : AccessibilityService() {
             }
             windows.addView(v, params(pillY))
         }
-        view.text = if (isPass) text else if (collapsed) "🔥" else if (preferences.style == GuardStyle.BURNING) {
+        view.setTextColor(if (calm) overlayTokens.accent.toArgb() else overlayTokens.text.toArgb())
+        view.text = if (passPill) text else if (collapsed) { if (calm) "Learning" else "🔥" } else if (!calm && preferences.style == GuardStyle.BURNING) {
             SpannableString(text).apply {
                 val start = text.indexOf(' ').let { if (it < 0) 0 else it + 1 }
                 val end = text.lastIndexOf(" burning").let { if (it < start) text.length else it }
                 setSpan(ForegroundColorSpan(overlayTokens.ember.toArgb()), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
         } else text
-        view.contentDescription = description + if (isPass) " Drag to move." else if (collapsed) " Tap to expand." else " Tap to collapse. Drag to move."
-        val animate = !isPass && preferences.style == GuardStyle.BURNING && Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
+        view.contentDescription = description + if (passPill) " Drag to move." else if (collapsed) " Tap to expand." else if (action != null) " Tap to add. Drag to move." else " Tap to collapse. Drag to move."
+        val animate = !passPill && !calm && preferences.style == GuardStyle.BURNING && Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) != 0f
         if (animate && flame == null) {
             flame = ValueAnimator.ofFloat(1f, 0.86f, 1f).apply { duration = 1_800; repeatCount = ValueAnimator.INFINITE
                 addUpdateListener { view.alpha = it.animatedValue as Float }; start() }
@@ -386,7 +489,22 @@ class YogaGuardService : AccessibilityService() {
             } else watchAnyway()
         }
     }
-    private fun hidePill() { passPill = false; passPillSurface = null; flame?.cancel(); flame = null; pill?.let { runCatching { windows.removeView(it) } }; pill = null }
+    private fun showLearningBlockCard(channel: String?) {
+        hideCard()
+        card = label().apply {
+            text = "Not on your learning list" + if (channel != null) " · Add channel" else ""
+            if (channel != null) setOnClickListener { scope.launch { yoga.learningPrefs.add(channel); showAddedCard(channel) } }
+        }
+        windows.addView(card, params(dp(140)))
+        cardRemoval = scope.launch { delay(2_500); hideCard() }
+    }
+    private fun showAddedCard(channel: String) {
+        hideCard()
+        card = label().apply { text = "Added $channel" }
+        windows.addView(card, params(dp(140)))
+        cardRemoval = scope.launch { delay(2_000); hideCard() }
+    }
+    private fun hidePill() { passPill = false; passPillSurface = null; flame?.cancel(); flame = null; pillAction = null; pill?.let { runCatching { windows.removeView(it) } }; pill = null }
     private fun hideCard() { cardRemoval?.cancel(); cardRemoval = null; card?.let { runCatching { windows.removeView(it) } }; card = null }
     override fun onInterrupt() { generation++; detected = null; hidePill(); hideCard() }
     override fun onDestroy() { if (registered) unregisterReceiver(screenReceiver); scope.cancel(); requests.close(); hidePill(); hideCard(); super.onDestroy() }

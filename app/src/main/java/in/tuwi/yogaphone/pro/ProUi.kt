@@ -58,7 +58,7 @@ fun ProScreen(repository: ProRepository, onBack: () -> Unit) {
             if (state.entitlement == Entitlement.TRIAL) item { YogaNote("Everything is unlocked. Your trial has ${state.trialDaysLeft} days left.") }
             item { YogaNote("Your home screen and apps stay free, always.") }
             item { YogaSection("Included") }
-            item { YogaNote("All looks and icons · Value of time and its live pill\nUnlimited allowances and mindful pauses · Reminders\nFocus, timebox and Do Not Disturb\nInsights, weekly reports and longer history\nQuiet notifications · Profiles · Widgets\nLearning videos, coming later") }
+            item { YogaNote("All looks and icons · Value of time and its live pill\nUnlimited allowances and mindful pauses · Reminders\nFocus, timebox and Do Not Disturb\nInsights, weekly reports and longer history\nQuiet notifications · Profiles · Widgets\nLearning videos") }
             if (products.isEmpty()) item { YogaNote("Yoga Pro isn't available yet") }
             else {
                 products.forEach { offer -> item {
