@@ -15,7 +15,7 @@ This is the single tracker. The plan with the details is in [docs/plans/feature-
 - [x] **D4–D7. A way through with resistance** Decided 11 Nov 2026: the recommended answers. (docs/plans/bypass-with-resistance.md). Recommended: way through by default (D4), free (D5), strict changes apply tomorrow (D6), pause for apps opened outside Yoga after Play approval (D7). *D4 unblocks piece J.*
 - [ ] **Name check:** Lenovo's YOGA trademark, before public launch.
 - [ ] **Roadmap order** in docs/research/feature-roadmap.md.
-- [ ] **Learning videos:** branch `learning-videos`. Check it on the phone, then merge or park it.
+- [x] **Learning videos:** merged in d831010 (12 Nov), shipped in 1.6 (8). Phone check of learning itself still open.
 
 ## Release and Play
 
@@ -122,6 +122,8 @@ Built: R1–R4, the guards, Help → Send feedback, and "What didn't work?". R2 
 - [ ] **I17** Hidden apps, **I18** Profiles, **I19** Widgets, **I20** Looks, **I21** Backup.
 - [ ] **I22** Learning videos (once shipped), **I23** Home basics hints, **I24** End-of-trial recap.
 
+## K. WhatsApp Status [~] in 1.6 (8); real WhatsApp check left
+
 ## J. A way through, with resistance (D4–D7) [~] J1–J4 in 1.5 (7) on internal testing; phone check left
 
 - [x] J1 (522c689) `ResistanceLadder`, Shorts passes in `ShortsGate`, passes and resists in `GuardDaily`.
@@ -146,7 +148,7 @@ Built: R1–R4, the guards, Help → Send feedback, and "What didn't work?". R2 
 - [x] Home display styles checked without an allowance (Number on home, all previews). Fixed: the startup flash of 'Allow Usage Access' and empty '+' dock slots; Week bars readable.
 - [ ] Home display styles with an allowance set (Line hairline, Ring fill, Week allowance line).
 - [ ] Work apps: needs a phone with a work profile (the moto g31 has none). Check paused, then turn on and open.
-- [ ] Decide on learning videos (branch learning-videos): it changes what guard reads, so update the Accessibility declaration before shipping it past internal testing.
+- [ ] **Accessibility declaration + video:** learning videos and WhatsApp Status changed what guard reads (disclosure updated in dc4a0e6). Update the Play declaration and video before the next open-testing or production release.
 
 - [x] Home gestures (7f44eec), checked on the moto g31: touch and hold on empty home opens the Home sheet; Home on a calm home opens the drawer with the keyboard; Home with a sheet open only closes it; typing "calc" opens Calculator; Home from an app returns to plain home.
 - [ ] Home gestures still to check: the "Add apps to home" picker (check marks, Done, a full-home message) and Appearance → Search → "Open the only match" turned off.
@@ -158,4 +160,6 @@ Built: R1–R4, the guards, Help → Send feedback, and "What didn't work?". R2 
 - [x] 1.5 (7) on internal testing, 11 Nov (v1.5-7): a way through Shorts/Reels and the pause, resistance when loosening, review moments, feedback. Emulator check: pause wait, chips, hold, pass, Keep-it sheet.
 - [ ] 1.5 on a real phone: "Watch anyway" on the block card, the resist screen, a pass on YouTube and on Instagram (pill, expiry, "Your N minutes are up"), strict mode and "ends tomorrow", the pause time-up notification, TalkBack on the hold buttons.
 - [ ] Privacy policy now mentions passes and "not now" counts: redeploy yogaphone.tuwi.in before the next open-testing release.
+- [x] 1.6 (8) on internal testing, 12 Nov (v1.6-8): WhatsApp Status block, learning videos, plus 1.5's features. Checked on the moto g31: What's new, Status row and loosen sheet, pause (opens, resisted, pass, time-up notification), Send feedback. Fixed on the phone: empty feedback To field; keyboard covering the pause's first hold.
+- [ ] WhatsApp Status on a phone with WhatsApp: confirm the Status viewer is blocked and chats, calls and in-chat videos are not; check the real view ids (`ShortsDetector.whatsappStatusIds`).
 - [ ] Turn off `svc power stayon` on the founder's phone. Wait until the founder frees up the phone.
