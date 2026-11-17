@@ -28,6 +28,7 @@ import `in`.tuwi.yogaphone.data.db.InterventionEventEntity
 import `in`.tuwi.yogaphone.data.db.TimeboxStatus
 import `in`.tuwi.yogaphone.data.db.YogaDatabase
 import `in`.tuwi.yogaphone.usage.TimeValueCalculator
+import `in`.tuwi.yogaphone.usage.applyLearningExemption
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -150,8 +151,11 @@ class InsightsRepository(private val context: Context, private val database: Yog
         val sampled = dayRows.map { LocalDate.parse(it.date) }.toSet()
         val unlocksByDay = dayRows.associate { LocalDate.parse(it.date) to it.unlocks }
         val aggregates = usage.aggregates(today.minusDays(13).toString(), today.toString())
+        val learningAllowed = ProGate.allows(ProFeature.LEARNING_VIDEOS, app.proRepository.current())
+        val learningTotals = if (learningAllowed) app.learningPrefs.dailyTotals.first() else emptyMap()
+        val countedAggregates = applyLearningExemption(aggregates, learningTotals, learningAllowed)
         val eligibleByDay = sampled.filter { !it.isBefore(today.minusDays(13)) }.associateWith { day ->
-            aggregates.filter { it.date == day.toString() && it.eligible }.sumOf { it.foregroundMinutes }
+            countedAggregates.filter { it.date == day.toString() && it.eligible }.sumOf { it.foregroundMinutes }
         }
         val hourly = usage.hours(today.minusDays(27).toString(), today.toString()).groupBy { LocalDate.parse(it.date) }
             .filterKeys { it in sampled }
@@ -168,7 +172,7 @@ class InsightsRepository(private val context: Context, private val database: Yog
 
         val organize = app.organizeRepository
         val names = database.organizeDao().categories().associate { it.id to it.name }
-        val weekRows = aggregates.filter { it.eligible && !LocalDate.parse(it.date).isBefore(today.minusDays(6)) }
+        val weekRows = countedAggregates.filter { it.eligible && !LocalDate.parse(it.date).isBefore(today.minusDays(6)) }
         val categoryMinutes = weekRows.groupBy { names[organize.categoryOf(it.packageName, "", database.appEntryDao().get(it.packageName))] ?: "Other" }
             .mapValues { (_, rows) -> rows.sumOf { it.foregroundMinutes } }
 

@@ -20,6 +20,10 @@ Total phone usage and distracting-app usage are still inaccurate, despite the ea
 - Related: 534eef2 (Usage labels and all-apps total), the Usage screen, home display styles.
 - Done when: today's and last-7-days totals match Android Digital Wellbeing on the same phone within a small, explained margin, with tests for the calculation (overlapping sessions, sessions crossing midnight, the launcher itself, screen off).
 
+#### How Yoga counts time
+
+Yoga reconstructs app foreground sessions from Android's activity events, split at local midnight and local clock hours. It excludes Yoga (including its pause/block UI), home apps, Android/System UI and lock-screen time. Simultaneously resumed multi-window or picture-in-picture apps can overlap, matching Android's per-app foreground semantics. The all-app number includes essential apps and learning videos; the allowance number includes distracting apps by default, or every non-essential app when that setting is selected, and subtracts recognised learning-video time. Android can delay or omit OEM usage events, and Yoga stores whole minutes without a Room migration, so a comparison with Digital Wellbeing can still differ by roughly a minute plus any event-source difference. Repeated/skipped DST hours are merged/skipped under their local hour while the daily boundary remains local midnight.
+
 ### L-B3. App usage limit may not be enforced (needs testing)
 
 When an app has a usage limit (for example 15 minutes), it may stay usable after the limit runs out instead of being closed or restricted.

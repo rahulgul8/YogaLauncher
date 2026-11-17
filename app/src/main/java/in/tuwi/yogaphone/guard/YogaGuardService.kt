@@ -346,7 +346,7 @@ class YogaGuardService : AccessibilityService() {
         val data = snapshot?.takeIf { it.available && it.date.toString() == today() } ?: run { idle(); return }
         val seconds = ((SystemClock.elapsedRealtime() - maxOf(foregroundSince, baselineSince)) / 1_000).coerceAtLeast(0)
         val amount = BurnMeter.amount(preferences.startCounting, data.evaluation.overall,
-            data.today.filter { it.eligible }.sumOf { it.foregroundMinutes }, seconds, usage.hourlyAmount())
+            data.allowanceToday().filter { it.eligible }.sumOf { it.foregroundMinutes }, seconds, usage.hourlyAmount())
             ?: run { idle(); return }
         // Recheck sensitive state after the suspending usage refresh.
         if (getSystemService(KeyguardManager::class.java).isKeyguardLocked || !getSystemService(PowerManager::class.java).isInteractive ||

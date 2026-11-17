@@ -35,7 +35,7 @@ class AndroidUsageReader(private val context: Context) {
         val homes = context.packageManager.queryIntentActivities(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
         ).map { it.activityInfo.packageName }
-        return homes.toSet() + context.packageName
+        return homes.toSet() + context.packageName + NON_USER_PACKAGES
     }
     /** Null means access/data unavailable; it must never be represented as zero usage. */
     fun read(date: LocalDate, now: Long = System.currentTimeMillis()): Map<String, Long>? =
@@ -49,7 +49,7 @@ class AndroidUsageReader(private val context: Context) {
         val end = minOf(date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli(), now)
         return runCatching {
             val source = context.getSystemService(UsageStatsManager::class.java)
-                .queryEvents(start - 24 * 60 * 60 * 1000L, end) ?: return null
+                .queryEvents(usageEventQueryStart(date, zone), end) ?: return null
             val events = mutableListOf<ForegroundEvent>()
             var unlocks = 0
             val event = UsageEvents.Event()
@@ -57,6 +57,9 @@ class AndroidUsageReader(private val context: Context) {
                 source.getNextEvent(event)
                 val type = when {
                     event.eventType == UsageEvents.Event.SCREEN_NON_INTERACTIVE -> ForegroundEvent.Type.SCREEN_OFF
+                    event.eventType == UsageEvents.Event.SCREEN_INTERACTIVE -> ForegroundEvent.Type.SCREEN_ON
+                    Build.VERSION.SDK_INT >= 28 && event.eventType == UsageEvents.Event.KEYGUARD_SHOWN -> ForegroundEvent.Type.LOCKED
+                    Build.VERSION.SDK_INT >= 28 && event.eventType == UsageEvents.Event.KEYGUARD_HIDDEN -> ForegroundEvent.Type.UNLOCKED
                     event.eventType == UsageEvents.Event.DEVICE_SHUTDOWN -> ForegroundEvent.Type.SHUTDOWN
                     Build.VERSION.SDK_INT >= 29 && event.eventType == UsageEvents.Event.ACTIVITY_STOPPED -> ForegroundEvent.Type.STOPPED
                     event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND -> ForegroundEvent.Type.RESUMED // Same values as ACTIVITY_RESUMED/PAUSED on 29+.
@@ -72,12 +75,16 @@ class AndroidUsageReader(private val context: Context) {
             if (events.isEmpty()) return null
             val calculator = UsageCalculator(context.packageName)
             val excluded = excludedPackages()
+            val windows = localHourWindows(date, zone)
             val hours = (0..23).associateWith { hour ->
-                // Each hour is computed from the same events so sessions crossing hour boundaries split correctly.
-                val hourStart = date.atStartOfDay(zone).plusHours(hour.toLong()).toInstant().toEpochMilli()
-                val hourEnd = date.atStartOfDay(zone).plusHours(hour + 1L).toInstant().toEpochMilli()
-                if (hourStart >= end) emptyMap() else excludeUsagePackages(
-                    calculator.calculate(events, hourStart, minOf(hourEnd, end), now), excluded)
+                // Repeated DST hours are merged under the same clock-hour label; skipped hours remain empty.
+                val combined = mutableMapOf<String, Long>()
+                windows.filter { it.hour == hour && it.start < end }.forEach { window ->
+                    calculator.calculate(events, window.start, minOf(window.end, end), now).forEach { (pkg, millis) ->
+                        combined[pkg] = (combined[pkg] ?: 0L) + millis
+                    }
+                }
+                excludeUsagePackages(combined, excluded)
             }
             DayUsage(excludeUsagePackages(calculator.calculate(events, start, end, now), excluded), hours, unlocks)
         }.getOrNull()
@@ -86,3 +93,5 @@ class AndroidUsageReader(private val context: Context) {
 
 internal fun <T> excludeUsagePackages(values: Map<String, T>, excluded: Set<String>): Map<String, T> =
     values.filterKeys { it.isNotBlank() && it !in excluded }
+
+internal val NON_USER_PACKAGES = setOf("android", "com.android.systemui")

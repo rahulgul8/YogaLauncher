@@ -7,42 +7,83 @@ data class ForegroundEvent(
     val type: Type,
     /** Activity class; lets one app's activity transitions overlap without ending the app's session early. */
     val className: String? = null,
+    /** Android's activity-instance id (API 29+). Classes alone are not unique across tasks/windows. */
+    val instanceId: Int? = null,
 ) {
-    enum class Type { RESUMED, PAUSED, STOPPED, SCREEN_OFF, SHUTDOWN }
+    enum class Type { RESUMED, PAUSED, STOPPED, SCREEN_OFF, SCREEN_ON, LOCKED, UNLOCKED, SHUTDOWN }
 }
 
 class UsageCalculator(private val ownPackage: String) {
     fun calculate(events: List<ForegroundEvent>, start: Long, end: Long, now: Long = end): Map<String, Long> {
         val stop = minOf(end, now)
         if (stop <= start) return emptyMap()
-        val openSince = mutableMapOf<String, Long>()
-        val openActivities = mutableMapOf<String, MutableSet<String>>()
+        val runningSince = mutableMapOf<String, Long>()
+        val activeActivities = mutableMapOf<String, MutableSet<String>>()
         val totals = mutableMapOf<String, Long>()
+        var screenInteractive = true
+        var keyguardLocked = false
+        fun foregroundAllowed() = screenInteractive && !keyguardLocked
+        fun token(event: ForegroundEvent): String = event.instanceId?.takeIf { it != 0 }?.let { "instance:$it" }
+            ?: event.className?.let { "class:$it" }
+            ?: "package"
+        fun startSession(pkg: String, time: Long) {
+            if (foregroundAllowed() && pkg != ownPackage && pkg.isNotBlank()) runningSince.putIfAbsent(pkg, time)
+        }
         fun closeSession(pkg: String, time: Long) {
-            openActivities.remove(pkg)
-            val began = openSince.remove(pkg) ?: return
+            val began = runningSince.remove(pkg) ?: return
             val duration = (minOf(time, stop) - maxOf(began, start)).coerceAtLeast(0)
-            if (duration > 0 && pkg != ownPackage) totals[pkg] = (totals[pkg] ?: 0) + duration
+            if (duration > 0) totals[pkg] = (totals[pkg] ?: 0) + duration
+        }
+        fun allowForeground(time: Long) {
+            activeActivities.filterValues { it.isNotEmpty() }.keys.forEach { startSession(it, time) }
         }
         events.sortedBy { it.timestamp }.takeWhile { it.timestamp < stop }.forEach { event ->
             val pkg = event.packageName
-            val activity = event.className.orEmpty()
+            val activity = token(event)
             when (event.type) {
                 ForegroundEvent.Type.RESUMED -> {
-                    openSince.putIfAbsent(pkg, event.timestamp)
-                    openActivities.getOrPut(pkg) { mutableSetOf() } += activity
+                    // A resume itself proves the display is usable even if an OEM omitted SCREEN_ON/KEYGUARD_HIDDEN.
+                    screenInteractive = true
+                    keyguardLocked = false
+                    activeActivities.getOrPut(pkg) { mutableSetOf() } += activity
+                    startSession(pkg, event.timestamp)
                 }
                 ForegroundEvent.Type.PAUSED, ForegroundEvent.Type.STOPPED -> {
-                    val activities = openActivities[pkg] ?: return@forEach
+                    val activities = activeActivities[pkg] ?: return@forEach
                     // A STOPPED for an activity that is not open (e.g. after its PAUSED) changes nothing.
                     if (!activities.remove(activity)) return@forEach
-                    if (activities.isEmpty()) closeSession(pkg, event.timestamp)
+                    if (activities.isEmpty()) {
+                        activeActivities.remove(pkg)
+                        closeSession(pkg, event.timestamp)
+                    }
                 }
-                ForegroundEvent.Type.SCREEN_OFF, ForegroundEvent.Type.SHUTDOWN ->
-                    openSince.keys.toList().forEach { closeSession(it, event.timestamp) }
+                ForegroundEvent.Type.SCREEN_OFF -> {
+                    runningSince.keys.toList().forEach { closeSession(it, event.timestamp) }
+                    // Keep the activity set. Android often does not send another RESUMED after unlock.
+                    screenInteractive = false
+                }
+                ForegroundEvent.Type.SCREEN_ON -> {
+                    screenInteractive = true
+                    if (!keyguardLocked) allowForeground(event.timestamp)
+                }
+                ForegroundEvent.Type.LOCKED -> {
+                    keyguardLocked = true
+                    runningSince.keys.toList().forEach { closeSession(it, event.timestamp) }
+                }
+                ForegroundEvent.Type.UNLOCKED -> {
+                    screenInteractive = true
+                    keyguardLocked = false
+                    allowForeground(event.timestamp)
+                }
+                ForegroundEvent.Type.SHUTDOWN -> {
+                    runningSince.keys.toList().forEach { closeSession(it, event.timestamp) }
+                    activeActivities.clear()
+                    screenInteractive = false
+                    keyguardLocked = false
+                }
             }
         }
-        openSince.keys.toList().forEach { closeSession(it, stop) }
+        runningSince.keys.toList().forEach { closeSession(it, stop) }
         return totals
     }
 }

@@ -45,6 +45,7 @@ class UsagePrefs(private val context: Context) {
     private val ongoing = booleanPreferencesKey("time_value_ongoing")
     private val sent = stringSetPreferencesKey("usage_sent_by_date")
     private val snoozed = stringPreferencesKey("usage_snoozed_date")
+    private val accountingVersion = intPreferencesKey("usage_accounting_version")
     val preferences = context.dataStore.data.map { p -> UsagePreferences(
         counts = runCatching { AllowanceCounts.valueOf(p[counts].orEmpty()) }.getOrDefault(AllowanceCounts.DISTRACTING),
         reminders = p[reminders] ?: false, homeStyle = homeDisplayStyle(p[homeStyle], p[home]), warnAtPercent = p[threshold] ?: 80,
@@ -72,4 +73,6 @@ class UsagePrefs(private val context: Context) {
     }
     suspend fun snooze(date: String) { context.dataStore.edit { it[snoozed] = date } }
     suspend fun isSnoozed(date: String) = context.dataStore.data.first()[snoozed] == date
+    suspend fun accountingVersion(): Int = context.dataStore.data.first()[accountingVersion] ?: 0
+    suspend fun markAccountingVersion(version: Int) { context.dataStore.edit { it[accountingVersion] = version } }
 }
