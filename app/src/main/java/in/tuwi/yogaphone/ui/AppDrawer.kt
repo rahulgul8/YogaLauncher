@@ -308,7 +308,7 @@ fun AppDrawerLayer(
                 else listOf("" to visible)
                 sections.forEach { (title, sectionApps) ->
                     if (title.isNotEmpty()) item(key = "section:$title") { SectionLabel(title) }
-                    items(sectionApps, key = ::drawerKey) { app ->
+                    items(sectionApps.distinctBy(::drawerKey), key = ::drawerKey) { app ->
                         DrawerAppRow(
                             app = app,
                             fontSize = fontSize,
@@ -323,7 +323,7 @@ fun AppDrawerLayer(
                 }
                 if (query.isBlank() && work.isNotEmpty()) {
                     item(key = "section:work") { SectionLabel(if (work.all { it.workPaused }) "Work · paused" else "Work") }
-                    items(work, key = ::drawerKey) { app ->
+                    items(work.distinctBy(::drawerKey), key = ::drawerKey) { app ->
                         DrawerAppRow(app = app, fontSize = fontSize, highlighted = false, deemphasized = app.workPaused,
                             onClick = { onAppClick(app, query) }, onLongClick = {})
                     }
@@ -335,7 +335,7 @@ fun AppDrawerLayer(
                     item(key = "paused-header") {
                         QuietAction((if (showPaused) "Hide" else "Show") + " ${paused.size} paused during focus") { showPaused = !showPaused }
                     }
-                    if (showPaused) items(paused, key = { "paused:${it.appPackage}:${it.activityClassName}" }) { app ->
+                    if (showPaused) items(paused.distinctBy(::drawerKey), key = { "paused:" + drawerKey(it) }) { app ->
                         DrawerAppRow(app = app, fontSize = fontSize, highlighted = false, deemphasized = true,
                             selected = isSelected?.invoke(app) == true,
                             onClick = { onAppClick(app, query) }, onLongClick = { onAppLongClick(app) })
@@ -410,7 +410,12 @@ private fun DrawerAppRow(
 }
 
 /** Work apps share package and activity names with personal ones, so their list keys need the profile. */
-private fun drawerKey(app: AppModel): String = (if (app.isWork) "work:" else "") + "${app.appPackage}:${app.activityClassName}"
+/**
+ * Unique per row. The profile is part of it: the same app can sit in several profiles (work, a cloned "dual app",
+ * Private Space), and a repeated key crashes the list when it is measured (Play vitals, version 8, Android 16).
+ */
+internal fun drawerKey(app: AppModel): String =
+    (if (app.isWork) "work:" else "") + "${app.user.hashCode()}:${app.appPackage}:${app.activityClassName}"
 
 internal fun shouldAutoOpen(
     previousQuery: String,
