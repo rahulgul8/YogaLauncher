@@ -2,6 +2,17 @@
 
 One section per version code. Each language goes in its own tag; 500 characters at most.
 
+## 1.7 (9)
+
+```
+<en-US>
+App limits now close the app when the time is used. Urgent? Hold for 3 seconds to get 5 minutes, up to 3 times a day.
+Tap your usage on home to see each day hour by hour, your apps and the goals you finished.
+New: Settings → Your apps. Make any app essential, normal or distracting in one place, or long-press it → App settings.
+More accurate usage totals, a morning note about yesterday, and a crash fix.
+</en-US>
+```
+
 ## 1.6 (8)
 
 ```
