@@ -25,13 +25,12 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: () -> Unit, onDashboard: () -> Unit, onValue: () -> Unit,
-    categories: List<CategoryEntity> = emptyList()) {
+    categories: List<CategoryEntity> = emptyList(), onYourApps: () -> Unit = {}) {
     var editCategory by remember { mutableStateOf<CategoryEntity?>(null) }
     var pickCategory by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf<AppModel?>(null) }
     var editTotal by remember { mutableStateOf(false) }
     var loosen by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
-    var selected by remember { mutableStateOf<AppModel?>(null) }
-    var query by remember { mutableStateOf("") }
     var denied by remember { mutableStateOf(false) }
     var clearHistory by remember { mutableStateOf(false) }
     var allowanceFeedback by remember { mutableStateOf(false) }
@@ -95,11 +94,8 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
         }
         item { if (canEdit("category:new")) YogaTextButton("Add a category limit", { pickCategory = true }, Modifier.padding(horizontal = TextButtonInset))
             else ProRow("Add a category limit", ProFeature.EXTRA_ALLOWANCES, onClick = access.open) }
-        item { YogaSection("Apps · classification and limits") }
-        item { YogaTextField(query, { query = it }, "Find an app") }
-        items(state.apps.distinctBy { it.appPackage }.filter { it.displayLabel.contains(query, true) }, key = { it.appPackage }) { app ->
-            YogaRow(app.displayLabel, summary = when { app.isEssential -> "Essential"; app.isDistracting -> "Distracting"; else -> "Other" }, onClick = { selected = app })
-        }
+        item { YogaSection("Apps") }
+        item { YogaRow("Your apps", summary = "Each app's type, pause and daily limit", onClick = onYourApps) }
         item { YogaTextButton("Delete saved usage history", { clearHistory = true }, Modifier.padding(horizontal = TextButtonInset), muted = true) }
     }
     if (pickCategory) YogaDialog("Limit a category", "Close", { pickCategory = false }, { pickCategory = false }, dismissText = "Cancel", text = {
@@ -128,7 +124,7 @@ fun UsageSettingsScreen(state: UsageUiState, viewModel: UsageViewModel, onBack: 
         else apply()
     }
     loosen?.let { (title, apply) -> LoosenSheet(title, null, "change it", apply) { loosen = null } }
-    selected?.let { UsageAppSheet(it, state, viewModel) { selected = null } }
     if (clearHistory) YogaDialog("Delete saved history?", "Delete", { viewModel.clearHistory(); clearHistory = false }, { clearHistory = false },
         text = { androidx.compose.material3.Text("Past saved days will be removed. Today and yesterday can be measured again from Android while Usage Access is on. Turn off Usage Access to stop collection.") })
+    selected?.let { UsageAppSheet(it, state, viewModel) { selected = null } }
 }

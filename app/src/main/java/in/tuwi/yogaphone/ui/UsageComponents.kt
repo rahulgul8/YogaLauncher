@@ -38,30 +38,10 @@ fun AllowanceEditor(title: String, initial: Int?, onDismiss: () -> Unit, onSave:
     })
 }
 
+/** The per-app sheet from Usage screens; it is the same sheet as Your apps and the long-press "App settings…". */
 @Composable
-fun UsageAppSheet(app: AppModel, state: UsageUiState, viewModel: UsageViewModel, onDismiss: () -> Unit) {
-    val access = LocalProAccess.current
-    val freeIds = freeQuota(state.rules.filter { it.enabled }.map { it.id }, 1)
-    val canEdit = access.allows(ProFeature.EXTRA_ALLOWANCES) || freeIds.isEmpty() || "app:${app.appPackage}" in freeIds
-    var editLimit by remember { mutableStateOf(false) }
-    val current = state.apps.firstOrNull { it.appPackage == app.appPackage } ?: app
-    val rule = state.rules.firstOrNull { it.targetPackage == app.appPackage }
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val mandatory = remember(app.appPackage) { app.appPackage in AppClassifier(context).mandatoryEssential() }
-    YogaSheet(onDismiss) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
-            Text(current.displayLabel, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = ScreenMargin, vertical = 16.dp))
-            UsageToggle("Essential", current.isEssential, { viewModel.classify(app.appPackage, it, if (it) false else current.isDistracting) }, !mandatory)
-            if (mandatory) YogaNote("Phone, SMS, system settings and Yoga are always essential.")
-            UsageToggle("Distracting", current.isDistracting, { viewModel.classify(app.appPackage, false, it) }, !current.isEssential)
-            if (!canEdit) ProRow("App allowance", ProFeature.EXTRA_ALLOWANCES, onClick = access.open)
-            else YogaRow("App allowance", summary = if (current.isEssential) "Essential apps are never counted" else rule?.let { "${it.dailyAllowanceMinutes} min a day" } ?: "Off",
-                enabled = !current.isEssential, onClick = { editLimit = true })
-            if (rule != null) YogaTextButton("Remove app limit", { viewModel.saveRule(app.appPackage, null) }, Modifier.padding(horizontal = TextButtonInset), muted = true)
-        }
-    }
-    if (editLimit) AllowanceEditor("${current.displayLabel} allowance", rule?.dailyAllowanceMinutes, { editLimit = false }) { viewModel.saveRule(app.appPackage, it) }
-}
+fun UsageAppSheet(app: AppModel, state: UsageUiState, viewModel: UsageViewModel, onDismiss: () -> Unit) =
+    AppSettingsSheet(app, state, viewModel, onDismiss)
 
 @Composable
 fun TimeValueDetailsSheet(state: UsageUiState, onDismiss: () -> Unit, onSnooze: () -> Unit) {

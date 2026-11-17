@@ -146,6 +146,7 @@ private const val SETTINGS = "settings"
 private const val GUARD = "settings/guard"
 private const val LEARNING = "settings/learning"
 private const val HIDDEN_APPS = "settings/hidden_apps"
+private const val YOUR_APPS = "settings/apps"
 private const val APPEARANCE = "settings/appearance"
 private const val FOCUS_SETTINGS = "settings/focus"
 private const val PROFILES = "settings/profiles"
@@ -522,6 +523,7 @@ private fun LauncherNavigation(
     var showFocusControl by remember { mutableStateOf(false) }
     var showProfiles by remember { mutableStateOf(false) }
     var categoryFor by remember { mutableStateOf<AppModel?>(null) }
+    var appSettingsFor by remember { mutableStateOf<AppModel?>(null) }
 
     LaunchedEffect(externalLimitRequest?.nonce) {
         externalLimitRequest?.let { request ->
@@ -600,6 +602,7 @@ private fun LauncherNavigation(
         dockMenuSlot = null
         showProfiles = false
         categoryFor = null
+        appSettingsFor = null
         navController.returnHome()
     }
     LaunchedEffect(homeRequest) { if (homeRequest > 0) resetToHome() }
@@ -609,7 +612,7 @@ private fun LauncherNavigation(
         val calm = route == HOME && drawer.isClosed && replacingApp == null && pickingDockSlot == null && !homePicking &&
             !showHomeOptions && favoriteMenuApp == null && drawerMenuApp == null && renameApp == null && dockMenuSlot == null &&
             !showTimeboxStart && !showTimeboxControl && !showFocusStart && !showFocusControl && !showProfiles &&
-            pendingPause == null && pendingLimit == null && categoryFor == null
+            pendingPause == null && pendingLimit == null && categoryFor == null && appSettingsFor == null
         if (calm) drawer.open() else resetToHome()
     }
     BackHandler(enabled = route == HOME && drawerClosed) { /* A HOME activity stays home. */ }
@@ -709,6 +712,7 @@ private fun LauncherNavigation(
                 onBack = { navController.popBackStack() },
                 onAppearance = { navController.navigate(APPEARANCE) },
                 onHiddenApps = { navController.navigate(HIDDEN_APPS) },
+                onYourApps = { navController.navigate(YOUR_APPS) },
                 onResetNames = viewModel::resetCustomLabels,
                 onUsage = { navController.navigate("usage") },
                 onUsageRules = { navController.navigate("settings/usage") },
@@ -747,7 +751,8 @@ private fun LauncherNavigation(
         }
         composable("settings/usage") {
             UsageSettingsScreen(usageState, usageViewModel, { navController.popBackStack() },
-                { navController.navigate("usage") }, { navController.navigate("settings/value") }, uiState.categories)
+                { navController.navigate("usage") }, { navController.navigate("settings/value") }, uiState.categories,
+                onYourApps = { navController.navigate(YOUR_APPS) })
         }
         composable("settings/value") {
             if (!access.allows(ProFeature.VALUE_OF_TIME)) { ProScreen(yoga.proRepository) { navController.popBackStack() }; return@composable }
@@ -876,6 +881,11 @@ private fun LauncherNavigation(
         composable(HIDDEN_APPS) {
             HiddenAppsScreen(uiState.hiddenApps, { navController.popBackStack() }) { viewModel.setHidden(it, false) }
         }
+        composable(YOUR_APPS) {
+            `in`.tuwi.yogaphone.ui.YourAppsScreen(uiState.drawerApps, usageState, usageViewModel, { navController.popBackStack() },
+                categoryName = { app -> uiState.categories.firstOrNull { it.id == uiState.categoryOf[app.appPackage] }?.name },
+                onCategory = { categoryFor = it })
+        }
     }
 
     if (route == HOME) {
@@ -971,6 +981,7 @@ private fun LauncherNavigation(
                 AppMenuAction("Replace") { replacingApp = app; pickingDockSlot = null; drawer.open() },
                 AppMenuAction("Remove from home") { viewModel.setFavorite(app, false) },
                 AppMenuAction("Rename") { renameApp = app },
+                AppMenuAction("App settings…") { appSettingsFor = app },
                 AppMenuAction("Move up", index > 0) { viewModel.moveFavorite(app, -1) },
                 AppMenuAction("Move down", index in 0 until uiState.favoriteApps.lastIndex) { viewModel.moveFavorite(app, 1) },
                 AppMenuAction("App info") { context.openAppInfo(app.appPackage) },
@@ -985,6 +996,7 @@ private fun LauncherNavigation(
                     viewModel.setFavorite(app, !viewModel.isOnHome(app))
                 },
                 AppMenuAction("Category…") { categoryFor = app },
+                AppMenuAction("App settings…") { appSettingsFor = app },
                 AppMenuAction("Rename") { renameApp = app },
                 AppMenuAction(if (access.allows(ProFeature.TIMEBOX)) "Timebox this app" else "Timebox this app \u00b7 Pro") { access.run(ProFeature.TIMEBOX) { timeboxStartFor = app; showTimeboxStart = true } },
                 AppMenuAction("Hide") { viewModel.setHidden(app, true) },
@@ -997,6 +1009,11 @@ private fun LauncherNavigation(
 
     if (showProfiles && access.allows(ProFeature.PROFILES)) {
         ProfileSwitcherSheet(uiState, ::switchProfile, onManage = { navController.navigate(PROFILES) }) { showProfiles = false }
+    }
+    appSettingsFor?.let { app ->
+        `in`.tuwi.yogaphone.ui.AppSettingsSheet(app, usageState, usageViewModel, { appSettingsFor = null },
+            uiState.categories.firstOrNull { it.id == uiState.categoryOf[app.appPackage] }?.name,
+            onCategory = { appSettingsFor = null; categoryFor = app })
     }
     categoryFor?.let { app ->
         CategoryPickerDialog(app, uiState.categories, uiState.categoryOf[app.appPackage],

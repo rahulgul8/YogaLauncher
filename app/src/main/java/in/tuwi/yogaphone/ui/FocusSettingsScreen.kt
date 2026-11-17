@@ -103,7 +103,7 @@ fun FocusSettingsScreen(state: FocusUiState, apps: List<AppModel>, viewModel: Fo
         }
         }
         item { YogaSection("Distracting apps") }
-        item { YogaNote("Change which apps count as distracting in Usage rules.") }
+        item { YogaNote("Change which apps count as distracting, and every app's pause, in Settings → Your apps.") }
         items(distracting, key = { "focus:${it.appPackage}" }) { app ->
             YogaSection(app.displayLabel)
             val activeIds = distracting.filter { it.appPackage !in prefs.delayOptOut }.map { it.appPackage }

@@ -69,6 +69,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onAppearance: () -> Unit,
     onHiddenApps: () -> Unit,
+    onYourApps: () -> Unit = {},
     onResetNames: () -> Unit,
     onUsage: () -> Unit,
     onUsageRules: () -> Unit,
@@ -111,12 +112,19 @@ fun SettingsScreen(
                     trailing = { SmallPill("Set") { runCatching { roleLauncher.launch(defaultHomeIntent(context)) } } })
             }
         }
+        // Every app's type, pause and limit in one list (L-F1); the quickest way to change how Yoga treats an app.
+        item(key = "your-apps") {
+            YogaGroup(Modifier.padding(top = 12.dp)) {
+                YogaGroupRow("Your apps", YogaIcons.App, summary = "Essential, normal or distracting; pause and limits",
+                    divider = false, onClick = onYourApps)
+            }
+        }
         item { YogaSection("Awareness") }
         item {
             YogaGroup {
                 YogaGroupRow("Usage", YogaIcons.Insights, summary = "Today and this week", onClick = onUsage)
                 GatedRow("Insights", YogaIcons.Trend, ProFeature.INSIGHTS, "Trends and goals", onInsights)
-                YogaGroupRow("Allowances", YogaIcons.Gauge, summary = "Limits and reminders", onClick = onUsageRules)
+                YogaGroupRow("Allowances", YogaIcons.Gauge, summary = "Daily allowance, category limits, reminders", onClick = onUsageRules)
                 GatedRow("Value of time", YogaIcons.Coin, ProFeature.VALUE_OF_TIME, "Your hour, priced", onValueOfTime,
                     divider = `in`.tuwi.yogaphone.BuildConfig.GUARD)
                 if (`in`.tuwi.yogaphone.BuildConfig.GUARD)
@@ -128,7 +136,7 @@ fun SettingsScreen(
         item { YogaSection("Focus") }
         item {
             YogaGroup {
-                YogaGroupRow("Focus and timebox", YogaIcons.Focus, summary = "Pause, schedules, DND", onClick = onFocus)
+                YogaGroupRow("Focus and timebox", YogaIcons.Focus, summary = "Pause length, schedules, Do Not Disturb", onClick = onFocus)
                 YogaGroupRow("Greyscale", YogaIcons.Contrast, summary = "Past limits, at bedtime", onClick = onVisual)
                 GatedRow("Quiet notifications", YogaIcons.BellOff, ProFeature.QUIET_NOTIFICATIONS, "A calm digest", onQuiet, divider = false)
             }
