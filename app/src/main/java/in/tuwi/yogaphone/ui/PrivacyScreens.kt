@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -135,6 +136,10 @@ fun HelpScreen(onReplaySetup: () -> Unit, onSuggestions: () -> Unit = {}, onBack
     val updateNote by updateController.checkNote.collectAsState()
     val scope = rememberCoroutineScope()
     var notice by remember { mutableStateOf<String?>(null) }
+    val crashLog = remember { `in`.tuwi.yogaphone.crash.YogaCrashHandler.writer(context.filesDir) }
+    var lastCrash by remember { mutableStateOf(crashLog.latest()) }
+    var includeCrash by remember { mutableStateOf(true) }
+    var showCrash by remember { mutableStateOf(false) }
     val faqs = listOf(
         "Why do some apps open without the pause?" to "Yoga can only pause apps you open from Yoga itself. Apps opened from a notification, another app or the recents screen skip it.",
         "Why are my numbers different from Digital Wellbeing?" to "Yoga counts the time apps are in the foreground, from Android's usage events, and leaves out essential apps. Digital Wellbeing may count screen time differently or include apps Yoga excludes.",
@@ -149,7 +154,8 @@ fun HelpScreen(onReplaySetup: () -> Unit, onSuggestions: () -> Unit = {}, onBack
             scope.launch {
                 val answers = runCatching { yoga.reviewController.store.read().feedbackAnswers }.getOrDefault(emptyList())
                 val body = buildFeedbackEmailBody(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE,
-                    Build.VERSION.RELEASE, "${Build.MANUFACTURER} ${Build.MODEL}".trim(), answers)
+                    Build.VERSION.RELEASE, "${Build.MANUFACTURER} ${Build.MODEL}".trim(), answers) +
+                    (lastCrash?.takeIf { includeCrash }?.let { "\n\nLast crash:\n$it" } ?: "")
                 // Gmail ignores the address in a mailto: link that carries query parameters, so the address,
                 // subject and body also travel as extras (found on the moto g31: "To" came up empty).
                 val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"))
@@ -161,6 +167,11 @@ fun HelpScreen(onReplaySetup: () -> Unit, onSuggestions: () -> Unit = {}, onBack
                 else notice = "No email app found"
             }
         }) }
+        if (lastCrash != null) {
+            item { YogaCheckRow("Include crash details in feedback", includeCrash) { includeCrash = !includeCrash } }
+            item { YogaRow("Crash details", summary = lastCrash.orEmpty().lineSequence().firstOrNull().orEmpty()
+                .removePrefix("Time: ").let { "Yoga last stopped unexpectedly at $it" }, onClick = { showCrash = true }) }
+        }
         item {
             YogaRow(
                 "Check for updates",
@@ -182,5 +193,12 @@ fun HelpScreen(onReplaySetup: () -> Unit, onSuggestions: () -> Unit = {}, onBack
     }
         notice?.let { message -> Snackbar(action = { YogaTextButton("OK", { notice = null }) },
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(ScreenMargin)) { Text(message) } }
+    }
+    if (showCrash) lastCrash?.let { trace ->
+        YogaDialog("Crash details", "Clear", onConfirm = { crashLog.clear(); lastCrash = null; showCrash = false },
+            onDismissRequest = { showCrash = false }, dismissText = "Close", text = {
+                Text(trace, style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.heightIn(max = 360.dp).verticalScroll(androidx.compose.foundation.rememberScrollState()))
+            })
     }
 }
