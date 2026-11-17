@@ -142,13 +142,13 @@ Built: R1–R4, the guards, Help → Send feedback, and "What didn't work?". R2 
 
 Details: [docs/plans/bugs-and-features-2026-11.md](docs/plans/bugs-and-features-2026-11.md).
 
-- [ ] **L-B1** Launcher crashes often; after a crash, Home sometimes shows the launcher picker again (default not kept).
-- [ ] **L-B2** Total and distracting-app usage still wrong after the earlier fix. Analyse and fix the calculations.
-- [ ] **L-B3** App usage limit (e.g. 15 min) may not restrict the app when it runs out. Verify on a phone first; fix if real.
-- [ ] **L-F1** Simpler Settings: fewer menus and taps. Example: moving Chrome from distracting to essential.
-- [ ] **L-F2** Urgent access: 3 s hold, 5 min of use, 3 a day, tracked separately; no force-close; greyscale after 5 min where supported, else reminder notifications; no DND.
-- [ ] **L-F3** Yesterday's achievements as a note on home the next morning, like the update message; tap for details. Progress bar unchanged.
-- [ ] **L-F4** Usage details view on tapping a usage indicator: completed goals and their time, Digital Wellbeing as reference.
+- [~] **L-B1** (Antigravity Opus, brief 24) Launcher crashes often; after a crash, Home sometimes shows the launcher picker again (default not kept).
+- [~] **L-B2** (Codex high, brief 22) Total and distracting-app usage still wrong after the earlier fix. Analyse and fix the calculations.
+- [~] **L-B3** (Codex high, brief 23; code shows app limits only notify, never restrict) App usage limit (e.g. 15 min) may not restrict the app when it runs out. Verify on a phone first; fix if real.
+- [~] **L-F1** (Antigravity Gemini, brief 25) Simpler Settings: fewer menus and taps. Example: moving Chrome from distracting to essential.
+- [~] **L-F2** (Codex high, brief 23, ADR 0016) Urgent access: 3 s hold, 5 min of use, 3 a day, tracked separately; no force-close; greyscale after 5 min where supported, else reminder notifications; no DND.
+- [~] **L-F3** (opencode plan `plan-morning-note.json`) Yesterday's achievements as a note on home the next morning, like the update message; tap for details. Progress bar unchanged.
+- [ ] **L-F4** (brief 26; starts after L-F3's achievements model lands) Usage details view on tapping a usage indicator: completed goals and their time, Digital Wellbeing as reference.
 
 ## Phone checks still open
 

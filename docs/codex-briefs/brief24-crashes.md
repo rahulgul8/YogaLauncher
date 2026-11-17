@@ -1,0 +1,14 @@
+# Brief 24: L-B1, launcher crashes and the lost default launcher
+
+The founder reports frequent crashes of Yoga as the home app. After a crash, pressing Home sometimes brings back Android's "choose a home app" popup. Android clears the home app's preferred choice when the home process crashes repeatedly, so the popup is most likely a consequence of the crashes; fixing crashes is the main job. There are no stack traces yet (no phone connected, Play vitals not readable).
+
+## Do
+1. **Find crash risks by reading the code.** Start with what runs on every home start and resume: `MainActivity.kt` (1000+ lines: `onCreate`, `onNewIntent` for the HOME intent, `LaunchedEffect`s, launch decisions), `MainViewModel.kt`, `ui/HomeScreen.kt`, `ui/AppDrawer.kt`, `ui/HomeUsageIndicator.kt`, `data/AppRepository.kt` (package changes, icons), `YogaApplication`, broadcast receivers, `guard/YogaGuardService.kt`, `usage/UsageWorker.kt`, `update/UpdateController.kt`, `review/`, `widgets/`. Look for: uncaught exceptions in coroutines and `collect`, `!!`, `first()` on empty lists, PackageManager calls on just-uninstalled packages (`NameNotFoundException`), `startActivity` without a guard (`ActivityNotFoundException`), Room or DataStore on the main thread, state-loss `IllegalStateException`s, large icon bitmaps (OOM), `ForegroundServiceStartNotAllowedException`, `SecurityException` from usage or accessibility APIs, and R8 stripping (check `app/proguard-rules.pro` against reflection, serialization and Room).
+2. **Fix each real risk** at its source. Don't wrap the whole app in one big catch.
+3. **Keep the next crash's evidence on the phone.** Add a small `Thread.setDefaultUncaughtExceptionHandler` in the Application class that writes the last few crash stack traces (time, app version, Android version, thread, trace; no personal data) to a capped file in `filesDir`, then chains to the previous handler. In Settings → Help → Send feedback, include the latest trace in the email body when one exists, behind an "Include crash details" toggle that defaults on. Add a Help row "Crash details" that shows the last trace and lets the user clear it.
+4. **Default launcher.** Check that nothing Yoga does clears or changes its own home choice. `ui/AppIcons.kt` enables and disables launcher activity aliases with `setComponentEnabledSetting`; confirm the HOME intent filter is never on a component that gets disabled, and that the manifest has exactly one HOME activity. Note anything else that could make Android ask again.
+
+## Done when
+- The report lists each crash risk found, with file:line, how likely it is to fire, and what you changed.
+- Unit tests for the crash-log writer (cap, rotation) and any pure logic you extracted.
+- `./gradlew :app:testDebugUnitTest :app:compileDebugKotlin` pass, or you say you couldn't run them.
