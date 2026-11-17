@@ -32,12 +32,15 @@ class UsageNotifications(private val context: Context) {
         if (!p.reminders) cancelReminders()
         if (p.reminders) evaluation.rules.forEach { result ->
             if (ReminderLedger.shouldSend(prefs.sent(), date, result.rule.id, result.state)) {
-                val label = result.rule.targetPackage?.let { pkg ->
+                val label = result.rule.targetPackage?.takeIf { result.rule.scope == RuleScope.APP }?.let { pkg ->
                     runCatching { context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(pkg, 0)).toString() }.getOrDefault(pkg)
                 }
-                val copy = if (result.state == RuleState.OVER) "You're ${result.excessMinutes} minutes past today's limit."
-                    else "You've used ${result.used} of your ${result.allowance} minutes today."
-                val text = if (label == null) copy else "$label: $copy"
+                val copy = if (result.state == RuleState.OVER) when (result.rule.scope) {
+                    RuleScope.APP -> "${label ?: "This app"} is closed for today."
+                    RuleScope.CATEGORY -> "Apps in this category are closed for today."
+                    RuleScope.TOTAL -> "You're ${result.excessMinutes} minutes past today's limit."
+                } else "You've used ${result.used} of your ${result.allowance} minutes today."
+                val text = if (label == null || result.state == RuleState.OVER) copy else "$label: $copy"
                 try {
                     manager.notify("usage:${result.rule.id}", REMINDER, builder().setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text)).setAutoCancel(true).build())
                     (context.applicationContext as YogaApplication).reviewController.recordInterruption()
@@ -57,6 +60,20 @@ class UsageNotifications(private val context: Context) {
         } else cancelOngoing()
     }
     fun cancelOngoing() = manager.cancel(ONGOING)
+    fun showUrgentReminder(packageName: String, label: String) {
+        manager.createNotificationChannel(NotificationChannel(CHANNEL, "Usage reminders", NotificationManager.IMPORTANCE_LOW))
+        if (!canPost()) return
+        val text = "Your urgent time in $label is over. Leave when you're ready."
+        runCatching {
+            manager.notify("urgent:$packageName", URGENT_REMINDER,
+                builder().setContentTitle("Yoga · $label").setContentText(text)
+                    .setStyle(NotificationCompat.BigTextStyle().bigText(text)).setAutoCancel(true).build())
+        }
+    }
+    fun cancelUrgentReminder(packageName: String) = manager.cancel("urgent:$packageName", URGENT_REMINDER)
+    fun cancelUrgentReminders() {
+        manager.activeNotifications.filter { it.id == URGENT_REMINDER }.forEach { manager.cancel(it.tag, it.id) }
+    }
     private fun cancelReminders() {
         manager.activeNotifications.filter { it.id == REMINDER }.forEach { manager.cancel(it.tag, it.id) }
     }
@@ -66,6 +83,7 @@ class UsageNotifications(private val context: Context) {
         private const val CHANNEL = "usage_reminders"
         private const val REMINDER = 201
         private const val ONGOING = 202
+        private const val URGENT_REMINDER = 203
     }
 }
 

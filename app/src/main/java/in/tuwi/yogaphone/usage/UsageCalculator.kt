@@ -55,6 +55,22 @@ data class RuleResult(val rule: UsageRule, val used: Long, val allowance: Int, v
     val state: RuleState, val excessMinutes: Long)
 data class RuleEvaluation(val rules: List<RuleResult>, val overall: RuleResult?)
 
+/** Selects the rule that closes one app. Total allowances remain a reminder/greyscale trigger. */
+object AppLimitPolicy {
+    fun blockingRule(packageName: String, categoryId: String?, evaluation: RuleEvaluation): RuleResult? =
+        evaluation.rules.asSequence()
+            .filter { it.state == RuleState.OVER }
+            .filter {
+                when (it.rule.scope) {
+                    RuleScope.APP -> it.rule.targetPackage == packageName
+                    RuleScope.CATEGORY -> categoryId != null && it.rule.targetPackage == categoryId
+                    RuleScope.TOTAL -> false
+                }
+            }
+            .sortedWith(compareBy<RuleResult>({ if (it.rule.scope == RuleScope.APP) 0 else 1 }, { it.allowance }, { it.rule.id }))
+            .firstOrNull()
+}
+
 class RuleEvaluator {
     /** For CATEGORY rules, [UsageRule.targetPackage] holds the category id and [categoryOf] maps packages to categories. */
     fun evaluate(

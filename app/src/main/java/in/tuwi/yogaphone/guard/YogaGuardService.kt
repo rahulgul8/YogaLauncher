@@ -68,6 +68,13 @@ class YogaGuardService : AccessibilityService() {
     private var lastInspection = -1_000L
     private var lastRefresh = -60_000L
     private var snapshot: UsageSnapshot? = null
+    private var urgentState = UrgentAccessState()
+    private var urgentGrey = false
+    private var urgentReminderPackage: String? = null
+    private var lastUrgentReminderAt: Long? = null
+    private var lastAllowanceCheck = -60_000L
+    private var lastAllowancePackage = ""
+    private var lastUrgentForeground = ""
     private var baselineSince = 0L
     private var detected: GuardSurface? = null
     private var watchInfo = WatchInfo()
@@ -111,6 +118,11 @@ class YogaGuardService : AccessibilityService() {
         else @Suppress("DEPRECATION") registerReceiver(screenReceiver, filter)
         registered = true
         scope.launch {
+            // A service restart first removes its transient reason. The next foreground evaluation may reapply it.
+            runCatching { yoga.quietRepository.setUrgentGreyscale(false) }
+            UsageNotifications(this@YogaGuardService).cancelUrgentReminders()
+            urgentState = yoga.urgentAccessRepository.current()
+            launch { yoga.urgentAccessRepository.state.collect { urgentState = it; requests.trySend(Unit) } }
             learningPro = ProGate.allows(ProFeature.LEARNING_VIDEOS, yoga.proRepository.current())
             launch { yoga.proRepository.state.collect {
                 learningPro = ProGate.allows(ProFeature.LEARNING_VIDEOS, it)
@@ -144,6 +156,11 @@ class YogaGuardService : AccessibilityService() {
                 yoga.guardPrefs.preferences.collect { p ->
                     generation++
                     preferences = p; pillY = p.positionY
+                    if (!p.active && urgentGrey) {
+                        urgentGrey = false
+                        yoga.quietRepository.setUrgentGreyscale(false)
+                        UsageNotifications(this@YogaGuardService).cancelUrgentReminders()
+                    }
                     ticker?.cancel()
                     if (serviceActive()) {
                         refreshPackageRoles()
@@ -246,6 +263,73 @@ class YogaGuardService : AccessibilityService() {
             pkg == getSystemService(TelecomManager::class.java).defaultDialerPackage || pkg.contains("incall", true)
         if (token != generation) return
         if (sensitive) { hidePill(); hideCard(); detected = null; watchInfo = WatchInfo() }
+        if (preferences.active) {
+            if (pkg != lastUrgentForeground) {
+                lastUrgentForeground = pkg
+                urgentState = yoga.urgentAccessRepository.current()
+            }
+            val urgentWindow = urgentState.windows[pkg]
+            val urgentDecision = UrgentWindowPolicy.decide(
+                urgentState.windows.values,
+                pkg,
+                System.currentTimeMillis(),
+                yoga.quietRepository.canWriteSecureSettings(),
+                lastUrgentReminderAt,
+            )
+            if (urgentDecision.clearPackages.isNotEmpty()) {
+                urgentState = urgentState.copy(windows = urgentState.windows - urgentDecision.clearPackages)
+                yoga.urgentAccessRepository.clearWindows(urgentDecision.clearPackages)
+            }
+            if (urgentDecision.grey != urgentGrey) {
+                urgentGrey = urgentDecision.grey
+                yoga.quietRepository.setUrgentGreyscale(urgentGrey)
+            }
+            if (urgentDecision.remind) {
+                val label = runCatching {
+                    packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+                }.getOrDefault("this app")
+                if (urgentReminderPackage != null && urgentReminderPackage != pkg) {
+                    UsageNotifications(this).cancelUrgentReminder(urgentReminderPackage!!)
+                }
+                UsageNotifications(this).showUrgentReminder(pkg, label)
+                urgentReminderPackage = pkg
+                lastUrgentReminderAt = System.currentTimeMillis()
+            } else if (urgentReminderPackage != null &&
+                (urgentWindow == null || System.currentTimeMillis() < urgentWindow.until || urgentReminderPackage != pkg)) {
+                UsageNotifications(this).cancelUrgentReminder(urgentReminderPackage!!)
+                urgentReminderPackage = null
+                lastUrgentReminderAt = null
+            }
+
+            val checkable = !sensitive && pkg != packageName && pkg !in homePackages &&
+                pkg != "android" && pkg != "com.android.systemui" && pkg !in keyboards
+            // Any urgent window owns the current stay. A live one bypasses the limit; after expiry the
+            // app stays open and receives the intervention above until the person leaves.
+            if (checkable && urgentWindow == null &&
+                (pkg != lastAllowancePackage || now - lastAllowanceCheck >= 60_000)) {
+                lastAllowancePackage = pkg
+                lastAllowanceCheck = now
+                val fresh = yoga.usageRepository.check()
+                snapshot = fresh
+                baselineSince = SystemClock.elapsedRealtime()
+                val block = AppLimitPolicy.blockingRule(pkg, category, fresh.evaluation)
+                if (token != generation) return
+                if (block != null) {
+                    val label = fresh.appLabels[pkg] ?: runCatching {
+                        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+                    }.getOrDefault("App")
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    startActivity(Intent(this, `in`.tuwi.yogaphone.MainActivity::class.java)
+                        .setAction(`in`.tuwi.yogaphone.MainActivity.ACTION_TIME_UP)
+                        .putExtra(`in`.tuwi.yogaphone.MainActivity.EXTRA_LIMIT_PACKAGE, pkg)
+                        .putExtra(`in`.tuwi.yogaphone.MainActivity.EXTRA_LIMIT_LABEL, label)
+                        .putExtra(`in`.tuwi.yogaphone.MainActivity.EXTRA_LIMIT_MINUTES, block.allowance)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP))
+                    hidePill(); hideCard()
+                    return
+                }
+            }
+        }
         // Keep the trailing content change, but never act on an obsolete detection while waiting.
         if (inspect && now - lastInspection < 500) return
         if (inspect && now - lastInspection >= 500) {
@@ -516,8 +600,24 @@ class YogaGuardService : AccessibilityService() {
     }
     private fun hidePill() { passPill = false; passPillSurface = null; flame?.cancel(); flame = null; pillAction = null; pill?.let { runCatching { windows.removeView(it) } }; pill = null }
     private fun hideCard() { cardRemoval?.cancel(); cardRemoval = null; card?.let { runCatching { windows.removeView(it) } }; card = null }
-    override fun onInterrupt() { generation++; detected = null; hidePill(); hideCard() }
-    override fun onDestroy() { if (registered) unregisterReceiver(screenReceiver); scope.cancel(); requests.close(); hidePill(); hideCard(); super.onDestroy() }
+    override fun onInterrupt() {
+        generation++; detected = null; hidePill(); hideCard()
+        scope.launch {
+            urgentGrey = false
+            yoga.quietRepository.setUrgentGreyscale(false)
+            UsageNotifications(this@YogaGuardService).cancelUrgentReminders()
+        }
+    }
+    override fun onDestroy() {
+        if (registered) unregisterReceiver(screenReceiver)
+        runCatching {
+            runBlocking(Dispatchers.IO) {
+                yoga.quietRepository.setUrgentGreyscale(false)
+                UsageNotifications(this@YogaGuardService).cancelUrgentReminders()
+            }
+        }
+        scope.cancel(); requests.close(); hidePill(); hideCard(); super.onDestroy()
+    }
 
     private class AndroidNode(private val node: AccessibilityNodeInfo) : NodeView {
         override val viewId get() = node.viewIdResourceName

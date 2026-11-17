@@ -11,15 +11,18 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 data class UsageUiState(val snapshot: UsageSnapshot = UsageSnapshot(), val preferences: UsagePreferences = UsagePreferences(),
-    val rules: List<UsageRuleEntity> = emptyList(), val apps: List<AppModel> = emptyList(), val loading: Boolean = true)
+    val rules: List<UsageRuleEntity> = emptyList(), val apps: List<AppModel> = emptyList(), val loading: Boolean = true,
+    val urgentAccess: UrgentAccessState = UrgentAccessState())
 class UsageViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as YogaApplication
     private val repository = app.usageRepository
     private val snapshot = MutableStateFlow(UsageSnapshot())
     private val loading = MutableStateFlow(true)
-    val state = combine(snapshot, app.usagePrefs.preferences, repository.rules, app.appRepository.apps, loading) { s, p, r, a, l ->
+    private val baseState = combine(snapshot, app.usagePrefs.preferences, repository.rules, app.appRepository.apps, loading) { s, p, r, a, l ->
         UsageUiState(s, p, r, a, l)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UsageUiState())
+    }
+    val state = combine(baseState, app.urgentAccessRepository.state) { base, urgent -> base.copy(urgentAccess = urgent) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UsageUiState())
     private var refreshJob: Job? = null
     private var refreshAgain = false
     fun refresh() {

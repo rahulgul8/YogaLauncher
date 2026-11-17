@@ -54,10 +54,14 @@ import `in`.tuwi.yogaphone.ui.FocusStartSheet
 import `in`.tuwi.yogaphone.ui.HomeFocusStatus
 import `in`.tuwi.yogaphone.ui.HomeQuickActions
 import `in`.tuwi.yogaphone.ui.MindfulDelayScreen
+import `in`.tuwi.yogaphone.ui.TimeUpScreen
 import `in`.tuwi.yogaphone.ui.TimeboxCompletionSheet
 import `in`.tuwi.yogaphone.ui.TimeboxControlSheet
 import `in`.tuwi.yogaphone.ui.TimeboxStartSheet
 import `in`.tuwi.yogaphone.usage.RuleState
+import `in`.tuwi.yogaphone.usage.AppLimitPolicy
+import `in`.tuwi.yogaphone.usage.UrgentAccessState
+import `in`.tuwi.yogaphone.usage.UrgentWindowPolicy
 import `in`.tuwi.yogaphone.ui.CategoriesScreen
 import `in`.tuwi.yogaphone.ui.CategoryPickerDialog
 import `in`.tuwi.yogaphone.ui.ProfileEditScreen
@@ -170,6 +174,9 @@ private data class PendingPause(
     val resistedToday: Int,
 )
 
+private data class PendingLimit(val app: AppModel, val query: String, val allowanceMinutes: Int)
+private data class ExternalLimitRequest(val packageName: String, val label: String, val allowanceMinutes: Int, val nonce: Long)
+
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private val usageViewModel: UsageViewModel by viewModels()
@@ -187,6 +194,7 @@ class MainActivity : ComponentActivity() {
     private var stoppedSinceResume = true
     private var digestRequest by mutableIntStateOf(0)
     private var insightsRequest by mutableIntStateOf(0)
+    private var externalLimitRequest by mutableStateOf<ExternalLimitRequest?>(null)
     private val updateLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
         (application as YogaApplication).updateController.onUpdateFlowResult(it.resultCode)
     }
@@ -204,10 +212,14 @@ class MainActivity : ComponentActivity() {
         }
         readIntroPreview(intent)
         readReviewPreview(intent)
+        readLimitRequest(intent)
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
         if (intent.action == QuietRepository.ACTION_OPEN_DIGEST) digestRequest++
         if (intent.action == InsightsRepository.ACTION_OPEN_INSIGHTS) insightsRequest++
-        setContent { YogaLauncherApp(viewModel, usageViewModel, focusViewModel, homeRequest, homeAgainRequest, usageRequest, digestRequest, insightsRequest) }
+        setContent {
+            YogaLauncherApp(viewModel, usageViewModel, focusViewModel, homeRequest, homeAgainRequest, usageRequest,
+                digestRequest, insightsRequest, externalLimitRequest, ::clearLimitRequest)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -215,6 +227,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         readIntroPreview(intent)
         readReviewPreview(intent)
+        readLimitRequest(intent)
         if (intent.action == UsageNotifications.ACTION_DETAILS) usageRequest++
         if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) {
             if (stoppedSinceResume) homeRequest++ else homeAgainRequest++
@@ -234,6 +247,22 @@ class MainActivity : ComponentActivity() {
     private fun readReviewPreview(intent: Intent) {
         if (!BuildConfig.DEBUG) return
         (application as YogaApplication).reviewController.setFakeReview(intent.getBooleanExtra("review_fake", false))
+    }
+
+    private fun readLimitRequest(intent: Intent) {
+        if (intent.action != ACTION_TIME_UP) return
+        val packageName = intent.getStringExtra(EXTRA_LIMIT_PACKAGE) ?: return
+        externalLimitRequest = ExternalLimitRequest(
+            packageName,
+            intent.getStringExtra(EXTRA_LIMIT_LABEL) ?: "App",
+            intent.getIntExtra(EXTRA_LIMIT_MINUTES, 0).coerceAtLeast(1),
+            System.nanoTime(),
+        )
+    }
+
+    private fun clearLimitRequest() {
+        externalLimitRequest = null
+        setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME))
     }
 
     /** Widget configuration activities report back here (AppWidgetHost uses startActivityForResult). */
@@ -275,10 +304,19 @@ class MainActivity : ComponentActivity() {
         runCatching { unregisterReceiver(workProfileReceiver) }
         super.onDestroy()
     }
+
+    companion object {
+        const val ACTION_TIME_UP = "in.tuwi.yogaphone.TIME_UP"
+        const val EXTRA_LIMIT_PACKAGE = "limit_package"
+        const val EXTRA_LIMIT_LABEL = "limit_label"
+        const val EXTRA_LIMIT_MINUTES = "limit_minutes"
+    }
 }
 
 @Composable
-private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, focusViewModel: FocusViewModel, homeRequest: Int, homeAgainRequest: Int, usageRequest: Int, digestRequest: Int, insightsRequest: Int) {
+private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewModel, focusViewModel: FocusViewModel,
+    homeRequest: Int, homeAgainRequest: Int, usageRequest: Int, digestRequest: Int, insightsRequest: Int,
+    externalLimitRequest: ExternalLimitRequest?, onLimitHandled: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     val pro by (androidx.compose.ui.platform.LocalContext.current.applicationContext as YogaApplication).proRepository.state.collectAsState()
     val focusState by focusViewModel.state.collectAsState()
@@ -309,7 +347,8 @@ private fun YogaLauncherApp(viewModel: MainViewModel, usageViewModel: UsageViewM
     YogaPhoneTheme(themeMode, if (ProGate.allows(ProFeature.LOOKS, pro)) uiState.preferences.palette else `in`.tuwi.yogaphone.data.Palette.OBSIDIAN_BRASS) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             `in`.tuwi.yogaphone.ui.IntroActionHost {
-                LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, homeAgainRequest, usageRequest, digestRequest, greyReason, quietPrefs, quiet, insightsRequest)
+                LauncherNavigation(viewModel, usageViewModel, focusViewModel, focusState, uiState, homeRequest, homeAgainRequest,
+                    usageRequest, digestRequest, greyReason, quietPrefs, quiet, insightsRequest, externalLimitRequest, onLimitHandled)
             }
         }
     }
@@ -330,6 +369,8 @@ private fun LauncherNavigation(
     quietPrefs: QuietPreferences,
     quiet: QuietRepository,
     insightsRequest: Int,
+    externalLimitRequest: ExternalLimitRequest?,
+    onLimitHandled: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val yoga = androidx.compose.ui.platform.LocalContext.current.applicationContext as YogaApplication
@@ -337,6 +378,7 @@ private fun LauncherNavigation(
     val insightsPrefs by insights.preferences.collectAsState(initial = null)
     var reflectionFor by remember { mutableStateOf<Long?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val urgentState by yoga.urgentAccessRepository.state.collectAsState(initial = UrgentAccessState())
     val navController = rememberNavController()
     val pro by yoga.proRepository.state.collectAsState()
     val access = ProAccess(pro) { navController.navigate(PRO) { launchSingleTop = true } }
@@ -467,6 +509,7 @@ private fun LauncherNavigation(
     var drawerMenuApp by remember { mutableStateOf<AppModel?>(null) }
     var renameApp by remember { mutableStateOf<AppModel?>(null) }
     var pendingPause by remember { mutableStateOf<PendingPause?>(null) }
+    var pendingLimit by remember { mutableStateOf<PendingLimit?>(null) }
     var timeboxStartFor by remember { mutableStateOf<AppModel?>(null) }
     var showTimeboxStart by remember { mutableStateOf(false) }
     var showTimeboxControl by remember { mutableStateOf(false) }
@@ -475,15 +518,55 @@ private fun LauncherNavigation(
     var showProfiles by remember { mutableStateOf(false) }
     var categoryFor by remember { mutableStateOf<AppModel?>(null) }
 
+    LaunchedEffect(externalLimitRequest?.nonce) {
+        externalLimitRequest?.let { request ->
+            val app = uiState.allApps.firstOrNull { it.appPackage == request.packageName }
+                ?: AppModel(request.label, request.packageName, null, android.os.Process.myUserHandle())
+            pendingPause = null
+            pendingLimit = PendingLimit(app, "", request.allowanceMinutes)
+            drawer.snapClosed()
+            navController.returnHome()
+        }
+    }
+
     fun switchProfile(id: Long?) = viewModel.switchProfile(id) { previous, next ->
         if (previous?.focusOnActivate == true && focusState.focus?.plannedEndAt == null) focusViewModel.endFocus()
         if (next?.focusOnActivate == true) focusViewModel.startFocus(null)
     }
 
-    // Every launch from Yoga goes through the mindful-pause gate.
-    fun requestLaunch(app: AppModel, query: String = "") {
+    fun urgentOpen(app: AppModel, query: String, onOpened: () -> Unit) {
         scope.launch {
-            when (val decision = focusViewModel.decide(app, usageState.snapshot.evaluation.overall?.state == RuleState.OVER)) {
+            val today = java.time.LocalDate.now(java.time.ZoneId.systemDefault()).toString()
+            if (yoga.urgentAccessRepository.grant(today, app.appPackage) != null) {
+                onOpened()
+                viewModel.launchApp(app, query)
+            }
+        }
+    }
+
+    // Every launch from Yoga checks app/category allowances before the mindful-pause gate.
+    fun requestLaunch(app: AppModel, query: String = "", skipMindfulPause: Boolean = false) {
+        scope.launch {
+            val now = System.currentTimeMillis()
+            val urgent = yoga.urgentAccessRepository.current().windows[app.appPackage]
+            if (UrgentWindowPolicy.isLive(urgent, now)) {
+                viewModel.launchApp(app, query)
+                return@launch
+            }
+            val snapshot = runCatching { yoga.usageRepository.check() }.getOrDefault(usageState.snapshot)
+            val block = AppLimitPolicy.blockingRule(app.appPackage,
+                uiState.categoryOf[app.appPackage] ?: snapshot.categoryOf[app.appPackage], snapshot.evaluation)
+            if (block != null) {
+                pendingPause = null
+                pendingLimit = PendingLimit(app, query, block.allowance)
+                drawer.snapClosed()
+                return@launch
+            }
+            if (skipMindfulPause) {
+                viewModel.launchApp(app, query)
+                return@launch
+            }
+            when (val decision = focusViewModel.decide(app, snapshot.evaluation.overall?.state == RuleState.OVER)) {
                 LaunchDecision.Open -> viewModel.launchApp(app, query)
                 is LaunchDecision.Pause -> pendingPause = PendingPause(
                     app, query, decision.seconds, decision.duringFocus, decision.choices,
@@ -502,6 +585,9 @@ private fun LauncherNavigation(
         favoriteMenuApp = null
         drawerMenuApp = null
         renameApp = null
+        pendingPause = null
+        pendingLimit = null
+        onLimitHandled()
         showTimeboxStart = false
         showTimeboxControl = false
         showFocusStart = false
@@ -518,7 +604,7 @@ private fun LauncherNavigation(
         val calm = route == HOME && drawer.isClosed && replacingApp == null && pickingDockSlot == null && !homePicking &&
             !showHomeOptions && favoriteMenuApp == null && drawerMenuApp == null && renameApp == null && dockMenuSlot == null &&
             !showTimeboxStart && !showTimeboxControl && !showFocusStart && !showFocusControl && !showProfiles &&
-            pendingPause == null && categoryFor == null
+            pendingPause == null && pendingLimit == null && categoryFor == null
         if (calm) drawer.open() else resetToHome()
     }
     BackHandler(enabled = route == HOME && drawerClosed) { /* A HOME activity stays home. */ }
@@ -913,8 +999,8 @@ private fun LauncherNavigation(
             boundApp = bound,
             onStart = { minutes, purpose ->
                 focusViewModel.startTimebox(minutes, purpose, bound?.appPackage)
-                // A timeboxed app is a deliberate choice, so it opens without the pause.
-                bound?.let { viewModel.launchApp(it) }
+                // A timeboxed app skips the pause, but app and category limits still apply.
+                bound?.let { requestLaunch(it, skipMindfulPause = true) }
             },
             onDismiss = { showTimeboxStart = false; timeboxStartFor = null },
         )
@@ -958,6 +1044,7 @@ private fun LauncherNavigation(
     } // LocalProAccess
 
     pendingPause?.let { pause ->
+        val urgentRemaining = urgentState.remainingOn(java.time.LocalDate.now(java.time.ZoneId.systemDefault()).toString())
         val overall = usageState.snapshot.evaluation.overall
         val allowanceLine = overall?.takeIf { usageState.snapshot.available }?.let {
             if (it.state == RuleState.OVER) "You're ${it.excessMinutes} minutes past today's limit."
@@ -978,6 +1065,8 @@ private fun LauncherNavigation(
             choices = pause.choices,
             preselected = pause.preselected,
             recentPurposes = focusState.preferences.delayPurposes,
+            urgentRemaining = urgentRemaining,
+            onUrgent = { urgentOpen(pause.app, pause.query) { pendingPause = null } },
             onContinue = { purpose, minutes ->
                 focusViewModel.pauseOutcome(pause.app, continued = true, duringFocus = pause.duringFocus, purpose = purpose, minutes = minutes)
                 viewModel.launchApp(pause.app, pause.query)
@@ -986,6 +1075,25 @@ private fun LauncherNavigation(
             onGoBack = {
                 focusViewModel.pauseOutcome(pause.app, continued = false, duringFocus = pause.duringFocus, purpose = null)
                 pendingPause = null
+            },
+        )
+    }
+    pendingLimit?.let { limit ->
+        val urgentRemaining = urgentState.remainingOn(java.time.LocalDate.now(java.time.ZoneId.systemDefault()).toString())
+        TimeUpScreen(
+            app = limit.app,
+            allowanceMinutes = limit.allowanceMinutes,
+            urgentRemaining = urgentRemaining,
+            onHome = {
+                pendingLimit = null
+                onLimitHandled()
+                navController.returnHome()
+            },
+            onUrgent = {
+                urgentOpen(limit.app, limit.query) {
+                    pendingLimit = null
+                    onLimitHandled()
+                }
             },
         )
     }

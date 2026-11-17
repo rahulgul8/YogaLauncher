@@ -70,6 +70,7 @@ class QuietRepository(private val context: Context, private val database: YogaDa
         val savedEnabled = intPreferencesKey("grey_saved_daltonizer_enabled")
         val savedMode = intPreferencesKey("grey_saved_daltonizer_mode")
         val appliedByYoga = booleanPreferencesKey("grey_applied_by_yoga")
+        val urgent = booleanPreferencesKey(URGENT_GREY_KEY_NAME)
     }
 
     val preferences: Flow<QuietPreferences> = context.dataStore.data.map { p ->
@@ -93,6 +94,12 @@ class QuietRepository(private val context: Context, private val database: YogaDa
     suspend fun setGreyBedtime(id: Long?) = update { if (id == null) it.remove(Keys.greyBedtime) else it[Keys.greyBedtime] = id }
     suspend fun setDeviceWide(value: Boolean) { update { it[Keys.deviceWide] = value }; reconcileGreyscale() }
     suspend fun snoozeGrey(minutes: Int) { update { it[Keys.snoozed] = System.currentTimeMillis() + minutes * 60_000L }; reconcileGreyscale() }
+
+    /** Urgent access is device-only and never changes the person's saved greyscale switches. */
+    suspend fun setUrgentGreyscale(value: Boolean) {
+        update { if (value) it[Keys.urgent] = true else it.remove(Keys.urgent) }
+        reconcileGreyscale()
+    }
 
     /** Called by usage checks so background work knows whether today's limit is passed. */
     suspend fun recordOverLimit(over: Boolean) {
@@ -187,7 +194,9 @@ class QuietRepository(private val context: Context, private val database: YogaDa
         val focus = database.focusDao().activeFocus() != null
         val greyDuringFocus = app.focusPrefs.preferences.first().focusGreyscale
         val reason = currentGreyReason(focus, null, greyDuringFocus)
-        applyDeviceGreyscale(reason != null && preferences.first().deviceWideGrey)
+        val stored = context.dataStore.data.first()
+        val regular = reason != null && preferences.first().deviceWideGrey
+        applyDeviceGreyscale(regular || stored[Keys.urgent] == true)
     }
 
     private suspend fun applyDeviceGreyscale(on: Boolean) {
@@ -219,6 +228,7 @@ class QuietRepository(private val context: Context, private val database: YogaDa
         private const val DALTONIZER_ENABLED = "accessibility_display_daltonizer_enabled"
         private const val DALTONIZER = "accessibility_display_daltonizer"
         const val ADB_GRANT = "adb shell pm grant ${`in`.tuwi.yogaphone.BuildConfig.APPLICATION_ID} android.permission.WRITE_SECURE_SETTINGS"
+        const val URGENT_GREY_KEY_NAME = "grey_urgent_access"
     }
 }
 

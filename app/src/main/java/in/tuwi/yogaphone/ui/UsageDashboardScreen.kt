@@ -88,6 +88,10 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
         }
         item { YogaChipRow { YogaChip("Today", !weekly, onClick = { weekly = false }); YogaChip("Last 7 days", weekly, onClick = { weekly = true; weeklyOpened = true }) } }
         item { YogaTextButton("Edit usage rules", onSettings, Modifier.padding(horizontal = TextButtonInset)) }
+        item {
+            val used = state.urgentAccess.usedOn(java.time.LocalDate.now(java.time.ZoneId.systemDefault()).toString())
+            YogaNote("Urgent opens today: $used of ${UrgentAccessPolicy.MAX_PER_DAY}")
+        }
         if (!weekly && access.allows(ProFeature.LEARNING_VIDEOS)) item {
             YogaRow("Learning time today", trailing = { Text(minutesLabel(s.learningSecondsToday / 60),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary) })
