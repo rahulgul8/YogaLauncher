@@ -658,7 +658,10 @@ private fun LauncherNavigation(
                             }
                         }
                         HomeFocusStatus(focusState, onTimebox = { showTimeboxControl = true }, onFocus = { showFocusControl = true })
-                        HomeUsageIndicator(usageState, { navController.navigate("usage") }, { navController.navigate("usage?details=true") })
+                        HomeUsageIndicator(usageState, {
+                            // The Week display opens the week; every other display opens today.
+                            navController.navigate(if (usageState.preferences.homeStyle == `in`.tuwi.yogaphone.usage.HomeDisplayStyle.WEEK) "usage?week=true" else "usage")
+                        }, { navController.navigate("usage?details=true") })
                     }
                 },
                 topActions = {
@@ -728,13 +731,16 @@ private fun LauncherNavigation(
             AdvancedSettingsScreen({ navController.popBackStack() }, viewModel::resetCustomLabels) { navController.navigate(LEAVE) }
         }
         composable(LEAVE) { LeaveYogaScreen { navController.popBackStack() } }
-        composable("usage?details={details}", arguments = listOf(androidx.navigation.navArgument("details") { defaultValue = "false" })) { entry ->
+        composable("usage?details={details}&week={week}", arguments = listOf(
+            androidx.navigation.navArgument("details") { defaultValue = "false" },
+            androidx.navigation.navArgument("week") { defaultValue = "false" })) { entry ->
             val guardDaily by yoga.guardPrefs.daily.collectAsState(initial = GuardDaily())
             val guardDate = rememberGuardDate()
             val blockedToday = if (guardDaily.date == guardDate) guardDaily.blocks.values.sum() else 0
             UsageDashboardScreen(usageState, usageViewModel, { navController.popBackStack() },
                 { navController.navigate("settings/usage") }, entry.arguments?.getString("details") == "true",
                 uiState.categories.associate { it.id to it.name }, blockedToday, focusState.resistedToday,
+                startWeekly = entry.arguments?.getString("week") == "true",
                 onWeeklyReviewLeave = { within, known, minutes ->
                     yoga.reviewController.onGoodWeek(activity, within, known, minutes)
                 })

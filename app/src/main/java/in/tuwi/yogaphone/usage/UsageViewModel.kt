@@ -46,6 +46,28 @@ class UsageViewModel(application: Application) : AndroidViewModel(application) {
         repository.classify(pkg, essential, distracting); refresh()
     }
     fun snooze() = viewModelScope.launch { repository.snoozeToday() }
+
+    /** Hours, unlocks and finished goals for each day of the week ending [today], for the Usage view. */
+    suspend fun weekDetails(today: java.time.LocalDate): Map<java.time.LocalDate, UsageDayDetails> =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                val zone = java.time.ZoneId.systemDefault()
+                val days = UsageDetails.weekDays(today)
+                val first = days.first()
+                val usage = app.database.usageDao()
+                val focus = app.database.focusDao()
+                val hours = usage.hours(first.toString(), today.toString()).groupBy { it.date }
+                val unlocks = usage.days(first.toString(), today.toString()).associate { it.date to it.unlocks }
+                val since = first.atStartOfDay(zone).toInstant().toEpochMilli()
+                val timeboxes = focus.timeboxesSince(since)
+                val sessions = focus.focusSince(since)
+                days.associateWith { day ->
+                    val goals = `in`.tuwi.yogaphone.insights.DayAchievementsBuilder
+                        .build(day, zone, emptyList(), null, timeboxes, sessions, 0).goals
+                    UsageDayDetails(day, UsageDetails.hourValues(hours[day.toString()].orEmpty()), unlocks[day.toString()], goals)
+                }
+            }.getOrDefault(emptyMap())
+        }
     fun clearHistory() = viewModelScope.launch { repository.clearHistory(); refresh() }
 }
 
