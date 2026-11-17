@@ -548,6 +548,7 @@ private fun LauncherNavigation(
                 statusContent = {
                     Column {
                         if (!isDefault) DefaultHomePrompt { askToBeHome() }
+                        `in`.tuwi.yogaphone.ui.MorningNote(yoga)
                         UpdatePrompt(activity, yoga.updateController)
                         `in`.tuwi.yogaphone.ui.HomeIntroduction()
                         val guardDay by yoga.guardPrefs.daily.collectAsState(initial = GuardDaily())
