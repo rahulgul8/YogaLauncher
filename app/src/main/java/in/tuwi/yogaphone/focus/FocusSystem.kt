@@ -216,6 +216,11 @@ class FocusReceiver : BroadcastReceiver() {
                     else -> {
                         repository.reconcile()
                         val app = context.applicationContext as YogaApplication
+                        if (action == Intent.ACTION_BOOT_COMPLETED) {
+                            app.urgentAccessRepository.clearAllWindows()
+                            app.quietRepository.setUrgentGreyscale(false)
+                            `in`.tuwi.yogaphone.usage.UsageNotifications(context).cancelUrgentReminders()
+                        }
                         app.organizeRepository.reconcileSchedules()?.profile?.let { profile ->
                             if (profile.focusOnActivate) repository.startFocus(null)
                         }

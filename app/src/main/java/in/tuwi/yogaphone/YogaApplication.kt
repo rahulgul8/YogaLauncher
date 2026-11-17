@@ -9,6 +9,7 @@ import `in`.tuwi.yogaphone.crash.YogaCrashHandler
 import `in`.tuwi.yogaphone.usage.UsagePrefs
 import `in`.tuwi.yogaphone.usage.UsageRepository
 import `in`.tuwi.yogaphone.usage.UsageWorker
+import `in`.tuwi.yogaphone.usage.UrgentAccessRepository
 import `in`.tuwi.yogaphone.focus.FocusPrefs
 import `in`.tuwi.yogaphone.focus.FocusRepository
 
@@ -23,6 +24,7 @@ class YogaApplication : Application() {
     val learningPrefs by lazy { `in`.tuwi.yogaphone.guard.LearningPrefs(this) }
     val usagePrefs by lazy { UsagePrefs(this) }
     val usageRepository by lazy { UsageRepository(this, database, usagePrefs) }
+    val urgentAccessRepository by lazy { UrgentAccessRepository(this) }
     override fun onCreate() { super.onCreate(); YogaCrashHandler.install(filesDir); proRepository; UsageWorker.schedule(this) }
     val prefs by lazy { Prefs(this) }
     val database by lazy { YogaDatabase.create(this) }

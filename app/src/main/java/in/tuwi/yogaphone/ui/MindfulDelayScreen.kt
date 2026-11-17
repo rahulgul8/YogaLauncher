@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import `in`.tuwi.yogaphone.data.AppModel
 import `in`.tuwi.yogaphone.YogaApplication
 import `in`.tuwi.yogaphone.resist.ResistanceLadder
+import `in`.tuwi.yogaphone.usage.UrgentAccessPolicy
 import `in`.tuwi.yogaphone.ui.theme.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -50,6 +51,8 @@ fun MindfulDelayScreen(
     choices: List<Int>,
     preselected: Int,
     recentPurposes: List<String>,
+    urgentRemaining: Int? = null,
+    onUrgent: () -> Unit = {},
     onContinue: (purpose: String?, minutes: Int) -> Unit,
     onGoBack: () -> Unit,
 ) {
@@ -114,7 +117,78 @@ fun MindfulDelayScreen(
             Spacer(Modifier.height(8.dp))
             HoldToOpenButton(selectedMinutes, remaining <= 0, reducedMotion,
                 onHeld = { onContinue(purpose.trim().takeIf(String::isNotEmpty), selectedMinutes) }, modifier = Modifier.fillMaxWidth())
+            urgentRemaining?.let { left ->
+                Text(
+                    if (left > 0) "Urgent · 5 min · $left left today" else "No urgent opens left today",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 18.dp, bottom = 8.dp),
+                )
+                if (left > 0) HoldToActionButton(
+                    label = "Hold for urgent access",
+                    actionDescription = "Open urgently for 5 minutes",
+                    enabled = true,
+                    reducedMotion = reducedMotion,
+                    holdMillis = UrgentAccessPolicy.HOLD_MILLIS,
+                    onHeld = onUrgent,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
+        }
+    }
+}
+
+@Composable
+fun TimeUpScreen(
+    app: AppModel,
+    allowanceMinutes: Int,
+    urgentRemaining: Int,
+    onHome: () -> Unit,
+    onUrgent: () -> Unit,
+) {
+    val context = LocalContext.current
+    val reducedMotion = remember {
+        runCatching { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }.getOrDefault(false)
+    }
+    BackHandler { onHome() }
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        BoxWithConstraints(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            Column(
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight)
+                    .padding(horizontal = ScreenMargin, vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Spacer(Modifier.weight(1f))
+                YogaEyebrow("Time's up")
+                Text(app.displayLabel, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 12.dp))
+                Box(Modifier.padding(vertical = 36.dp).size(176.dp), contentAlignment = Alignment.Center) {
+                    BreathingClock(animated = !reducedMotion)
+                    Text("Done", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+                }
+                Text("Your $allowanceMinutes min for today are used", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "lnum, tnum"))
+                Spacer(Modifier.weight(1f))
+                YogaPrimaryButton("Go home", onHome, Modifier.fillMaxWidth())
+                Text(
+                    if (urgentRemaining > 0) "Urgent · 5 min · $urgentRemaining left today" else "No urgent opens left today",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 18.dp, bottom = 8.dp),
+                )
+                if (urgentRemaining > 0) HoldToActionButton(
+                    label = "Hold for urgent access",
+                    actionDescription = "Open urgently for 5 minutes",
+                    enabled = true,
+                    reducedMotion = reducedMotion,
+                    holdMillis = UrgentAccessPolicy.HOLD_MILLIS,
+                    onHeld = onUrgent,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
@@ -127,17 +201,38 @@ private fun HoldToOpenButton(
     onHeld: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    HoldToActionButton(
+        label = "Hold to open for $minutes min",
+        actionDescription = "Open for $minutes minutes",
+        enabled = enabled,
+        reducedMotion = reducedMotion,
+        holdMillis = ResistanceLadder.HOLD_MILLIS,
+        onHeld = onHeld,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun HoldToActionButton(
+    label: String,
+    actionDescription: String,
+    enabled: Boolean,
+    reducedMotion: Boolean,
+    holdMillis: Long,
+    onHeld: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val progress = remember { Animatable(0f) }
     val currentOnHeld by rememberUpdatedState(onHeld)
     val colours = MaterialTheme.colorScheme
-    val gesture = Modifier.pointerInput(enabled, reducedMotion, minutes) {
+    val gesture = Modifier.pointerInput(enabled, reducedMotion, label, holdMillis) {
         detectTapGestures(onPress = press@{
             if (!enabled) return@press
             coroutineScope {
                 var completed = false
                 val hold = launch {
-                    if (reducedMotion) delay(ResistanceLadder.HOLD_MILLIS)
-                    else progress.animateTo(1f, tween(ResistanceLadder.HOLD_MILLIS.toInt()))
+                    if (reducedMotion) delay(holdMillis)
+                    else progress.animateTo(1f, tween(holdMillis.toInt()))
                     completed = true
                     currentOnHeld()
                 }
@@ -158,14 +253,14 @@ private fun HoldToOpenButton(
             .semantics {
                 role = Role.Button
                 if (!enabled) disabled()
-                customActions = listOf(CustomAccessibilityAction("Open for $minutes minutes") {
+                customActions = listOf(CustomAccessibilityAction(actionDescription) {
                     if (enabled) { currentOnHeld(); true } else false
                 })
             },
     ) {
         Box(Modifier.fillMaxWidth().heightIn(min = 52.dp), contentAlignment = Alignment.Center) {
             Text(
-                "Hold to open for $minutes min",
+                label,
                 style = MaterialTheme.typography.labelLarge,
                 color = if (enabled) colours.onBackground else colours.onSurfaceVariant,
             )

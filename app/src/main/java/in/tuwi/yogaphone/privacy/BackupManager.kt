@@ -31,6 +31,8 @@ class BackupManager(private val context: Context, private val database: YogaData
         "focus_suppressed_span", "grey_applied_by_yoga", "grey_saved_daltonizer_enabled", "grey_saved_daltonizer_mode",
         "grey_snoozed_until", "grey_over_limit_date", "profile_auto_span", "profile_auto_id", "profile_auto_previous",
         "profile_overridden_span", "insights_last_reflected_focus", "pro_cached_plan", "pro_debug_override",
+        `in`.tuwi.yogaphone.usage.UrgentAccessRepository.WINDOWS_KEY_NAME,
+        `in`.tuwi.yogaphone.quiet.QuietRepository.URGENT_GREY_KEY_NAME,
     )
 
     suspend fun export(uri: Uri, includeHistory: Boolean): String = withContext(Dispatchers.IO) {

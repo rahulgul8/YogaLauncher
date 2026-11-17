@@ -53,7 +53,7 @@ fun VisualInterventionsScreen(prefs: QuietPreferences, focusGreyscale: Boolean, 
     val scope = rememberCoroutineScope()
     val canWrite = rememberOnResume { repository.canWriteSecureSettings() }
     var advanced by remember { mutableStateOf(false) }
-    YogaScreen("Visual interventions", onBack) {
+    YogaScreen("Greyscale", onBack) {
         item { YogaNote("Greyscale takes some of the pull out of bright, rewarding screens. Yoga can always turn its own screens grey; the rest of the phone needs Android's own setting.") }
         item { YogaSection("Turn Yoga grey") }
         item { YogaSwitchRow("When I'm past today's limit", prefs.greyOverLimit, { scope.launch { repository.setGreyOverLimit(it) } }) }
@@ -67,6 +67,7 @@ fun VisualInterventionsScreen(prefs: QuietPreferences, focusGreyscale: Boolean, 
         }
         if (schedules.isEmpty()) item { YogaNote("Add a schedule (for example Bedtime 22:00–07:00) in Focus and timebox settings.") }
         item { YogaSection("The whole phone") }
+        item { YogaRow("Greyscale control", summary = if (canWrite) "Available on this phone" else "Not available · one-time computer permission needed") }
         item {
             YogaNote("Android can show everything in greyscale. Open its settings and turn it on:")
             YogaNote("Accessibility → Colour and motion (or Visibility enhancements) → Colour correction → Greyscale. Digital Wellbeing's Bedtime mode can also turn the screen grey on a schedule.")
