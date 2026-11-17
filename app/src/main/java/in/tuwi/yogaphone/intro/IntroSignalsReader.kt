@@ -7,6 +7,8 @@ import `in`.tuwi.yogaphone.guard.*
 import `in`.tuwi.yogaphone.insights.InsightEngine
 import `in`.tuwi.yogaphone.pro.*
 import `in`.tuwi.yogaphone.usage.UsageAccess
+import `in`.tuwi.yogaphone.usage.applyLearningExemption
+import `in`.tuwi.yogaphone.usage.NON_USER_PACKAGES
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.time.LocalDate
@@ -64,12 +66,15 @@ class IntroSignalsReader(private val app: YogaApplication) {
         val usable = prefs.usageTracking && UsageAccess.granted(app)
         val known = if (usable) dao.days(today.minusDays(7).toString(), today.toString()).map { LocalDate.parse(it.date) }.toSet() else emptySet()
         val excluded = app.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
-            .map { it.activityInfo.packageName }.toSet() + app.packageName
+            .map { it.activityInfo.packageName }.toSet() + app.packageName + NON_USER_PACKAGES
         val rows = if (usable) dao.aggregates(today.minusDays(7).toString(), today.toString())
             .filterNot { it.packageName in excluded } else emptyList()
         val weekDays = known.filter { !it.isBefore(today.minusDays(6)) }
         val week = rows.filter { it.date >= today.minusDays(6).toString() }
-        val eligibleByDay = known.associateWith { date -> rows.filter { it.date == date.toString() && it.eligible }.sumOf { it.foregroundMinutes } }
+        val learningAllowed = ProGate.allows(ProFeature.LEARNING_VIDEOS, app.proRepository.current())
+        val learningTotals = if (learningAllowed) app.learningPrefs.dailyTotals.first() else emptyMap()
+        val countedRows = applyLearningExemption(rows, learningTotals, learningAllowed)
+        val eligibleByDay = known.associateWith { date -> countedRows.filter { it.date == date.toString() && it.eligible }.sumOf { it.foregroundMinutes } }
         fun minutes(packages: Set<String>) = week.filter { it.packageName in packages }.sumOf { it.foregroundMinutes }.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         fun installed(pkg: String) = runCatching { app.packageManager.getApplicationInfo(pkg, 0).enabled }.getOrDefault(false)
         val guard = app.guardPrefs.preferences.first()

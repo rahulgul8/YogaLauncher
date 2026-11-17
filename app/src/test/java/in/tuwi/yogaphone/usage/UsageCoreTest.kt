@@ -20,6 +20,32 @@ class UsageCalculatorTest {
         assertEquals(mapOf("a" to 40L, "b" to 30L), calculator.calculate(listOf(event("a", 10, resume), event("b", 20, resume),
             event("", 50, ForegroundEvent.Type.SCREEN_OFF)), 0, 100))
     }
+    @Test fun unlockRestartsAnActivityWhenAndroidOmitsAnotherResume() {
+        val events = listOf(event("a", 10, resume), event("", 50, ForegroundEvent.Type.SCREEN_OFF),
+            event("", 70, ForegroundEvent.Type.UNLOCKED))
+        assertEquals(mapOf("a" to 70L), calculator.calculate(events, 0, 100))
+    }
+    @Test fun screenOnRestartsAnActivityOnDevicesWithoutKeyguardEvents() {
+        val events = listOf(event("a", 10, resume), event("", 50, ForegroundEvent.Type.SCREEN_OFF),
+            event("", 70, ForegroundEvent.Type.SCREEN_ON))
+        assertEquals(mapOf("a" to 70L), calculator.calculate(events, 0, 100))
+    }
+    @Test fun keyguardTimeIsSuspendedUntilUnlock() {
+        val events = listOf(event("a", 10, resume), event("", 50, ForegroundEvent.Type.SCREEN_OFF),
+            event("", 70, ForegroundEvent.Type.SCREEN_ON), event("", 70, ForegroundEvent.Type.LOCKED),
+            event("", 90, ForegroundEvent.Type.UNLOCKED))
+        assertEquals(mapOf("a" to 50L), calculator.calculate(events, 0, 100))
+    }
+    @Test fun pauseWhileScreenIsOffPreventsUnlockFromRestartingTheActivity() {
+        val events = listOf(event("a", 10, resume), event("", 50, ForegroundEvent.Type.SCREEN_OFF),
+            event("a", 60, pause), event("", 70, ForegroundEvent.Type.UNLOCKED))
+        assertEquals(mapOf("a" to 40L), calculator.calculate(events, 0, 100))
+    }
+    @Test fun resumeAfterKeyguardRestartsWhenAndroidOmitsTheUnlockEvent() {
+        val events = listOf(event("a", 10, resume), event("", 40, ForegroundEvent.Type.LOCKED),
+            event("a", 70, resume))
+        assertEquals(mapOf("a" to 60L), calculator.calculate(events, 0, 100))
+    }
     @Test fun shutdownClosesAndStoppedIsNotDoubleCounted() {
         assertEquals(mapOf("a" to 20L), calculator.calculate(listOf(event("a", 10, resume), event("", 30, ForegroundEvent.Type.SHUTDOWN),
             event("a", 40, ForegroundEvent.Type.STOPPED)), 0, 100))
@@ -47,6 +73,19 @@ class UsageCalculatorTest {
     @Test fun stopWithoutPauseClosesSession() {
         val events = listOf(ForegroundEvent("a", 10, resume, "A1"), ForegroundEvent("a", 30, ForegroundEvent.Type.STOPPED, "A1"))
         assertEquals(mapOf("a" to 20L), calculator.calculate(events, 0, 100))
+    }
+    @Test fun sameClassInstancesInTwoWindowsDoNotCloseEachOther() {
+        val events = listOf(
+            ForegroundEvent("a", 10, resume, "Activity", 1),
+            ForegroundEvent("a", 20, resume, "Activity", 2),
+            ForegroundEvent("a", 30, pause, "Activity", 1),
+            ForegroundEvent("a", 70, pause, "Activity", 2),
+        )
+        assertEquals(mapOf("a" to 60L), calculator.calculate(events, 0, 100))
+    }
+    @Test fun simultaneousAppsAreBothCountedForMultiWindow() {
+        val events = listOf(event("a", 10, resume), event("b", 20, resume), event("a", 50, pause), event("b", 70, pause))
+        assertEquals(mapOf("a" to 40L, "b" to 50L), calculator.calculate(events, 0, 100))
     }
     @Test fun ignoresUnmatchedPauseAndInvalidWindow() {
         assertTrue(calculator.calculate(listOf(event("a", 40, pause)), 0, 100).isEmpty())

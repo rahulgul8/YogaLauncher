@@ -7,6 +7,8 @@ class LearningPolicyTest {
     @Test fun accountingSubtractsAndNeverGoesNegative() {
         assertEquals(50L, LearningAccounting.effectiveMinutes(60, 600))
         assertEquals(0L, LearningAccounting.effectiveMinutes(5, 600))
+        assertEquals(60L, LearningAccounting.effectiveMinutes(60, 30))
+        assertEquals(59L, LearningAccounting.effectiveMinutes(60, 31))
     }
     @Test fun onlyAListedReadableWatchPageIsLearning() {
         assertEquals(true, LearningPolicy.isLearning(WatchInfo("NPTEL", "Lecture", true), setOf("nptel")))

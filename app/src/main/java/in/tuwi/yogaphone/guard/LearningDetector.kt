@@ -86,7 +86,7 @@ object LearningAccounting {
         (measuredSeconds - learningSeconds).coerceAtLeast(0)
 
     fun effectiveMinutes(measuredMinutes: Long, learningSeconds: Long): Long =
-        effectiveSeconds(measuredMinutes.coerceAtLeast(0) * 60, learningSeconds.coerceAtLeast(0)) / 60
+        (effectiveSeconds(measuredMinutes.coerceAtLeast(0) * 60, learningSeconds.coerceAtLeast(0)) + 30) / 60
 
     fun totalFor(totals: Map<String, Long>, date: String, packageName: String): Long =
         totals["$date|$packageName"]?.coerceAtLeast(0) ?: 0

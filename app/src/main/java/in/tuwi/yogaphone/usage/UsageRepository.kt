@@ -11,7 +11,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZoneId
-import `in`.tuwi.yogaphone.guard.LearningAccounting
 import `in`.tuwi.yogaphone.guard.LearningDetector
 
 data class UsageSnapshot(
@@ -20,6 +19,9 @@ data class UsageSnapshot(
     val available: Boolean = false,
     val today: List<UsageAggregateEntity> = emptyList(),
     val week: List<UsageAggregateEntity> = emptyList(),
+    /** Learning-exempt versions used by allowances; raw [today]/[week] remain the all-app truth. */
+    val countedToday: List<UsageAggregateEntity>? = null,
+    val countedWeek: List<UsageAggregateEntity>? = null,
     val knownDays: Set<String> = emptySet(),
     val excludedPackages: Set<String> = emptySet(),
     val essentialPackages: Set<String> = emptySet(),
@@ -30,7 +32,10 @@ data class UsageSnapshot(
     val learningSecondsToday: Long = 0,
     val learningSecondsWeek: Long = 0,
     val error: String? = null,
-)
+) {
+    fun allowanceToday(): List<UsageAggregateEntity> = countedToday ?: today
+    fun allowanceWeek(): List<UsageAggregateEntity> = countedWeek ?: week
+}
 
 class UsageRepository(private val context: Context, private val database: YogaDatabase, val prefs: UsagePrefs) {
     private val reader = AndroidUsageReader(context)
@@ -40,9 +45,11 @@ class UsageRepository(private val context: Context, private val database: YogaDa
     private val mutex = Mutex()
     val rules = dao.observeRules()
 
+    private companion object { const val ACCOUNTING_VERSION = 1 }
+
     private fun excludedPackages(): Set<String> = context.packageManager.queryIntentActivities(
         android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME), 0
-    ).map { it.activityInfo.packageName }.toSet() + context.packageName
+    ).map { it.activityInfo.packageName }.toSet() + context.packageName + NON_USER_PACKAGES
 
     private fun labelOf(pkg: String): String = runCatching {
         context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(pkg, 0)).toString()
@@ -52,14 +59,19 @@ class UsageRepository(private val context: Context, private val database: YogaDa
         val day = reader.readDay(date) ?: return null
         val usage = day.totals
         val hourly = day.hours
-        val rows = usage.map { (pkg, millis) ->
-            val classification = classifier.classify(pkg, database.appEntryDao().get(pkg))
-            UsageAggregateEntity(date.toString(), pkg, (millis + 30_000) / 60_000,
-                !classification.essential && (p.counts == AllowanceCounts.ALL_EXCEPT_ESSENTIAL || classification.distracting))
+        val classifications = usage.keys.associateWith { pkg ->
+            classifier.classify(pkg, database.appEntryDao().get(pkg))
+        }
+        val eligiblePackages = classifications.filterValues { classification ->
+            !classification.essential && (p.counts == AllowanceCounts.ALL_EXCEPT_ESSENTIAL || classification.distracting)
+        }.keys
+        val minutes = allocateUsageMinutes(usage, eligiblePackages)
+        val rows = usage.keys.map { pkg ->
+            UsageAggregateEntity(date.toString(), pkg, minutes[pkg] ?: 0L, pkg in eligiblePackages)
         }
         val eligible = rows.filter { it.eligible }.map { it.packageName }.toSet()
         val hourRows = hourly.map { (hour, perApp) ->
-            UsageHourEntity(date.toString(), hour, (perApp.filterKeys { it in eligible }.values.sum() + 30_000) / 60_000)
+            UsageHourEntity(date.toString(), hour, roundedMinutes(perApp.filterKeys { it in eligible }.values.sum()))
         }
         database.withTransaction {
             dao.clearDate(date.toString())
@@ -88,17 +100,22 @@ class UsageRepository(private val context: Context, private val database: YogaDa
             val learningTotals = if (learningAllowed) app.learningPrefs.dailyTotals.first() else emptyMap()
             val saved = prefs.preferences.first()
             val p = if (ProGate.allows(ProFeature.REMINDERS, pro)) saved else saved.copy(reminders = false, timeValueEnabled = false)
+            // Existing rows used per-app rounding. Re-read the visible week once after this accounting fix;
+            // unavailable/expired days preserve their old rows because collect(null) never clears them.
+            if (prefs.accountingVersion() < ACCOUNTING_VERSION) {
+                val knownDates = dao.days(today.minusDays(6).toString(), today.minusDays(1).toString())
+                    .mapTo(mutableSetOf()) { LocalDate.parse(it.date) }
+                val complete = usageBackfillDates(today).filter { it in knownDates }.all { date -> collect(date, p) != null }
+                if (complete) prefs.markAccountingVersion(ACCOUNTING_VERSION)
+            }
             if (archiveYesterday) { collect(today.minusDays(1), p); runCatching { app.insightsRepository.prune() } }
             val rows = collect(today, p)
             val weekStart = today.minusDays(6).toString()
             val excluded = excludedPackages()
-            fun withoutLearning(row: UsageAggregateEntity): UsageAggregateEntity {
-                if (row.packageName != LearningDetector.YOUTUBE_PACKAGE) return row
-                val seconds = learningTotals["${row.date}|${row.packageName}"] ?: 0L
-                return row.copy(foregroundMinutes = LearningAccounting.effectiveMinutes(row.foregroundMinutes, seconds))
-            }
-            val week = dao.aggregates(weekStart, today.toString()).filterNot { it.packageName in excluded }.map(::withoutLearning)
-            val visibleRows = rows.orEmpty().filterNot { it.packageName in excluded }.map(::withoutLearning)
+            val week = dao.aggregates(weekStart, today.toString()).filterNot { it.packageName in excluded }
+            val visibleRows = rows.orEmpty().filterNot { it.packageName in excluded }
+            val countedWeek = applyLearningExemption(week, learningTotals, learningAllowed)
+            val countedRows = applyLearningExemption(visibleRows, learningTotals, learningAllowed)
             val known = dao.days(weekStart, today.toString()).map { it.date }.toSet()
             val essential = (week.map { it.packageName }.toSet() + classifier.mandatoryEssential()).filter {
                 classifier.classify(it, database.appEntryDao().get(it)).essential
@@ -111,8 +128,8 @@ class UsageRepository(private val context: Context, private val database: YogaDa
             val freeIds = freeQuota(savedRules.filter { it.enabled }.map { it.id }, 1)
             val activeRules = if (ProGate.allows(ProFeature.EXTRA_ALLOWANCES, pro)) savedRules else savedRules.filter { it.id in freeIds }
             val evaluation = RuleEvaluator().evaluate(activeRules.map { it.toRule() },
-                visibleRows.filter { it.eligible }.associate { it.packageName to it.foregroundMinutes },
-                visibleRows.filterNot { it.packageName in essential }.associate { it.packageName to it.foregroundMinutes },
+                countedRows.filter { it.eligible }.associate { it.packageName to it.foregroundMinutes },
+                countedRows.filterNot { it.packageName in essential }.associate { it.packageName to it.foregroundMinutes },
                 categoryOf)
             if (rows != null) {
                 val quiet = (context.applicationContext as `in`.tuwi.yogaphone.YogaApplication).quietRepository
@@ -134,6 +151,8 @@ class UsageRepository(private val context: Context, private val database: YogaDa
                 available = rows != null,
                 today = visibleRows,
                 week = week,
+                countedToday = countedRows,
+                countedWeek = countedWeek,
                 knownDays = known,
                 excludedPackages = excluded,
                 essentialPackages = essential,

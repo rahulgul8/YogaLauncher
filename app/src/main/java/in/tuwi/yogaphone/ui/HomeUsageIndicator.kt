@@ -34,14 +34,14 @@ data class HomeUsageNumbers(
 
 fun homeUsageNumbers(snapshot: UsageSnapshot, rules: List<UsageRuleEntity>, today: LocalDate): HomeUsageNumbers {
     val allowance = rules.firstOrNull { it.scope == "TOTAL" && it.enabled }
-    val eligibleToday = snapshot.today.filter { it.eligible && it.packageName !in snapshot.excludedPackages }
+    val eligibleToday = snapshot.allowanceToday().filter { it.eligible && it.packageName !in snapshot.excludedPackages }
         .sumOf { it.foregroundMinutes }.toInt()
     val todayMinutes = if (allowance != null) snapshot.evaluation.overall?.used?.toInt() ?: eligibleToday else eligibleToday
     val allowanceMinutes = allowance?.dailyAllowanceMinutes
     val week = (6L downTo 0L).map { offset ->
         val date = today.minusDays(offset).toString()
         if (date !in snapshot.knownDays && snapshot.week.none { it.date == date }) null
-        else snapshot.week.filter { it.date == date && it.eligible && it.packageName !in snapshot.excludedPackages }
+        else snapshot.allowanceWeek().filter { it.date == date && it.eligible && it.packageName !in snapshot.excludedPackages }
             .sumOf { it.foregroundMinutes }.toInt()
     }
     val excess = allowanceMinutes?.let { (todayMinutes - it).coerceAtLeast(0) } ?: 0

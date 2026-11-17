@@ -30,19 +30,20 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
     val p = state.preferences
     val allowance = state.rules.firstOrNull { it.scope == "TOTAL" && it.enabled }
     val rows = if (weekly) s.week else s.today
-    val eligible = rows.filter { it.eligible }.sumOf { it.foregroundMinutes }
+    val countedRows = if (weekly) s.allowanceWeek() else s.allowanceToday()
+    val eligible = countedRows.filter { it.eligible }.sumOf { it.foregroundMinutes }
     val total = rows.sumOf { it.foregroundMinutes }
     // The headline counts only allowance apps, so say which, and give the all-apps total beside it.
     val scope = if (p.counts == AllowanceCounts.DISTRACTING) "on distracting apps" else "on apps except essentials"
     val byApp = rows.groupBy { it.packageName }.mapValues { (_, values) -> values.sumOf { it.foregroundMinutes } }.entries.sortedByDescending { it.value }
     val maximum = byApp.firstOrNull()?.value?.coerceAtLeast(1) ?: 1
     val excessWeek = allowance?.let { rule -> s.knownDays.sumOf { day ->
-        (s.week.filter { it.date == day && it.eligible }.sumOf { it.foregroundMinutes } - rule.dailyAllowanceMinutes).coerceAtLeast(0)
+        (s.allowanceWeek().filter { it.date == day && it.eligible }.sumOf { it.foregroundMinutes } - rule.dailyAllowanceMinutes).coerceAtLeast(0)
     } } ?: 0
     val daysWithin = allowance?.let { rule -> s.knownDays.count { day ->
-        s.week.filter { it.date == day && it.eligible }.sumOf { it.foregroundMinutes } <= rule.dailyAllowanceMinutes
+        s.allowanceWeek().filter { it.date == day && it.eligible }.sumOf { it.foregroundMinutes } <= rule.dailyAllowanceMinutes
     } } ?: 0
-    val weeklyFacts by rememberUpdatedState(Triple(daysWithin, s.knownDays.size, s.week.filter { it.eligible }.sumOf { it.foregroundMinutes }))
+    val weeklyFacts by rememberUpdatedState(Triple(daysWithin, s.knownDays.size, s.allowanceWeek().filter { it.eligible }.sumOf { it.foregroundMinutes }))
     val weeklyExit by rememberUpdatedState(onWeeklyReviewLeave)
     DisposableEffect(Unit) { onDispose { if (weeklyOpened) weeklyFacts.let { weeklyExit(it.first, it.second, it.third) } } }
 
@@ -60,7 +61,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
                     weekly -> {
                         // A week's total is never compared against a daily allowance: count the days that went over instead.
                         val overDays = s.knownDays.count { day ->
-                            s.week.filter { it.date == day && it.eligible }.sumOf { it.foregroundMinutes } > allowance.dailyAllowanceMinutes
+                            s.allowanceWeek().filter { it.date == day && it.eligible }.sumOf { it.foregroundMinutes } > allowance.dailyAllowanceMinutes
                         }
                         Text("$scope · ${minutesLabel(allowance.dailyAllowanceMinutes.toLong())} daily allowance · $overDays over-limit ${if (overDays == 1) "day" else "days"}",
                             style = body, color = muted)
@@ -140,7 +141,7 @@ fun UsageDashboardScreen(state: UsageUiState, viewModel: UsageViewModel, onBack:
                 if (weekly) item { YogaNote("${s.knownDays.size} of 7 days recorded. Missing days are not treated as zero. Historical eligibility is saved when sampled; comparisons use your current daily allowance.") }
             }
         }
-        item { YogaNote("App foreground time differs from screen-on time. Lock screen, Yoga and home apps are excluded; multi-window apps can overlap. Android may delay or omit events.") }
+        item { YogaNote("Yoga counts foreground app time from Android's activity events. Lock screen, Yoga, home apps and System UI are excluded; simultaneous multi-window apps can overlap. Learning video stays in all-app time but not the allowance. Whole-minute storage can differ by up to about a minute.") }
     }
     selected?.let { UsageAppSheet(it, state, viewModel) { selected = null } }
     if (details && access.allows(ProFeature.VALUE_OF_TIME)) TimeValueDetailsSheet(state, { details = false }, viewModel::snooze)

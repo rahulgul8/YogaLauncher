@@ -455,7 +455,7 @@ private fun allowancePrefill(usage: UsageUiState): Int {
     val start = snapshot.date.minusDays(6).toString()
     val end = snapshot.date.toString()
     val days = snapshot.knownDays.filter { it >= start && it <= end }.toSet()
-    val minutes = snapshot.week.filter { it.eligible && it.date in days }.sumOf { it.foregroundMinutes }
+    val minutes = snapshot.allowanceWeek().filter { it.eligible && it.date in days }.sumOf { it.foregroundMinutes }
     return onboardingAllowancePrefill(if (days.isEmpty()) 0.0 else minutes.toDouble() / days.size, days.size)
 }
 

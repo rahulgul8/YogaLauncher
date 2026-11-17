@@ -79,7 +79,7 @@ fun TimeValueDetailsSheet(state: UsageUiState, onDismiss: () -> Unit, onSnooze: 
                 else -> {
                     YogaCard { YogaStat("${total.excessMinutes} min", "Past your limit") }
                     YogaSection("Contributing apps")
-                    val rows = snapshot.today.filter { it.eligible && it.foregroundMinutes > 0 }.sortedByDescending { it.foregroundMinutes }
+                    val rows = snapshot.allowanceToday().filter { it.eligible && it.foregroundMinutes > 0 }.sortedByDescending { it.foregroundMinutes }
                     if (rows.isEmpty()) YogaNote("No eligible foreground usage recorded yet.")
                     rows.forEach { row -> YogaRow(state.apps.firstOrNull { it.appPackage == row.packageName }?.displayLabel
                         ?: snapshot.appLabels[row.packageName] ?: "App", trailing = { Text("${row.foregroundMinutes} min") }) }
