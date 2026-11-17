@@ -73,7 +73,7 @@ async function printTracks() {
 }
 
 async function upload() {
-  const aab = flags.aab ?? new URL('app/build/app/outputs/bundle/release/app-release.aab', root);
+  const aab = flags.aab ?? new URL('app/build/outputs/bundle/release/app-release.aab', root);
   console.log(`Uploading ${aab} ...`);
   const bundle = await call(
     'POST',
